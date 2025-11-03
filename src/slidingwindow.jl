@@ -41,7 +41,7 @@ function _adaptedwindow(
 end
 
 # ---------------------------------------------------------------------------- #
-#                         1 dimensional windowing funcs                        #
+#                        one-dimensional windowing funcs                       #
 # ---------------------------------------------------------------------------- #
 movingwindow(;winsize::Int64, winstep::Int64=0) = npoints -> _slidingwindow(npoints; winsize, winstep)
 wholewindow() = npoints -> _slidingwindow(npoints; winsize=npoints, winstep=npoints)
@@ -49,7 +49,7 @@ splitwindow(;nwindows::Int64) = npoints -> _adaptedwindow(npoints; nwindows)
 adaptivewindow(;nwindows::Int64, overlap::Float64=0.0) = npoints -> _adaptedwindow(npoints; nwindows, overlap)
 
 # ---------------------------------------------------------------------------- #
-#                       multi dimensional windowing macro                      #
+#                       multi-dimensional windowing macro                      #
 # ---------------------------------------------------------------------------- #
 macro evalwindow(x, winfuncs...)
     esc_winfuncs = map(esc, winfuncs)
