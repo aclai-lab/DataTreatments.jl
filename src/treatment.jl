@@ -1,3 +1,34 @@
+# this module transforms multidimensional datasets
+# into formats suitable for different model algorithm families:
+
+# 1. propositional algorithms (DecisionTree, XGBoost):
+#    - applies windowing to divide time series into segments
+#    - extracts scalar features (max, min, mean, etc.) from each window
+#    - returns a standard tabular DataFrame
+
+# 2. modal algorithms (ModalDecisionTree):
+#    - creates windowed time series preserving temporal structure
+#    - applies reduction functions to manage dimensionality
+
+# ---------------------------------------------------------------------------- #
+#                               abstract types                                 #
+# ---------------------------------------------------------------------------- #
+# base type for metadata containers
+abstract type AbstractDataTreatment end
+
+# ---------------------------------------------------------------------------- #
+#                                   types                                      #
+# ---------------------------------------------------------------------------- #
+const ValidVnames = Union{Symbol, String}
+
+# ---------------------------------------------------------------------------- #
+#                                    utils                                     #
+# ---------------------------------------------------------------------------- #
+# recursively extract the core element type from nested array types.
+core_eltype(x) = eltype(x) <: AbstractArray ? core_eltype(eltype(x)) : eltype(x)
+
+
+
 # ---------------------------------------------------------------------------- #
 #                             applyfeat functions                              #
 # ---------------------------------------------------------------------------- #
@@ -87,9 +118,6 @@ end
 # ---------------------------------------------------------------------------- #
 #                            reducesize functions                              #
 # ---------------------------------------------------------------------------- #
-# recursively extract the core element type from nested array types.
-core_eltype(x) = eltype(x) <: AbstractArray ? core_eltype(eltype(x)) : eltype(x)
-
 """
     reducesize(X::AbstractArray, intervals::Tuple{Vararg{Vector{UnitRange{Int64}}}}[; features::Tuple{Vararg{Base.Callable}}=(mean,)]) -> AbstractArray
 
@@ -147,4 +175,74 @@ function reducesize(
         end
     end
     return Xresult
+end
+
+# ---------------------------------------------------------------------------- #
+#                                 constructor                                  #
+# ---------------------------------------------------------------------------- #
+struct DataTreatment <: AbstractDataTreatment
+    dataset    :: AbstractMatrix
+    vnames     :: Vector{Symbol}
+    intervals  :: Tuple{Vararg{Vector{UnitRange{Int64}}}}
+    features   :: Tuple{Vararg{Base.Callable}}
+    reducefunc :: Base.Callable
+    aggrtype   :: Symbol
+
+    function DataTreatment(
+        X           :: AbstractMatrix,
+        aggrtype    :: Symbol;
+        vnames      :: Vector{ValidVnames},
+        win         :: Tuple{Vararg{Base.Callable}},
+        features    :: Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
+        modalreduce :: Base.Callable=mean
+    )
+        is_multidim_dataframe(X) || throw(ArgumentError("Input DataFrame " * 
+            "does not contain multidimensional data."))
+
+        vnames isa Vector{String} && (vnames = Symbol.(vnames))
+
+        intervals = @evalwindow X win...
+
+        # propositional models
+        isempty(features) && (treat = :none)
+
+        colnames = if treat == :aggregate
+            for f in features, v in vnames
+                if length(intervals) == 1
+                    # single window: apply to whole time series
+                    Symbol("$(f)($(v))")
+                else
+                    # multiple windows: apply to each interval
+                    for (i, interval) in enumerate(intervals)
+                        col_name = Symbol("$(f)($(v))w$(i)")
+                        apply_vectorized!(_X, X[!, v], f, col_name, interval)
+                    end
+                end
+            end
+
+        # modal models
+        elseif treat == :reducesize
+            for v in vnames
+                apply_vectorized!(_X, X[!, v], modalreduce, v, intervals)
+            end
+            
+        elseif treat == :none
+            _X = X
+
+        else
+            error("Unknown treatment type: $treat")
+        end
+
+        return _X, TreatmentInfo(features, win, treat, modalreduce)
+    end
+end
+
+function DataTreatment(
+    X      :: AbstractDataFrame,
+    args...;
+    vnames :: Union{Vector{ValidVnames}, Nothing},
+    kwargs...
+)
+    isnothing(vnames) && (vnames = propertynames(X))
+    DataTreatment()
 end

@@ -1,6 +1,7 @@
 module DataTreatments
 
 using Statistics
+using DataFrames
 
 export movingwindow, wholewindow, splitwindow, adaptivewindow
 export @evalwindow

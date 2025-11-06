@@ -154,6 +154,61 @@ adaptivewindow(;nwindows::Int64, overlap::Float64=0.0)::Function =
 # ---------------------------------------------------------------------------- #
 #                       multi-dimensional windowing macro                      #
 # ---------------------------------------------------------------------------- #
+"""
+    @evalwindow(X, winfuncs...) -> Tuple{Vararg{Vector{UnitRange{Int64}}}}
+
+Apply window functions to each dimension of an array.
+
+This macro evaluates window functions for each dimension of an array, automatically 
+determining the appropriate number of points from the array's size. If fewer window 
+functions are provided than dimensions, the last function is reused for remaining dimensions.
+
+# Arguments
+- `X`: Input array whose dimensions determine window parameters
+- `winfuncs...`: One or more window functions (e.g., `movingwindow()`, `splitwindow()`, `adaptivewindow()`)
+
+# Returns
+- `Tuple{Vararg{Vector{UnitRange{Int64}}}}`: Tuple of vectors containing window ranges for each dimension
+
+# Behavior
+- Each window function is applied to the corresponding dimension size
+- If `length(winfuncs) < ndims(X)`, the last function is repeated for remaining dimensions
+- Window functions must be created using `movingwindow`, `splitwindow`, `adaptivewindow`, or `wholewindow`
+
+# Examples
+
+## Single dimension
+```julia
+X = rand(200)
+windows = @evalwindow X movingwindow(winsize=50, winstep=25)
+```
+
+## Two dimensions with different windows
+```julia
+X = rand(200, 120)
+windows = @evalwindow X splitwindow(nwindows=4) adaptivewindow(nwindows=3, overlap=0.1)
+# First dimension: 4 non-overlapping windows
+```
+
+## Reusing window function for multiple dimensions
+```julia
+X = rand(100, 120, 80)
+windows = @evalwindow X splitwindow(nwindows=5)
+```
+
+## Use with processing functions
+```julia
+X = rand(200, 120)
+intervals = @evalwindow X splitwindow(nwindows=4) splitwindow(nwindows=3)
+result = applyfeat(X, intervals; reducefunc=mean)
+```
+
+# See Also
+- [`movingwindow`](@ref): Fixed-size sliding windows
+- [`splitwindow`](@ref): Equal non-overlapping windows
+- [`adaptivewindow`](@ref): Windows with overlap
+- [`wholewindow`](@ref): Single window covering entire dimension
+"""
 macro evalwindow(x, winfuncs...)
     esc_winfuncs = map(esc, winfuncs)
     quote

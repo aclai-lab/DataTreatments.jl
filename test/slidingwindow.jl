@@ -38,7 +38,8 @@ end
     windows = @evalwindow A wholewindow()
     @test windows == (UnitRange{Int64}[1:200], UnitRange{Int64}[1:120])
 
-    windows = @evalwindow A splitwindow(nwindows=5) splitwindow(nwindows=2)
+    win = (splitwindow(nwindows=5), splitwindow(nwindows=2))
+    windows = @evalwindow A win...
     @test windows == 
         (UnitRange{Int64}[1:40, 41:80, 81:120, 121:160, 161:200],
         UnitRange{Int64}[1:60, 61:120])
