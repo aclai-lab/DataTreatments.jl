@@ -27,7 +27,8 @@ const ValidVnames = Union{Symbol, String}
 # recursively extract the core element type from nested array types.
 core_eltype(x) = eltype(x) <: AbstractArray ? core_eltype(eltype(x)) : eltype(x)
 
-
+is_multidim_dataframe(X::AbstractArray)::Bool =
+    any(eltype(col) <: AbstractArray for col in eachcol(X))
 
 # ---------------------------------------------------------------------------- #
 #                             applyfeat functions                              #
@@ -76,23 +77,23 @@ function applyfeat(
 end
 
 # ---------------------------------------------------------------------------- #
-#                             aggregate functions                              #
+#                             reducesize functions                              #
 # ---------------------------------------------------------------------------- #
 """
-    aggregate(X::AbstractArray, intervals::Tuple{Vararg{Vector{UnitRange{Int64}}}}[; reducefunc::Base.Callable=mean]) -> AbstractArray
+    reducesize(X::AbstractArray, intervals::Tuple{Vararg{Vector{UnitRange{Int64}}}}[; reducefunc::Base.Callable=mean]) -> AbstractArray
 
-Apply window-based aggregation to each element of an array.
+Apply window-based size-reduction to each element of an array.
 
 This function is designed for arrays where each element is itself an array (e.g., `Matrix{Matrix{Float64}}`).
 It applies `applyfeat` to each element.
 
 # Arguments
-- `X::AbstractArray`: Input array where each element is an array to be aggregated
+- `X::AbstractArray`: Input array where each element is an array to be size-reduced
 - `intervals::Tuple{Vararg{Vector{UnitRange{Int64}}}}`: Window definitions for aggregation
 - `reducefunc::Base.Callable=mean`: Function to apply to each window (default: `mean`)
 
 # Returns
-- `AbstractArray`: Array with same outer dimensions as `X`, each element containing aggregated results
+- `AbstractArray`: Array with same outer dimensions as `X`, each element containing size-reduced results
 
 # Example
 ```julia
@@ -100,10 +101,10 @@ X = rand(100, 120)
 Xmatrix = fill(X, 100, 10)
 wfunc = splitwindow(nwindows=3)
 intervals = @evalwindow X wfunc
-result = aggregate(Xmatrix, intervals; reducefunc=std)
+result = reducesize(Xmatrix, intervals; reducefunc=std)
 ```
 """
-function aggregate(
+function reducesize(
     X          :: AbstractArray,
     intervals  :: Tuple{Vararg{Vector{UnitRange{Int64}}}};
     reducefunc :: Base.Callable=mean
@@ -116,10 +117,10 @@ function aggregate(
 end
 
 # ---------------------------------------------------------------------------- #
-#                            reducesize functions                              #
+#                            aggregate functions                              #
 # ---------------------------------------------------------------------------- #
 """
-    reducesize(X::AbstractArray, intervals::Tuple{Vararg{Vector{UnitRange{Int64}}}}[; features::Tuple{Vararg{Base.Callable}}=(mean,)]) -> AbstractArray
+    aggregate(X::AbstractArray, intervals::Tuple{Vararg{Vector{UnitRange{Int64}}}}[; features::Tuple{Vararg{Base.Callable}}=(mean,)]) -> AbstractArray
 
 Flatten nested arrays by applying multiple feature functions to windowed regions.
 
@@ -143,7 +144,7 @@ complex multi-dimensional data into a flat feature matrix suitable for standard 
 
 # Details
 The output columns are organized as: for each column in `X`, all features are computed for all windows,
-with results concatenated in the order: `[col1_feat1_windows..., col1_feat2_windows..., col2_feat1_windows..., ...]`
+with results concatenated in the order: `[col1_feat1_win1, col1_feat1_win2, col1_feat2_win1, ...]`
 
 # Example
 ```julia
@@ -152,10 +153,10 @@ Xmatrix = fill(X, 100, 10)
 wfunc = splitwindow(nwindows=3)
 intervals = @evalwindow X wfunc
 features = (mean, maximum)
-result = reducesize(Xmatrix, intervals; features)
+result = aggregate(Xmatrix, intervals; features)
 ```
 """
-function reducesize(
+function aggregate(
     X         :: AbstractArray,
     intervals :: Tuple{Vararg{Vector{UnitRange{Int64}}}};
     features  :: Tuple{Vararg{Base.Callable}}=(mean,),
@@ -189,60 +190,57 @@ struct DataTreatment <: AbstractDataTreatment
     aggrtype   :: Symbol
 
     function DataTreatment(
-        X           :: AbstractMatrix,
-        aggrtype    :: Symbol;
-        vnames      :: Vector{ValidVnames},
-        win         :: Tuple{Vararg{Base.Callable}},
-        features    :: Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
-        modalreduce :: Base.Callable=mean
+        X          :: AbstractMatrix,
+        aggrtype   :: Symbol;
+        vnames     :: Vector{<:ValidVnames},
+        win        :: Union{Base.Callable, Tuple{Vararg{Base.Callable}}},
+        features   :: Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
+        reducefunc :: Base.Callable=mean
     )
         is_multidim_dataframe(X) || throw(ArgumentError("Input DataFrame " * 
             "does not contain multidimensional data."))
 
         vnames isa Vector{String} && (vnames = Symbol.(vnames))
+        win isa Base.Callable && (win = (win,))
 
-        intervals = @evalwindow X win...
+        vnames isa Vector{String} && (vnames = Symbol.(vnames))
+        intervals = @evalwindow first(X) win...
+        nwindows = prod(length.(intervals))
 
-        # propositional models
-        isempty(features) && (treat = :none)
-
-        colnames = if treat == :aggregate
-            for f in features, v in vnames
-                if length(intervals) == 1
-                    # single window: apply to whole time series
-                    Symbol("$(f)($(v))")
-                else
-                    # multiple windows: apply to each interval
-                    for (i, interval) in enumerate(intervals)
-                        col_name = Symbol("$(f)($(v))w$(i)")
-                        apply_vectorized!(_X, X[!, v], f, col_name, interval)
-                    end
-                end
+        Xresult, colnames = if aggrtype == :aggregate begin
+            (aggregate(X, intervals; features),
+            if nwindows == 1
+                # single window: apply to whole time series
+                [Symbol("$(f)($(v))") for f in features, v in vnames] |> vec
+            else
+                # multiple windows: apply to each interval
+                [Symbol("$(f)($(v))_w$(i)") 
+                for i in 1:nwindows, f in features, v in vnames] |> vec
             end
+            )
+        end
 
-        # modal models
-        elseif treat == :reducesize
-            for v in vnames
-                apply_vectorized!(_X, X[!, v], modalreduce, v, intervals)
-            end
-            
-        elseif treat == :none
-            _X = X
+        elseif aggrtype == :reducesize begin
+            (reducesize(X, intervals; reducefunc),
+            vnames
+            )
+        end
 
         else
             error("Unknown treatment type: $treat")
         end
 
-        return _X, TreatmentInfo(features, win, treat, modalreduce)
+        new(Xresult, colnames, intervals, features, reducefunc, aggrtype)
+    end
+
+    function DataTreatment(
+        X      :: AbstractDataFrame,
+        args...;
+        vnames :: Union{Vector{<:ValidVnames}, Nothing}=nothing,
+        kwargs...
+    )
+        isnothing(vnames) && (vnames = propertynames(X))
+        DataTreatment(Matrix(X), args...; vnames, kwargs...)
     end
 end
 
-function DataTreatment(
-    X      :: AbstractDataFrame,
-    args...;
-    vnames :: Union{Vector{ValidVnames}, Nothing},
-    kwargs...
-)
-    isnothing(vnames) && (vnames = propertynames(X))
-    DataTreatment()
-end

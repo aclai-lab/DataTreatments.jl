@@ -8,6 +8,7 @@ export @evalwindow
 include("slidingwindow.jl")
 
 export applyfeat, aggregate, reducesize
+export DataTreatment
 include("treatment.jl")
 
 end
