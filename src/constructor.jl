@@ -84,18 +84,19 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
             if nwindows == 1
                 # single window: apply to whole time series
                 [FeatureId(Symbol("$(f)($(v))"), f, 1)
-                for f in features, v in vnames] |> vec
+                    for f in features, v in vnames] |> vec
             else
                 # multiple windows: apply to each interval
                 [FeatureId(Symbol("$(f)($(v))_w$(i)"), f, i)
-                for i in 1:nwindows, f in features, v in vnames] |> vec
+                    for i in 1:nwindows, f in features, v in vnames] |> vec
             end
             )
         end
 
         elseif aggrtype == :reducesize begin
             (reducesize(X, intervals; reducefunc),
-            vnames
+            [FeatureId(Symbol(v), reducefunc, 1)
+                for v in vnames] |> vec
             )
         end
 
