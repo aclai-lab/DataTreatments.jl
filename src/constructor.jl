@@ -128,9 +128,9 @@ get_reducefunc(dt::DataTreatment) = dt.reducefunc
 get_aggrtype(dt::DataTreatment)   = dt.aggrtype
 
 # Convenience methods for common operations
-get_vnames(dt::DataTreatment)   = unique([get_vname(fid) for fid in dt.featureid])
+get_vnames(dt::DataTreatment)   = unique([get_vname(fid)   for fid in dt.featureid])
 get_features(dt::DataTreatment) = unique([get_feature(fid) for fid in dt.featureid])
-get_nwindows(dt::DataTreatment) = maximum([get_nwin(fid) for fid in dt.featureid])
+get_nwindows(dt::DataTreatment) = maximum([get_nwin(fid)   for fid in dt.featureid])
 
 # Size and iteration methods
 Base.size(dt::DataTreatment)   = size(dt.dataset)

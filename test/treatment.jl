@@ -42,87 +42,123 @@ Xreduced = DataTreatment(Xts, :reducesize; win, features)
 Xaggregated = DataTreatment(Xts, :aggregate; win, features)
 
 ########################################################
+@btime f_groupby = _features_groupby(get_featureid(Xaggregated), (:nwin, :feat));
+# 1.181 ms (13100 allocations: 477.08 KiB)
+# 876.865 μs (9500 allocations: 353.33 KiB)
+
+
+function _features_groupby(
+    featureid :: Vector{<:FeatureId},
+    aggrby    :: Tuple{Vararg{Symbol}}
+)::Vector{Vector{Int64}}
+    res = Dict{Any, Vector{Int64}}()
+    sizehint!(res, length(featureid) ÷ 2)
+    @inbounds for i in eachindex(featureid)
+        key = Tuple(getproperty(featureid[i], field) for field in aggrby)
+        push!(get!(res, key, Int64[]), i)
+    end
+    return collect(values(res))  # return the grouped indices
+end
+# 1.164 ms (13100 allocations: 477.08 KiB)
+# 876.865 μs (9500 allocations: 353.33 KiB)
+
 function _features_groupby(
     featureid::Vector{<:FeatureId},
     aggrby::Tuple{Vararg{Symbol}}
-)::Vector{Vector{Int}}
-    res = Dict{Any, Vector{Int}}()
-    for (i, g) in enumerate(featureid)
-        key = Tuple(getproperty(g, field) for field in aggrby)
-        push!(get!(res, key, Int[]), i)
+)::Vector{Vector{Int64}}
+    # Pre-allocate with estimated capacity
+    res = Dict{Tuple, Vector{Int64}}()
+    
+    @inbounds for (i, fid) in enumerate(featureid)
+        key = ntuple(j -> getfield(fid, aggrby[j]), length(aggrby))
+        group = get!(res, key, Int64[])
+        push!(group, i)
     end
-    return collect(values(res))  # Return the grouped indices
+    
+    return collect(values(res))
 end
+# 355.512 μs (8852 allocations: 275.00 KiB)
+
+using StructArrays
+
+function _features_groupby(
+    featureid::Vector{<:FeatureId},
+    aggrby::Tuple{Vararg{Symbol}}
+)::Vector{Vector{Int64}}
+    # Create keys as a vector of tuples
+    keys = map(featureid) do fid
+        ntuple(j -> getfield(fid, aggrby[j]), length(aggrby))
+    end
+    
+    # Group indices by keys
+    groups = Dict{eltype(keys), Vector{Int64}}()
+    sizehint!(groups, length(featureid) ÷ 2)
+    
+    @inbounds for (i, key) in enumerate(keys)
+        push!(get!(groups, key, Int64[]), i)
+    end
+    
+    return collect(values(groups))
+end
+# 178.830 μs (6337 allocations: 218.52 KiB)
+
+function _features_groupby(
+    featureid::Vector{<:FeatureId},
+    aggrby::Tuple{Vararg{Symbol}}
+)::Vector{Vector{Int64}}
+    # Create keys using map
+    keys = map(fid -> ntuple(j -> getfield(fid, aggrby[j]), length(aggrby)), featureid)
+    
+    # Group indices by keys
+    groups = Dict{eltype(keys), Vector{Int64}}()
+    sizehint!(groups, length(featureid) ÷ 2)
+    
+    # Use map to build the groups
+    map(enumerate(keys)) do (i, key)
+        push!(get!(groups, key, Int64[]), i)
+    end
+    
+    return collect(values(groups))
+end
+# 630.097 μs (20368 allocations: 674.34 KiB)
+
+function _features_groupby(
+    featureid::Vector{<:FeatureId},
+    aggrby::Tuple{Vararg{Symbol}}
+)::Vector{Vector{Int64}}
+    # Extract keys for all features
+    keys = map(fid -> ntuple(j -> getfield(fid, aggrby[j]), length(aggrby)), featureid)
+    
+    # Build groups dictionary
+    groups = Dict{eltype(keys), Vector{Int64}}()
+    sizehint!(groups, length(unique(keys)))
+    
+    foreach(enumerate(keys)) do (i, key)
+        push!(get!(groups, key, Int64[]), i)
+    end
+    
+    return collect(values(groups))
+end
+# 741.499 μs (24633 allocations: 655.42 KiB)
 
 ########################################################
-minmax_normalize(c, args...; kwars...) = minmax_normalize!(deepcopy(c), args...; kwars...)
+function _features_groupby(
+    featureid::Vector{FeatureId},
+    aggrby::Tuple{Vararg{Symbol}}
+)::Vector{Vector{Int64}}
+    # Pre-allocate with estimated capacity
+    res = Dict{Tuple, Vector{Int64}}()
+    
+    @inbounds for (i, fid) in enumerate(featureid)
+        key = ntuple(j -> getfield(fid, aggrby[j]), length(aggrby))
+        group = get!(res, key, Int64[])
+        push!(group, i)
+    end
+    
+    return collect(values(res))
+end
 
-"""
-    minmax_normalize!(X; kwargs...)
-    minmax_normalize!(X, min::Real, max::Real)
-
-Apply min-max normalization to scale values to the range [0,1], modifying the input in-place.
-
-# Common Methods
-- `minmax_normalize!(X::AbstractMatrix; kwargs...)`: Normalize a matrix
-- `minmax_normalize!(df::AbstractDataFrame; kwargs...)`: Normalize a DataFrame
-- `minmax_normalize!(md::MultiData.MultiDataset, frame_index::Integer; kwargs...)`: Normalize a specific frame in a multimodal dataset
-- `minmax_normalize!(v::AbstractArray{<:Real}, min::Real, max::Real)`: Normalize an array using specific min/max values
-- `minmax_normalize!(v::AbstractArray{<:AbstractArray{<:Real}}, min::Real, max::Real)`: Normalize an array of arrays
-
-# Arguments
-- `X`: The data to normalize (matrix, DataFrame, or MultiDataset)
-- `frame_index`: For MultiDataset, the index of the frame to normalize
-- `min::Real`: Minimum value for normalization (when provided directly)
-- `max::Real`: Maximum value for normalization (when provided directly)
-
-# Keyword Arguments
-- `min_quantile::Real=0.0`: Lower quantile threshold for normalization
-  - `0.0`: Use the absolute minimum (no outlier exclusion)
-  - `> 0.0`: Use the specified quantile as minimum (e.g., 0.05 excludes bottom 5% as outliers)
-- `max_quantile::Real=1.0`: Upper quantile threshold for normalization
-  - `1.0`: Use the absolute maximum (no outlier exclusion)
-  - `< 1.0`: Use the specified quantile as maximum (e.g., 0.95 excludes top 5% as outliers)
-- `col_quantile::Bool=true`: How to calculate quantiles
-  - `true`: Calculate separate quantiles for each column (column-wise normalization)
-  - `false`: Calculate global quantiles across the entire dataset
-
-# Returns
-The input data, normalized in-place.
-
-# Throws
-- `DomainError`: If min_quantile < 0, max_quantile > 1, or max_quantile ≤ min_quantile
-
-# Details
-## Matrix/DataFrame normalization:
-When normalizing matrices or DataFrames, this function:
-1. Validates the quantile parameters
-2. Determines min/max values based on the specified quantiles
-3. If `col_quantile=true`, calculates separate min/max for each column
-4. If `col_quantile=false`, uses the same min/max across the entire dataset
-5. Applies the normalization to transform values to the [0,1] range
-
-## Array normalization:
-For direct array normalization with provided min/max values:
-1. If min equals max, returns an array filled with 0.5 values
-2. Otherwise, scales values to [0,1] range using the formula: (x - min) / (max - min)
-"""
-# function minmax_normalize!(
-#     md::MultiData.MultiDataset,
-#     frame_index::Integer;
-#     min_quantile::Real = 0.0,
-#     max_quantile::Real = 1.0,
-#     col_quantile::Bool = true,
-# )
-#     return minmax_normalize!(
-#         MultiData.modality(md, frame_index);
-#         min_quantile = min_quantile,
-#         max_quantile = max_quantile,
-#         col_quantile = col_quantile
-#     )
-# end
-
-function minmax_normalize!(
+function minmax_normalize(
     X::AbstractMatrix;
     min_quantile::Real = 0.0,
     max_quantile::Real = 1.0,
@@ -148,26 +184,19 @@ function minmax_normalize!(
         min = StatsBase.quantile.(itcol, min_quantile)
         max = StatsBase.quantile.(itcol, max_quantile)
     end
-    minmax_normalize!.(icols, min, max)
+    minmax_normalize.(icols, min, max)
     return X
 end
 
-function minmax_normalize!(
-    df::AbstractDataFrame;
-    kwargs...
-)
-    minmax_normalize!(Matrix(df); kwargs...)
-end
-
-function minmax_normalize!(
+function minmax_normalize(
     v::AbstractArray{<:AbstractArray{<:Real}},
     min::Real,
     max::Real
 )
-    return minmax_normalize!.(v, min, max)
+    return minmax_normalize.(v, min, max)
 end
 
-function minmax_normalize!(
+function minmax_normalize(
     v::AbstractArray{<:Real},
     min::Real,
     max::Real
@@ -186,46 +215,15 @@ end
 # ---------------------------------------------------------------------------- #
 #                               normalize dataset                              #
 # ---------------------------------------------------------------------------- #
-"""
-    normalize_dataset(
-        X::AbstractMatrix{T},
-        featureid::Vector{<:SoleFeatures.FeatureId};
-        min_quantile::AbstractFloat=0.00,
-        max_quantile::AbstractFloat=1.00,
-        group::Tuple{Vararg{Symbol}}=(:nwin, :feat),
-    ) where {T<:Number}
-
-Normalize the dataset matrix `X` by applying min-max normalization to groups of features.
-
-## Parameters
-- `X`: The input matrix to be normalized in-place
-- `featureid`: A vector of feature information objects that contain metadata about each feature
-- `min_quantile`: The quantile to use as the minimum value (default: 0.00)
-  - When set to 0.00, uses the absolute minimum value
-  - Higher values (e.g., 0.05) ignore lower outliers by using the specified quantile instead
-- `max_quantile`: The quantile to use as the maximum value (default: 1.00)
-  - When set to 1.00, uses the absolute maximum value
-  - Lower values (e.g., 0.95) ignore upper outliers by using the specified quantile instead
-- `group`: A tuple of symbols representing fields in the `FeatureId` objects to group by (default: (:nwin, :feat))
-  - Features with the same values for these fields will be normalized together
-  - For example, with the default (:nwin, :feat), features from the same window and of the same type
-    will be normalized as a group, preserving their relative scale
-
-## Details
-The function performs group-wise normalization, which is essential when working with features that 
-should maintain their relative scales. For example, when working with time series data, different 
-measures (min, max, mean) applied to the same window should be normalized together to preserve 
-their relationships.
-"""
 function normalize_dataset(
     X::AbstractMatrix{T},
-    featureid::Vector{<:FeatureId};
+    featureid::Vector{FeatureId};
     min_quantile::AbstractFloat=0.0,
     max_quantile::AbstractFloat=1.0,
     group::Tuple{Vararg{Symbol}}=(:nwin, :feat),
 ) where {T<:Number}
-    for g in _features_groupby(featureid, group)
-        minmax_normalize!(
+    @inbounds Threads.@threads for g in _features_groupby(featureid, group)
+        minmax_normalize(
             view(X, :, g);
             min_quantile = min_quantile,
             max_quantile = max_quantile,
@@ -233,8 +231,14 @@ function normalize_dataset(
         )
     end
 end
+# 27.041 ms (34556 allocations: 66.62 MiB)
+# 8.127 ms (34642 allocations: 66.62 MiB)
+# 7.258 ms (34642 allocations: 66.62 MiB)
+
 
 # function _normalize_dataset(Xdf::AbstractDataFrame, featureid::Vector{<:FeatureId}; kwargs...)
 #     original_names = names(Xdf)
 #     DataFrame(_normalize_dataset!(Matrix(Xdf), featureid; kwargs...), original_names)
 # end
+
+n = normalize_dataset(Xaggregated.dataset, get_featureid(Xaggregated))

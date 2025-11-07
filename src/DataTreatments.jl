@@ -1,6 +1,6 @@
 module DataTreatments
 
-using Statistics, StatsBase
+using Statistics
 using DataFrames
 using Catch22
 
@@ -13,9 +13,6 @@ export mode_5, mode_10, embedding_dist, acf_timescale, acf_first_min, ami2,
        transition_variance, periodicity, base_set, catch9, catch22_set, complete_set
 include("featureset.jl")
 
-export normalize_dataset
-include("normalize.jl")
-
 export movingwindow, wholewindow, splitwindow, adaptivewindow
 export @evalwindow
 include("slidingwindow.jl")
@@ -23,7 +20,9 @@ include("slidingwindow.jl")
 export applyfeat, aggregate, reducesize
 include("treatment.jl")
 
-export DataTreatment
+export FeatureId, DataTreatment
+export get_dataset, get_featureid, get_reducefunc, get_aggrtype
+export get_vnames, get_features, get_nwindows
 include("constructor.jl")
 
 end
