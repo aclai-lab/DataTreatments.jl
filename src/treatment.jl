@@ -42,12 +42,16 @@ function applyfeat(
     intervals  :: Tuple{Vararg{Vector{UnitRange{Int64}}}};
     reducefunc :: Base.Callable=mean
 )::AbstractArray
-    reduced = similar(X, length.(intervals)...)
+    output_dims = length.(intervals)
+    reduced = similar(X, output_dims...)
 
-    @inbounds map!(reduced, CartesianIndices(reduced)) do cart_idx
+    @inbounds for cart_idx in CartesianIndices(output_dims)
         ranges = ntuple(i -> intervals[i][cart_idx[i]], length(intervals))
-        reducefunc(@views vec(X[ranges...]))
+        window_view = @views X[ranges...]
+        reduced[cart_idx] = reducefunc(reshape(window_view, :))
     end
+    
+    return reduced
 end
 
 # ---------------------------------------------------------------------------- #

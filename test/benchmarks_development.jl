@@ -92,23 +92,42 @@ features = (mean, minimum, maximum)
 @show Threads.nthreads()
 # Threads.nthreads() = 1
 
+# DataTreatments
 wfunc = DataTreatments.adaptivewindow(nwindows=5, overlap=0.2)
 @btime DataTreatments.DataTreatment(Xmatrix, :aggregate; vnames=Symbol.("var", 1:100),win=(wfunc,), features)
 # 185.137 ms (11228 allocations: 11.93 MiB)
 
+wfunc = DataTreatments.adaptivewindow(nwindows=5, overlap=0.2)
+@btime DataTreatments.DataTreatment(Xmatrix, :reducesize; vnames=Symbol.("var", 1:100),win=(wfunc,))
+# 19.397 ms (200831 allocations: 9.95 MiB)
+
+# SoleXplorer
 wfunc = SoleXplorer.AdaptiveWindow(nwindows=5, relative_overlap=0.2)
 @btime SoleXplorer.treatment(Xdf, :aggregate; win=wfunc, features)
 # 191.738 ms (21411 allocations: 12.32 MiB)
+
+wfunc = SoleXplorer.AdaptiveWindow(nwindows=5, relative_overlap=0.2)
+@btime SoleXplorer.treatment(Xdf, :reducesize; win=wfunc, features)
+# 19.173 ms (200488 allocations: 9.94 MiB)
 
 # ---------------------------------------------------------------------------- #
 @show Threads.nthreads()
 # Threads.nthreads() = 8
 
+# DataTreatments
 wfunc = DataTreatments.adaptivewindow(nwindows=5, overlap=0.2)
 @btime DataTreatments.DataTreatment(Xmatrix, :aggregate; vnames=Symbol.("var", 1:100),win=(wfunc,), features)
-# 81.021 ms (2311279 allocations: 62.29 MiB)
+# 48.314 ms (11263 allocations: 11.93 MiB)
 
+wfunc = DataTreatments.adaptivewindow(nwindows=5, overlap=0.2)
+@btime DataTreatments.DataTreatment(Xmatrix, :reducesize; vnames=Symbol.("var", 1:100),win=(wfunc,))
+# 4.511 ms (200882 allocations: 9.95 MiB)
+
+# SoleXplorer
 wfunc = SoleXplorer.AdaptiveWindow(nwindows=5, relative_overlap=0.2)
 @btime SoleXplorer.treatment(Xdf, :aggregate; win=wfunc, features)
 # 210.443 ms (2321411 allocations: 62.67 MiB)
 
+wfunc = SoleXplorer.AdaptiveWindow(nwindows=5, relative_overlap=0.2)
+@btime SoleXplorer.treatment(Xdf, :reducesize; win=wfunc, features)
+# 18.763 ms (200488 allocations: 9.94 MiB)
