@@ -46,7 +46,7 @@ function applyfeat(
 
     @inbounds map!(reduced, CartesianIndices(reduced)) do cart_idx
         ranges = ntuple(i -> intervals[i][cart_idx[i]], length(intervals))
-        reducefunc(@view X[ranges...])
+        reducefunc(@views vec(X[ranges...]))
     end
 end
 
@@ -144,7 +144,7 @@ function aggregate(
             reduced = mapreduce(vcat, features) do feat
                 vec(applyfeat(X[rowidx,colidx], intervals; reducefunc=feat))
             end
-            
+            @show typeof(reduced)
             base_idx = (colidx - 1) * nfeats
             @inbounds copyto!(view(Xresult, rowidx, base_idx+1:base_idx+nfeats), vec(reduced))
         end
