@@ -82,7 +82,7 @@ end
         @test size(dt) == (100, 10 * length(features) * 16)  # 10 vars × 3 features × 16 windows
         @test length(get_featureid(dt)) == size(dt, 2)
         @test get_aggrtype(dt) == :aggregate
-        @test length(get_vnames(dt)) == 480
+        @test length(get_vnames(dt)) == 10
         @test length(get_features(dt)) == length(features)
     end
 end

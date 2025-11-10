@@ -41,7 +41,7 @@ is_multidim_dataframe(X::AbstractArray)::Bool =
 #                                  FeatureId                                   #
 # ---------------------------------------------------------------------------- #
 """
-    FeatureId{T<:ValidVnames} <: AbstractFeatureId
+    FeatureId <: AbstractFeatureId
 
 A metadata container for individual features in a processed dataset.
 
@@ -56,9 +56,6 @@ the transformation function applied, and the window number. It is designed for:
 - `vname::Symbol`: Source variable name from the original dataset
 - `feat::Base.Callable`: Feature extraction function (e.g., `mean`, `std`, `maximum`)
 - `nwin::Int64`: Window number (1 for single window, >1 for multiple windows)
-
-# Type Parameters
-- `T<:ValidVnames`: Type of variable name (Symbol or String)
 
 # Examples
 ```julia
@@ -79,13 +76,13 @@ get_nwin(fid)     # 3
 # See Also
 - [`DataTreatment`](@ref): Main container using FeatureId for metadata
 """
-struct FeatureId{T<:ValidVnames} <: AbstractFeatureId
+struct FeatureId <: AbstractFeatureId
     vname :: Symbol
     feat  :: Base.Callable
     nwin  :: Int64
 
-    function FeatureId(var::ValidVnames, feat::Base.Callable, nwin::Int64)
-        new{typeof(var)}(var, feat, nwin)
+    function FeatureId(vname::ValidVnames, feat::Base.Callable, nwin::Int64)
+        new(vname, feat, nwin)
     end
 end
 
@@ -300,11 +297,11 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
             (aggregate(X, intervals; features),
             if nwindows == 1
                 # single window: apply to whole time series
-                [FeatureId(Symbol("$(f)($(v))"), f, 1)
+                [FeatureId(v, f, 1)
                     for f in features, v in vnames] |> vec
             else
                 # multiple windows: apply to each interval
-                [FeatureId(Symbol("$(f)($(v))_w$(i)"), f, i)
+                [FeatureId(v, f, i)
                     for i in 1:nwindows, f in features, v in vnames] |> vec
             end
             )
@@ -312,7 +309,7 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
 
         elseif aggrtype == :reducesize begin
             (reducesize(X, intervals; reducefunc),
-            [FeatureId(Symbol(v), reducefunc, 1)
+            [FeatureId(v, reducefunc, 1)
                 for v in vnames] |> vec
             )
         end
@@ -345,9 +342,9 @@ get_reducefunc(dt::DataTreatment) = dt.reducefunc
 get_aggrtype(dt::DataTreatment)   = dt.aggrtype
 
 # Convenience methods for common operations
-get_vnames(dt::DataTreatment)   = unique([get_vname(fid)   for fid in dt.featureid])
-get_features(dt::DataTreatment) = unique([get_feature(fid) for fid in dt.featureid])
-get_nwindows(dt::DataTreatment) = maximum([get_nwin(fid)   for fid in dt.featureid])
+get_vnames(dt::DataTreatment)   = unique([get_vname(f)   for f in dt.featureid])
+get_features(dt::DataTreatment) = unique([get_feature(f) for f in dt.featureid])
+get_nwindows(dt::DataTreatment) = maximum([get_nwin(f)   for f in dt.featureid])
 
 # Size and iteration methods
 Base.size(dt::DataTreatment)   = size(dt.dataset)
