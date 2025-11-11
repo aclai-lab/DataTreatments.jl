@@ -15,7 +15,7 @@ include("featureset.jl")
 
 export movingwindow, wholewindow, splitwindow, adaptivewindow
 export @evalwindow
-include("slidingwindow.jl")
+include("windowing.jl")
 
 export reducesize, aggregate
 include("treatment.jl")
