@@ -14,11 +14,11 @@ _rescale(l, u)   = (x) -> (x - l) / (u - l)
 _center(y)     = (x) -> x - y
 _unitenergy(e) = Base.Fix2(/, e) # For unitful consistency, the sorted parameter is the root energy
 _unitpower(p)  = Base.Fix2(/, p)
-function _outliersuppress(y, o, thr=5.0)
+function _outliersuppress(y, o; thr=5.0)
     (x) -> begin
-        o = x - y
+        _o = x - y
         if abs(o) > thr * o
-            return y + sign(o) * thr * o
+            return y + sign(_o) * thr * o
         else
             return x
         end

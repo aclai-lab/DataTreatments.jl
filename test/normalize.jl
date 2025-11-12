@@ -3,7 +3,7 @@
 # this code is for development use only
 
 using DataTreatments
-# using Normalization
+using Normalization
 using Statistics
 
 X = [rand(200, 100) .* 1000 for _ in 1:100, _ in 1:100]
@@ -452,30 +452,29 @@ end
 function ds_norm(X::AbstractArray, n::Base.Callable)::AbstractArray
     cols = Iterators.flatten.(eachcol(X))
 
-    # nfuncs = [n(collect(cols[i])) for i in eachindex(cols)]
+    nfuncs = [n(collect(cols[i])) for i in eachindex(cols)]
 
-    nfuncs = Vector{Base.Callable}(undef, length(cols))
-    Threads.@threads for i in 1:size(X, 2)
-        nfuncs[i] = n(collect(cols[i]))
-    end
+    # nfuncs = Vector{Base.Callable}(undef, length(cols))
+    # Threads.@threads for i in 1:size(X, 2)
+    #     nfuncs[i] = n(collect(cols[i]))
+    # end
 
     Xn = similar(X)
 
-    # for idx in CartesianIndices(X)
-    #     col_idx = idx[2]
-    #     Xn[idx] = _ds_norm(X[idx], nfuncs[col_idx])
-    # end
-    # Xn
-
-    nrows = size(X, 1)
-    Threads.@threads for j in 1:ncols
-        @inbounds nfunc_j = nfuncs[j]
-        @inbounds for i in 1:nrows
-            Xn[i, j] = _ds_norm(X[i, j], nfunc_j)
-        end
+    for idx in CartesianIndices(X)
+        col_idx = idx[2]
+        Xn[idx] = _ds_norm(X[idx], nfuncs[col_idx])
     end
-    
     Xn
+
+    # nrows = size(X, 1)
+    # Threads.@threads for j in 1:ncols
+    #     @inbounds nfunc_j = nfuncs[j]
+    #     @inbounds for i in 1:nrows
+    #         Xn[i, j] = _ds_norm(X[i, j], nfunc_j)
+    #     end
+    # end
+
 end
 # 862.071 ms (153308 allocations: 6.11 GiB)
 # 857.530 ms (33308 allocations: 6.10 GiB)
@@ -511,13 +510,177 @@ function ds_norm(X::AbstractArray, n::Base.Callable)::AbstractArray
     return Xn
 end
 
-ds_norm(X, zscore())
-ds_norm(X, sigmoid())
-ds_norm(X, rescale())
-ds_norm(X, center())
-ds_norm(X, unitenergy())
-ds_norm(X, unitpower())
-ds_norm(X, halfzscore())
-ds_norm(X, outliersuppress())
-ds_norm(X, minmaxclip())
+### TEST all passed
+X = rand(200,100)
+
+test = element_norm(X, zscore())
+n = fit(ZScore, X)
+norm = normalize(X, n)
+@test isapprox(test, norm)
+
+test = element_norm(X, sigmoid())
+n = fit(Sigmoid, X)
+norm = normalize(X, n)
+@test isapprox(test, norm)
+
+test = element_norm(X, rescale())
+n = fit(MinMax, X)
+norm = normalize(X, n)
+@test isapprox(test, norm)
+
+test = element_norm(X, center())
+n = fit(Center, X)
+norm = normalize(X, n)
+@test isapprox(test, norm)
+
+test = element_norm(X, unitenergy())
+n = fit(UnitEnergy, X)
+norm = normalize(X, n)
+@test isapprox(test, norm)
+
+test = element_norm(X, unitpower())
+n = fit(UnitPower, X)
+norm = normalize(X, n)
+@test isapprox(test, norm)
+
+test = element_norm(X, halfzscore())
+n = fit(HalfZScore, X)
+norm = normalize(X, n)
+@test isapprox(test, norm)
+
+test = element_norm(X, outliersuppress())
+n = fit(OutlierSuppress, X)
+norm = normalize(X, n)
+@test isapprox(test, norm)
+
+test = element_norm(X, minmaxclip())
+n = fit(MinMaxClip, X)
+norm = normalize(X, n)
+@test isapprox(test, norm)
+
+### TEST all passed
+X = rand(200,100)
+
+test = tabular_norm(X, zscore())
+n = fit(ZScore, X, dims=1)
+norm = normalize(X, n)
+@test isapprox(test, norm)
+
+test = tabular_norm(X, sigmoid())
+n = fit(Sigmoid, X, dims=1)
+norm = normalize(X, n)
+@test isapprox(test, norm)
+
+test = tabular_norm(X, rescale())
+n = fit(MinMax, X, dims=1)
+norm = normalize(X, n)
+@test isapprox(test, norm)
+
+test = tabular_norm(X, center())
+n = fit(Center, X, dims=1)
+norm = normalize(X, n)
+@test isapprox(test, norm)
+
+test = tabular_norm(X, unitenergy())
+n = fit(UnitEnergy, X, dims=1)
+norm = normalize(X, n)
+@test isapprox(test, norm)
+
+test = tabular_norm(X, unitpower())
+n = fit(UnitPower, X, dims=1)
+norm = normalize(X, n)
+@test isapprox(test, norm)
+
+test = tabular_norm(X, halfzscore())
+n = fit(HalfZScore, X, dims=1)
+norm = normalize(X, n)
+@test isapprox(test, norm)
+
+test = tabular_norm(X, outliersuppress())
+n = fit(OutlierSuppress, X, dims=1)
+norm = normalize(X, n)
+@test isapprox(test, norm)
+
+test = tabular_norm(X, minmaxclip())
+n = fit(MinMaxClip, X, dims=1)
+norm = normalize(X, n)
+@test isapprox(test, norm)
+
+
+### TEST ##############################################################################
+X = fill(rand(20, 10) .* 10, 10, 100)
+
+test = ds_norm(X, zscore())
+n = fit(ZScore, X[1,1])
+norm = normalize(X[1,1], n)
+@test isapprox(test[1], norm)
+
+
+
+test = ds_norm(X, sigmoid())
+n = fit(Sigmoid, X[1,1])
+norm = normalize(X[1,1], n)
+@test isapprox(test[1], norm)
+
+test = ds_norm(X, rescale())
+n = fit(MinMax, X[1,1])
+norm = normalize(X[1,1], n)
+@test isapprox(test[1], norm)
+
+test = ds_norm(X, center())
+n = fit(Center, X[1,1])
+norm = normalize(X[1,1], n)
+@test isapprox(test[1], norm)
+
+test = ds_norm(X, unitenergy())
+n = fit(UnitEnergy, X[1,1])
+norm = normalize(X[1,1], n)
+@test isapprox(test[1], norm)
+
+test = ds_norm(X, unitpower())
+n = fit(UnitPower, X[1,1])
+norm = normalize(X[1,1], n)
+@test isapprox(test[1], norm)
+
+test = ds_norm(X, halfzscore())
+n = fit(HalfZScore, X[1,1])
+norm = normalize(X[1,1], n)
+@test isapprox(test[1], norm)
+
+test = ds_norm(X, outliersuppress())
+n = fit(OutlierSuppress, X[1,1])
+norm = normalize(X[1,1], n)
+@test isapprox(test[1], norm)
+
+test = ds_norm(X, minmaxclip())
+n = fit(MinMaxClip, X[1,1])
+norm = normalize(X[1,1], n)
+@test isapprox(test[1], norm)
+
+###################################################################
+
+function test_ds_norm(X, norm_func, NormType)
+    # Apply ds_norm
+    test = ds_norm(X, norm_func())
+    
+    # Compute normalization the way ds_norm does (per column)
+    col1_data = collect(Iterators.flatten(X[:, 1]))
+    n = fit(NormType, reshape(col1_data, :, 1); dims=nothing)
+    norm = normalize(X[1,1], n)
+    
+    @test isapprox(test[1,1], norm)
+end
+
+# Run all tests
+X = fill(rand(20, 10) .* 10, 10, 100)
+
+test_ds_norm(X, zscore, ZScore)
+test_ds_norm(X, sigmoid, Sigmoid)
+test_ds_norm(X, rescale, MinMax)
+test_ds_norm(X, center, Center)
+test_ds_norm(X, unitenergy, UnitEnergy)
+test_ds_norm(X, unitpower, UnitPower)
+test_ds_norm(X, halfzscore, HalfZScore)
+test_ds_norm(X, outliersuppress, OutlierSuppress)
+test_ds_norm(X, minmaxclip, MinMaxClip)
 
