@@ -10,7 +10,7 @@ halfstd(x) = std(x) ./ convert(eltype(x), sqrt(1 - (2 / π)))
 # ---------------------------------------------------------------------------- #
 _zscore(y, o)  = (x) -> (x - y) / o # * But this needs to be mapped over SCALAR y
 _sigmoid(y, o) = (x) -> inv(1 + exp(-(x - y) / o))
-_minmax(l, u)  = (x) -> (x - l) / (u - l)
+_rescale(l, u)   = (x) -> (x - l) / (u - l)
 _center(y)     = (x) -> x - y
 _unitenergy(e) = Base.Fix2(/, e) # For unitful consistency, the sorted parameter is the root energy
 _unitpower(p)  = Base.Fix2(/, p)
@@ -44,7 +44,7 @@ end
 # ---------------------------------------------------------------------------- #
 zscore()::Function          = x -> _zscore(Statistics.mean(x), Statistics.std(x))
 sigmoid()::Function         = x -> _sigmoid(Statistics.mean(x), Statistics.std(x))
-min_max()::Function         = x -> _minmax(minimum(x), maximum(x))
+rescale()::Function         = x -> _rescale(minimum(x), maximum(x))
 center()::Function          = x -> _center(Statistics.mean(x))
 unitenergy()::Function      = x -> _unitenergy(rootenergy(x))
 unitpower()::Function       = x -> _unitpower(rootpower(x))
@@ -63,7 +63,14 @@ end
 
 function tabular_norm(X::AbstractArray, n::Base.Callable)::AbstractArray
     cols = Iterators.flatten.(eachcol(X))
-    # compute normalization function for each column
     nfuncs = @inbounds [n(collect(cols[i])) for i in eachindex(cols)]
     [nfuncs[idx[2]](X[idx]) for idx in CartesianIndices(X)]
+end
+
+_ds_norm(X::AbstractArray, nfunc::Base.Callable) = nfunc.(X)
+
+function ds_norm(X::AbstractArray, n::Base.Callable)::AbstractArray
+    cols = Iterators.flatten.(eachcol(X))
+    nfuncs = [n(collect(cols[i])) for i in eachindex(cols)]
+    [_ds_norm(X[idx], nfuncs[idx[2]]) for idx in CartesianIndices(X)]
 end

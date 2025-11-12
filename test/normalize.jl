@@ -3,7 +3,7 @@
 # this code is for development use only
 
 using DataTreatments
-using Normalization
+# using Normalization
 using Statistics
 
 X = [rand(200, 100) .* 1000 for _ in 1:100, _ in 1:100]
@@ -353,10 +353,108 @@ X = rand(1000,750)
 
 @test_nowarn element_norm(X, zscore())
 @test_nowarn element_norm(X, sigmoid())
-@test_nowarn element_norm(X, min_max())
+@test_nowarn element_norm(X, rescale())
 @test_nowarn element_norm(X, center())
 @test_nowarn element_norm(X, unitenergy())
 @test_nowarn element_norm(X, unitpower())
 @test_nowarn element_norm(X, halfzscore())
 @test_nowarn element_norm(X, outliersuppress())
 @test_nowarn element_norm(X, minmaxclip())
+
+X = [rand(200, 100) .* 1000 for _ in 1:100, _ in 1:100]
+
+@test_nowarn ds_norm(X, zscore())
+@test_nowarn ds_norm(X, sigmoid())
+@test_nowarn ds_norm(X, rescale())
+@test_nowarn ds_norm(X, center())
+@test_nowarn ds_norm(X, unitenergy())
+@test_nowarn ds_norm(X, unitpower())
+@test_nowarn ds_norm(X, halfzscore())
+@test_nowarn ds_norm(X, outliersuppress())
+@test_nowarn ds_norm(X, minmaxclip())
+
+
+function element_norm(X::AbstractArray, n::Base.Callable)::AbstractArray
+    _X = Iterators.flatten(X)
+
+    # compute normalization function for each column
+    nfunc = n(collect(_X))
+
+    # apply to each element using CartesianIndices
+    [nfunc(X[idx]) for idx in CartesianIndices(X)]
+end
+
+function ds_norm(X::AbstractArray, n::Base.Callable)::AbstractArray
+    cols = Iterators.flatten.(eachcol(X))
+
+    # compute normalization function for each column
+    nfuncs = @inbounds [n(collect(cols[i])) for i in eachindex(cols)]
+    
+    # apply to each element using CartesianIndices
+    [element_norm(X[idx], nfuncs[idx[2]]) for idx in CartesianIndices(X)]
+end
+# 1.556 ms (2259 allocations: 11.54 MiB)
+
+X = [rand(200, 100) .* 1000 for _ in 1:100, _ in 1:100]
+
+function alement_norm(X::AbstractArray, nfunc::Base.Callable)::AbstractArray
+    # Broadcast the normalization function over all elements
+    nfunc.(X)
+end
+
+function ds_norm(X::AbstractArray, n::Base.Callable)::AbstractArray
+    cols = Iterators.flatten.(eachcol(X))
+
+    # Compute normalization function for each column
+    nfuncs = collect(n(collect(cols[i])) for i in eachindex(cols))
+
+    # Apply to each element using CartesianIndices
+    Xn = similar(X)
+    for idx in CartesianIndices(X)
+        col_idx = idx[2]
+        Xn[idx] = element_norm(X[idx], nfuncs[col_idx])
+    end
+    Xn
+end
+
+
+
+element_norm(X, zscore())
+element_norm(X, sigmoid())
+element_norm(X, rescale())
+element_norm(X, center())
+element_norm(X, unitenergy())
+element_norm(X, unitpower())
+element_norm(X, halfzscore())
+element_norm(X, outliersuppress())
+element_norm(X, minmaxclip())
+
+alement_norm(X, zscore())
+alement_norm(X, sigmoid())
+alement_norm(X, rescale())
+alement_norm(X, center())
+alement_norm(X, unitenergy())
+alement_norm(X, unitpower())
+alement_norm(X, halfzscore())
+alement_norm(X, outliersuppress())
+alement_norm(X, minmaxclip())
+
+_ds_norm(X::AbstractArray, nfunc::Base.Callable) = nfunc.(X)
+
+function ds_norm(X::AbstractArray, n::Base.Callable)::AbstractArray
+    cols = Iterators.flatten.(eachcol(X))
+    nfuncs = [n(collect(cols[i])) for i in eachindex(cols)]
+    [_ds_norm(X[idx], nfuncs[idx[2]]) for idx in CartesianIndices(X)]
+end
+
+function ds_norm(X::AbstractArray, n::Base.Callable)::AbstractArray
+    cols = Iterators.flatten.(eachcol(X))
+    nfuncs = [n(collect(cols[i])) for i in eachindex(cols)]
+
+    Xn = similar(X)
+    for idx in CartesianIndices(X)
+        col_idx = idx[2]
+        Xn[idx] = _ds_norm(X[idx], nfuncs[col_idx])
+    end
+    Xn
+end
