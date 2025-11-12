@@ -608,62 +608,10 @@ norm = normalize(X, n)
 
 
 ### TEST ##############################################################################
-X = fill(rand(20, 10) .* 10, 10, 100)
-
-test = ds_norm(X, zscore())
-n = fit(ZScore, X[1,1])
-norm = normalize(X[1,1], n)
-@test isapprox(test[1], norm)
-
-
-
-test = ds_norm(X, sigmoid())
-n = fit(Sigmoid, X[1,1])
-norm = normalize(X[1,1], n)
-@test isapprox(test[1], norm)
-
-test = ds_norm(X, rescale())
-n = fit(MinMax, X[1,1])
-norm = normalize(X[1,1], n)
-@test isapprox(test[1], norm)
-
-test = ds_norm(X, center())
-n = fit(Center, X[1,1])
-norm = normalize(X[1,1], n)
-@test isapprox(test[1], norm)
-
-test = ds_norm(X, unitenergy())
-n = fit(UnitEnergy, X[1,1])
-norm = normalize(X[1,1], n)
-@test isapprox(test[1], norm)
-
-test = ds_norm(X, unitpower())
-n = fit(UnitPower, X[1,1])
-norm = normalize(X[1,1], n)
-@test isapprox(test[1], norm)
-
-test = ds_norm(X, halfzscore())
-n = fit(HalfZScore, X[1,1])
-norm = normalize(X[1,1], n)
-@test isapprox(test[1], norm)
-
-test = ds_norm(X, outliersuppress())
-n = fit(OutlierSuppress, X[1,1])
-norm = normalize(X[1,1], n)
-@test isapprox(test[1], norm)
-
-test = ds_norm(X, minmaxclip())
-n = fit(MinMaxClip, X[1,1])
-norm = normalize(X[1,1], n)
-@test isapprox(test[1], norm)
-
-###################################################################
 
 function test_ds_norm(X, norm_func, NormType)
-    # Apply ds_norm
     test = ds_norm(X, norm_func())
-    
-    # Compute normalization the way ds_norm does (per column)
+    # compute normalization the way ds_norm does (per column)
     col1_data = collect(Iterators.flatten(X[:, 1]))
     n = fit(NormType, reshape(col1_data, :, 1); dims=nothing)
     norm = normalize(X[1,1], n)
