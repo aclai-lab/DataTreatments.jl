@@ -67,10 +67,29 @@ function tabular_norm(X::AbstractArray, n::Base.Callable)::AbstractArray
     [nfuncs[idx[2]](X[idx]) for idx in CartesianIndices(X)]
 end
 
-_ds_norm(X::AbstractArray, nfunc::Base.Callable) = nfunc.(X)
+@inline function _ds_norm!(Xn::AbstractArray, X::AbstractArray, nfunc)
+    @inbounds @simd for i in eachindex(X, Xn)
+        Xn[i] = nfunc(X[i])
+    end
+    return Xn
+end
 
 function ds_norm(X::AbstractArray, n::Base.Callable)::AbstractArray
+    # compute normalization functions for each column
     cols = Iterators.flatten.(eachcol(X))
-    nfuncs = [n(collect(cols[i])) for i in eachindex(cols)]
-    [_ds_norm(X[idx], nfuncs[idx[2]]) for idx in CartesianIndices(X)]
+    nfuncs = Vector{Function}(undef, length(cols))
+    Threads.@threads for i in axes(X, 2)
+        nfuncs[i] = n(collect(cols[i]))
+    end
+    
+    # apply normalization
+    Xn = similar(X)
+    Threads.@threads for j in axes(X, 2)
+        @inbounds for i in axes(X, 1)
+            Xn[i, j] = similar(X[i, j])
+            _ds_norm!(Xn[i, j], X[i, j], nfuncs[j])
+        end
+    end
+    
+    return Xn
 end

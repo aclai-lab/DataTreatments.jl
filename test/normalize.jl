@@ -439,22 +439,85 @@ alement_norm(X, halfzscore())
 alement_norm(X, outliersuppress())
 alement_norm(X, minmaxclip())
 
-_ds_norm(X::AbstractArray, nfunc::Base.Callable) = nfunc.(X)
+@inline _ds_norm(X::AbstractArray, nfunc::Base.Callable) = nfunc.(X)
 
 function ds_norm(X::AbstractArray, n::Base.Callable)::AbstractArray
     cols = Iterators.flatten.(eachcol(X))
     nfuncs = [n(collect(cols[i])) for i in eachindex(cols)]
     [_ds_norm(X[idx], nfuncs[idx[2]]) for idx in CartesianIndices(X)]
 end
+# 840.775 ms (153308 allocations: 6.11 GiB)
+# 840.981 ms (33308 allocations: 6.10 GiB)
 
 function ds_norm(X::AbstractArray, n::Base.Callable)::AbstractArray
     cols = Iterators.flatten.(eachcol(X))
-    nfuncs = [n(collect(cols[i])) for i in eachindex(cols)]
+
+    # nfuncs = [n(collect(cols[i])) for i in eachindex(cols)]
+
+    nfuncs = Vector{Base.Callable}(undef, length(cols))
+    Threads.@threads for i in 1:size(X, 2)
+        nfuncs[i] = n(collect(cols[i]))
+    end
 
     Xn = similar(X)
-    for idx in CartesianIndices(X)
-        col_idx = idx[2]
-        Xn[idx] = _ds_norm(X[idx], nfuncs[col_idx])
+
+    # for idx in CartesianIndices(X)
+    #     col_idx = idx[2]
+    #     Xn[idx] = _ds_norm(X[idx], nfuncs[col_idx])
+    # end
+    # Xn
+
+    nrows = size(X, 1)
+    Threads.@threads for j in 1:ncols
+        @inbounds nfunc_j = nfuncs[j]
+        @inbounds for i in 1:nrows
+            Xn[i, j] = _ds_norm(X[i, j], nfunc_j)
+        end
     end
+    
     Xn
 end
+# 862.071 ms (153308 allocations: 6.11 GiB)
+# 857.530 ms (33308 allocations: 6.10 GiB)
+
+X = [rand(200, 100) .* 1000 for _ in 1:100, _ in 1:100]
+
+X = [rand(20, 10, 30) .* 1000 for _ in 1:10, _ in 1:100]
+
+@inline function _ds_norm!(Xn::AbstractArray, X::AbstractArray, nfunc)
+    @inbounds @simd for i in eachindex(X, Xn)
+        Xn[i] = nfunc(X[i])
+    end
+    return Xn
+end
+
+function ds_norm(X::AbstractArray, n::Base.Callable)::AbstractArray
+    # compute normalization functions for each column
+    cols = Iterators.flatten.(eachcol(X))
+    nfuncs = Vector{Function}(undef, length(cols))
+    Threads.@threads for i in axes(X, 2)
+        nfuncs[i] = n(collect(cols[i]))
+    end
+    
+    # apply normalization
+    Xn = similar(X)
+    Threads.@threads for j in axes(X, 2)
+        @inbounds for i in axes(X, 1)
+            Xn[i, j] = similar(X[i, j])
+            _ds_norm!(Xn[i, j], X[i, j], nfuncs[j])
+        end
+    end
+    
+    return Xn
+end
+
+ds_norm(X, zscore())
+ds_norm(X, sigmoid())
+ds_norm(X, rescale())
+ds_norm(X, center())
+ds_norm(X, unitenergy())
+ds_norm(X, unitpower())
+ds_norm(X, halfzscore())
+ds_norm(X, outliersuppress())
+ds_norm(X, minmaxclip())
+
