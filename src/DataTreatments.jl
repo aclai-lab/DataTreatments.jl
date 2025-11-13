@@ -4,6 +4,23 @@ using Statistics
 using DataFrames
 using Catch22
 
+# ---------------------------------------------------------------------------- #
+#                               abstract types                                 #
+# ---------------------------------------------------------------------------- #
+abstract type AbstractFeatureId end
+abstract type AbstractDataTreatment end
+
+# ---------------------------------------------------------------------------- #
+#                                   types                                      #
+# ---------------------------------------------------------------------------- #
+const ValidVnames = Union{Symbol, String}
+
+export col, row
+@enum NormDim col row
+
+# ---------------------------------------------------------------------------- #
+#                                   files                                      #
+# ---------------------------------------------------------------------------- #
 # feature extraction via Catch22
 # export user friendly Catch22 nicknames
 export mode_5, mode_10, embedding_dist, acf_timescale, acf_first_min, ami2,
@@ -23,17 +40,6 @@ include("treatment.jl")
 export zscore, sigmoid, rescale, center, unitenergy, unitpower, halfzscore, outliersuppress, minmaxclip
 export element_norm, tabular_norm, ds_norm
 include("normalize.jl")
-
-# ---------------------------------------------------------------------------- #
-#                               abstract types                                 #
-# ---------------------------------------------------------------------------- #
-abstract type AbstractFeatureId end
-abstract type AbstractDataTreatment end
-
-# ---------------------------------------------------------------------------- #
-#                                   types                                      #
-# ---------------------------------------------------------------------------- #
-const ValidVnames = Union{Symbol, String}
 
 # ---------------------------------------------------------------------------- #
 #                                    utils                                     #

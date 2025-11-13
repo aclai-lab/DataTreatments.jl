@@ -4,8 +4,14 @@ using DataTreatments
 using Normalization
 
 a = [8 1 6; 3 5 7; 4 9 2]
+b = reshape(1:18, 3, 3, 2)
 
-zscore_norm = element_norm(a, zscore())
+zscore_norm = tabular_norm(a, zscore())
+@test isapprox(zscore_norm, [1.13389 -1.0 0.377964; -0.755929 0.0 0.755929; -0.377964 1.0 -1.13389], atol=1e-5)
+
+zscore_row = tabular_norm(a, zscore(); dim=row)
+@test isapprox(zscore_row, [0.83205 -1.1094 0.27735; -1.0 0.0 1.0; -0.27735 1.1094 -0.83205], atol=1e-5)
+
 
 ### test
 X = rand(1000,750)

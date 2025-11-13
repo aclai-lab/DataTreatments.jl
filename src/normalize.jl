@@ -76,12 +76,19 @@ function element_norm(X::AbstractArray{T}, n::Base.Callable)::AbstractArray wher
 end
 element_norm(X::AbstractArray{T}, args...) where {T<:Real} = element_norm(Float64.(X), args...)
 
-function tabular_norm(X::AbstractArray{T}, n::Base.Callable)::AbstractArray where {T<:AbstractFloat}
+function tabular_norm(
+    X::AbstractArray{T},
+    n::Base.Callable;
+    dim::NormDim=col
+)::AbstractArray where {T<:AbstractFloat}
+    dim == row && (X = X')
     cols = Iterators.flatten.(eachcol(X))
     nfuncs = @inbounds [n(collect(cols[i])) for i in eachindex(cols)]
-    [nfuncs[idx[2]](X[idx]) for idx in CartesianIndices(X)]
+    dim == row ? [nfuncs[idx[2]](X[idx]) for idx in CartesianIndices(X)]' :
+                 [nfuncs[idx[2]](X[idx]) for idx in CartesianIndices(X)]
 end
-tabular_norm(X::AbstractArray{T}, args...) where {T<:Real} = tabular_norm(Float64.(X), args...)
+tabular_norm(X::AbstractArray{T}, args...; kwargs...) where {T<:Real} = 
+    tabular_norm(Float64.(X), args...;kwargs...)
 
 @inline function _ds_norm!(Xn::AbstractArray, X::AbstractArray, nfunc)
     @inbounds @simd for i in eachindex(X, Xn)
