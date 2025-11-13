@@ -1,6 +1,7 @@
 module DataTreatments
 
 using Statistics
+using StatsBase
 using DataFrames
 using Catch22
 
@@ -34,7 +35,7 @@ include("windowing.jl")
 export reducesize, aggregate
 include("treatment.jl")
 
-export zscore, sigmoid, norm, rescale, center, unitenergy, unitpower, outliersuppress, minmaxclip
+export zscore, sigmoid, norm, scale, rescale, center, unitpower, outliersuppress, minmaxclip
 export element_norm, tabular_norm, ds_norm
 include("normalize.jl")
 

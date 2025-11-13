@@ -1,8 +1,7 @@
 # ---------------------------------------------------------------------------- #
 #                              custom functions                                #
 # ---------------------------------------------------------------------------- #
-rootenergy(x::AbstractArray) = sum(abs2, x) |> sqrt
-rootpower(x) = sqrt(mean(abs2, x))
+rootpower(x) = mean(abs2, x) |> sqrt
 halfstd(x) = std(x) ./ convert(eltype(x), sqrt(1 - (2 / π)))
 
 # ---------------------------------------------------------------------------- #
@@ -43,9 +42,25 @@ function _norm(x::AbstractArray; p::Real)
     Base.Fix2(/, s)
 end
 
+function _scale(x::AbstractArray; factor::Symbol)
+    s = if factor == :std
+        Statistics.std(x)
+    elseif factor == :mad
+        Statistics.median(abs.(x .- Statistics.median(x)))
+    elseif factor == :first
+        first(x)
+    elseif factor == :iqr
+        StatsBase.iqr(x)
+    else
+        throw(ArgumentError("factor must be :std, :mad, :first, or :iqr, got :$factor"))
+    end
+    
+    Base.Fix2(/, s)
+end
+
 _rescale(l, u)   = (x) -> (x - l) / (u - l)
 _center(y)     = (x) -> x - y
-_unitenergy(e) = Base.Fix2(/, e) # For unitful consistency, the sorted parameter is the root energy
+
 _unitpower(p)  = Base.Fix2(/, p)
 _outliersuppress(y, o; thr=5.0) = (x) -> abs(o) > thr * o ? y + sign(x - y) * thr * o : x
 function _minmaxclip(l,u)
@@ -77,9 +92,20 @@ The infinity norm, or maximum norm, is the same as the largest magnitude of the 
 """
 norm(; p::Real=2) = x -> _norm(x; p)
 
+"""
+Scale data by a scale factor.
+
+# Scale Factor Options
+factor=:std (default): Scale data to have standard deviation 1.
+factor=:mad: 	Scale data to have median absolute deviation 1.
+factor=:first: 	Scale data by the first element of the data.
+factor=:iqr: Scale data to have interquartile range 1.
+"""
+scale(; factor::Symbol=:std) = x -> _scale(x; factor)
+
 rescale()::Function         = x -> _rescale(minimum(x), maximum(x))
 center()::Function          = x -> _center(Statistics.mean(x))
-unitenergy()::Function      = x -> _unitenergy(rootenergy(x))
+
 unitpower()::Function       = x -> _unitpower(rootpower(x))
 outliersuppress()::Function = x -> _outliersuppress(Statistics.mean(x), Statistics.std(x))
 minmaxclip()::Function      = x -> _minmaxclip(minimum(x), maximum(x))

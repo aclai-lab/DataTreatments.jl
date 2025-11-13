@@ -37,6 +37,18 @@ norm_norm = tabular_norm(a, norm(p=4))
 norm_norm = tabular_norm(a, norm(p=Inf))
 @test isapprox(norm_norm, [1.0 0.111111 0.857143; 0.375 0.555556 1.0; 0.5 1.0 0.285714], atol=1e-6)
 
+# ---------------------------------------------------------------------------- #
+scale_norm = tabular_norm(a, scale(factor=:std))
+@test isapprox(scale_norm, [3.02372 0.25 2.26779; 1.13389 1.25 2.64575; 1.51186 2.25 0.755929], atol=1e-5)
+
+scale_norm = tabular_norm(a, scale(factor=:mad))
+@test scale_norm == [8.0 0.25 6.0; 3.0 1.25 7.0; 4.0 2.25 2.0]
+
+scale_norm = tabular_norm(a, scale(factor=:first))
+@test isapprox(scale_norm, [1.0 1.0 1.0; 0.375 5.0 1.16667; 0.5 9.0 0.333333], atol=1e-5)
+
+scale_norm = tabular_norm(a, scale(factor=:iqr))
+
 ### test
 b = reshape(1:18, 3, 3, 2)
 X = rand(1000,750)
