@@ -15,9 +15,6 @@ abstract type AbstractDataTreatment end
 # ---------------------------------------------------------------------------- #
 const ValidVnames = Union{Symbol, String}
 
-export col, row
-@enum NormDim col row
-
 # ---------------------------------------------------------------------------- #
 #                                   files                                      #
 # ---------------------------------------------------------------------------- #
@@ -37,7 +34,7 @@ include("windowing.jl")
 export reducesize, aggregate
 include("treatment.jl")
 
-export zscore, sigmoid, rescale, center, unitenergy, unitpower, halfzscore, outliersuppress, minmaxclip
+export zscore, sigmoid, norm, rescale, center, unitenergy, unitpower, outliersuppress, minmaxclip
 export element_norm, tabular_norm, ds_norm
 include("normalize.jl")
 

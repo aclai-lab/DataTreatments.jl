@@ -8,8 +8,41 @@ halfstd(x) = std(x) ./ convert(eltype(x), sqrt(1 - (2 / π)))
 # ---------------------------------------------------------------------------- #
 #                               core functions                                 #
 # ---------------------------------------------------------------------------- #
-_zscore(y, o)  = (x) -> (x - y) / o # * But this needs to be mapped over SCALAR y
-_sigmoid(y, o) = (x) -> inv(1 + exp(-(x - y) / o))
+function _zscore(x::AbstractArray; method::Symbol)
+    (y,o) = if method == :std
+        (Statistics.mean(x), Statistics.std(x))
+    elseif method == :robust
+        _y = Statistics.median(x)
+        (_y, Statistics.median(abs.(x .- _y)))
+    elseif method == :half
+        (minimum(x), halfstd(x))
+    else
+        throw(ArgumentError("method must be :std, :robust or :half, got :$method"))
+    end
+    (x) -> (x - y) / o # * But this needs to be mapped over SCALAR y
+end
+
+function _sigmoid(x::AbstractArray)
+    y, o = Statistics.mean(x), Statistics.std(x)
+    (x) -> inv(1 + exp(-(x - y) / o))
+end
+
+function _norm(x::AbstractArray; p::Real)
+    # fill NaNs with 0 for norm computation
+    @inbounds x[isnan.(x)] .= 0
+    
+    # Compute p-norm
+    s = if p == Inf
+        abs.(x) |> maximum
+    elseif p == 2
+        sum(abs2, x) |> sqrt
+    else
+        sum(abs.(x).^p)^(1/p)
+    end
+    
+    Base.Fix2(/, s)
+end
+
 _rescale(l, u)   = (x) -> (x - l) / (u - l)
 _center(y)     = (x) -> x - y
 _unitenergy(e) = Base.Fix2(/, e) # For unitful consistency, the sorted parameter is the root energy
@@ -25,15 +58,33 @@ end
 # ---------------------------------------------------------------------------- #
 #                              caller functions                                #
 # ---------------------------------------------------------------------------- #
-zscore()::Function          = x -> _zscore(Statistics.mean(x), Statistics.std(x))
-sigmoid()::Function         = x -> _sigmoid(Statistics.mean(x), Statistics.std(x))
+"""
+:std Compute the z-score. Center data to have mean 0, and scale data to have standard deviation 1.
+:robust Compute the z-score. Center data to have mean 0, and scale data to have median absolute deviation 1.
+:half Normalization to the standard half-normal distribution
+"""
+zscore(; method::Symbol=:std)::Function = x -> _zscore(x; method)
+
+"""
+Map to the interval ( 0 , 1 ) by applying a sigmoid transformation
+"""
+sigmoid()::Function = x -> _sigmoid(x)
+
+"""
+p(default is 2) Scale data by the p-norm, where p is a positive numeric scalar.
+p=Inf Scale data by the p-norm, where p is Inf. 
+The infinity norm, or maximum norm, is the same as the largest magnitude of the elements in the data.
+"""
+norm(; p::Real=2) = x -> _norm(x; p)
+
 rescale()::Function         = x -> _rescale(minimum(x), maximum(x))
 center()::Function          = x -> _center(Statistics.mean(x))
 unitenergy()::Function      = x -> _unitenergy(rootenergy(x))
 unitpower()::Function       = x -> _unitpower(rootpower(x))
-halfzscore()::Function      = x -> _zscore(minimum(x), halfstd(x))
 outliersuppress()::Function = x -> _outliersuppress(Statistics.mean(x), Statistics.std(x))
 minmaxclip()::Function      = x -> _minmaxclip(minimum(x), maximum(x))
+
+
 
 # ---------------------------------------------------------------------------- #
 #                              normalize functions                             #
@@ -79,13 +130,15 @@ element_norm(X::AbstractArray{T}, args...) where {T<:Real} = element_norm(Float6
 function tabular_norm(
     X::AbstractArray{T},
     n::Base.Callable;
-    dim::NormDim=col
+    dim::Symbol=:col
 )::AbstractArray where {T<:AbstractFloat}
-    dim == row && (X = X')
+    dim in (:col, :row) || throw(ArgumentError("dim must be :col or :row, got :$dim"))
+
+    dim == :row && (X = X')
     cols = Iterators.flatten.(eachcol(X))
     nfuncs = @inbounds [n(collect(cols[i])) for i in eachindex(cols)]
-    dim == row ? [nfuncs[idx[2]](X[idx]) for idx in CartesianIndices(X)]' :
-                 [nfuncs[idx[2]](X[idx]) for idx in CartesianIndices(X)]
+    dim == :row ? [nfuncs[idx[2]](X[idx]) for idx in CartesianIndices(X)]' :
+                  [nfuncs[idx[2]](X[idx]) for idx in CartesianIndices(X)]
 end
 tabular_norm(X::AbstractArray{T}, args...; kwargs...) where {T<:Real} = 
     tabular_norm(Float64.(X), args...;kwargs...)
@@ -97,7 +150,7 @@ tabular_norm(X::AbstractArray{T}, args...; kwargs...) where {T<:Real} =
     return Xn
 end
 
-function ds_norm(X::AbstractArray{T}, n::Base.Callable)::AbstractArray where {T<:AbstractFloat}
+function ds_norm(X::AbstractArray{T}, n::Base.Callable)::AbstractArray where {T<:AbstractArray{<:AbstractFloat}}
     # compute normalization functions for each column
     cols = Iterators.flatten.(eachcol(X))
     nfuncs = Vector{Function}(undef, length(cols))
@@ -116,4 +169,4 @@ function ds_norm(X::AbstractArray{T}, n::Base.Callable)::AbstractArray where {T<
     
     return Xn
 end
-ds_norm(X::AbstractArray{T}, args...) where {T<:Real} = ds_norm(Float64.(X), args...)
+ds_norm(X::AbstractArray{T}, args...) where {T<:AbstractArray{<:Real}} = ds_norm(Float64.(X), args...)

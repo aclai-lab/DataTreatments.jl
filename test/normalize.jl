@@ -3,17 +3,42 @@ using DataTreatments
 
 using Normalization
 
+# ---------------------------------------------------------------------------- #
+#                             tabular normalization                            #
+# ---------------------------------------------------------------------------- #
 a = [8 1 6; 3 5 7; 4 9 2]
-b = reshape(1:18, 3, 3, 2)
 
+# test values verified against MATLAB
+# ---------------------------------------------------------------------------- #
 zscore_norm = tabular_norm(a, zscore())
 @test isapprox(zscore_norm, [1.13389 -1.0 0.377964; -0.755929 0.0 0.755929; -0.377964 1.0 -1.13389], atol=1e-5)
 
-zscore_row = tabular_norm(a, zscore(); dim=row)
+zscore_row = tabular_norm(a, zscore(); dim=:row)
 @test isapprox(zscore_row, [0.83205 -1.1094 0.27735; -1.0 0.0 1.0; -0.27735 1.1094 -0.83205], atol=1e-5)
 
+zscore_robust = tabular_norm(a, zscore(method=:robust))
+@test zscore_robust == [4.0 -1.0 0.0; -1.0 0.0 1.0; 0.0 1.0 -4.0]
+
+zscore_half = tabular_norm(a, zscore(method=:half))
+
+@test_throws ArgumentError tabular_norm(a, zscore(); dim=:invalid)
+@test_throws ArgumentError zscore_half = tabular_norm(a, zscore(method=:invalid))
+
+# ---------------------------------------------------------------------------- #
+@test_nowarn tabular_norm(a, sigmoid())
+
+# ---------------------------------------------------------------------------- #
+norm_norm = tabular_norm(a, norm())
+@test isapprox(norm_norm, [0.847998 0.0966736 0.635999; 0.317999 0.483368 0.741999; 0.423999 0.870063 0.212], atol=1e-6)
+
+norm_norm = tabular_norm(a, norm(p=4))
+@test isapprox(norm_norm, [0.980428 0.108608 0.768635; 0.36766 0.543042 0.896741; 0.490214 0.977475 0.256212], atol=1e-5)
+
+norm_norm = tabular_norm(a, norm(p=Inf))
+@test isapprox(norm_norm, [1.0 0.111111 0.857143; 0.375 0.555556 1.0; 0.5 1.0 0.285714], atol=1e-6)
 
 ### test
+b = reshape(1:18, 3, 3, 2)
 X = rand(1000,750)
 
 @test_nowarn element_norm(X, zscore())
@@ -22,7 +47,6 @@ X = rand(1000,750)
 @test_nowarn element_norm(X, center())
 @test_nowarn element_norm(X, unitenergy())
 @test_nowarn element_norm(X, unitpower())
-@test_nowarn element_norm(X, halfzscore())
 @test_nowarn element_norm(X, outliersuppress())
 @test_nowarn element_norm(X, minmaxclip())
 
@@ -34,7 +58,6 @@ X = [rand(200, 100) .* 1000 for _ in 1:100, _ in 1:100]
 @test_nowarn ds_norm(X, center())
 @test_nowarn ds_norm(X, unitenergy())
 @test_nowarn ds_norm(X, unitpower())
-@test_nowarn ds_norm(X, halfzscore())
 @test_nowarn ds_norm(X, outliersuppress())
 @test_nowarn ds_norm(X, minmaxclip())
 
