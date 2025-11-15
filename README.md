@@ -1,7 +1,7 @@
 # DataTreatments.jl
 
 [![dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://PasoStudio73.github.io/DataTreatments.jl/)
-[![Build Status](https://github.com/PasoStudio73/DataTreatments.jl/actions/workflows/CI.yml/badge.svg?branch=main)](https://github.com/PasoStudio73/DataTreatments.jl/actions/workflows/CI.yml?query=branch%3Amain)
+[![Build Status](https://github.com/PasoStudio73/DataTreatments.jl/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/PasoStudio73/DataTreatments.jl/actions/workflows/ci.yml?query=branch%3Amain)
 [![codecov](https://codecov.io/gh/PasoStudio73/DataTreatments.jl/branch/main/graph/badge.svg?token=GqP3LgtrND)](https://codecov.io/gh/PasoStudio73/DataTreatments.jl)
 
 A Julia package for processing datasets containing multidimensional elements through windowing and dimensionality reduction techniques.
