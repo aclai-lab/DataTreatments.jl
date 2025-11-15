@@ -18,6 +18,7 @@ makedocs(;
     pages=[
         "Home"          => "index.md",
         "Api"           => "api.md",
+        "FeatureSet"    => "featureset.md",
         "Normalization" => "normalization.md",
     ],
     warnonly=:true,
