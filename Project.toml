@@ -1,6 +1,6 @@
 name = "DataTreatments"
 uuid = "1b3ff5f2-9b56-42a2-b38a-76a033f741ca"
-version = "0.0.6-DEV"
+version = "0.1.0"
 authors = ["Riccardo Pasini"]
 
 [deps]
