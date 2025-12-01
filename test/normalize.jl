@@ -380,3 +380,136 @@ end
     
     @test X1 ≈ X2
 end
+
+@testset "grouped_norm Verification" begin
+    @testset "Basic grouped normalization" begin
+        # Create dataset where columns 1-2 are from 'mean' feature, 3-4 from 'std' feature
+        X = [1.0  2.0  10.0  20.0;
+             3.0  4.0  30.0  40.0;
+             5.0  6.0  50.0  60.0]
+        
+        featvec = [mean, mean, std, std]
+        
+        X_grouped = grouped_norm(X, zscore(); featvec=featvec)
+        
+        # Columns 1-2 should be normalized together using all values from both columns
+        all_means = vec([X[:, 1]; X[:, 2]])  # [1,3,5,2,4,6]
+        expected_mean_cols = zscore()(all_means)
+        
+        # Check that columns 1-2 are normalized as a group
+        μ_group1 = mean([X[:, 1]; X[:, 2]])
+        σ_group1 = std([X[:, 1]; X[:, 2]])
+        
+        @test mean([X_grouped[:, 1]; X_grouped[:, 2]]) ≈ 0.0 atol=1e-10
+        @test std([X_grouped[:, 1]; X_grouped[:, 2]]) ≈ 1.0 atol=1e-10
+        
+        # Check that columns 3-4 are normalized as a separate group
+        μ_group2 = mean([X[:, 3]; X[:, 4]])
+        σ_group2 = std([X[:, 3]; X[:, 4]])
+        
+        @test mean([X_grouped[:, 3]; X_grouped[:, 4]]) ≈ 0.0 atol=1e-10
+        @test std([X_grouped[:, 3]; X_grouped[:, 4]]) ≈ 1.0 atol=1e-10
+        
+        # Verify specific values
+        @test X_grouped[1, 1] ≈ (1.0 - μ_group1) / σ_group1
+        @test X_grouped[1, 3] ≈ (10.0 - μ_group2) / σ_group2
+    end
+    
+    @testset "Single group (all columns same feature)" begin
+        X = [1.0  2.0  3.0;
+             4.0  5.0  6.0;
+             7.0  8.0  9.0]
+        
+        # All columns from same feature
+        featvec = [mean, mean, mean]
+        
+        X_grouped = grouped_norm(X, zscore(); featvec=featvec)
+        
+        # Should behave like element_norm since all columns are in same group
+        X_element = element_norm(X, zscore())
+        
+        @test X_grouped ≈ X_element atol=1e-10
+    end
+    
+    @testset "Each column separate group" begin
+        X = [1.0  10.0  100.0;
+             2.0  20.0  200.0;
+             3.0  30.0  300.0]
+        
+        # Each column is its own group (different features)
+        featvec = [mean, maximum, minimum]
+        
+        X_grouped = grouped_norm(X, zscore(); featvec=featvec)
+        
+        # Should behave like tabular_norm since each column is separate
+        X_tabular = tabular_norm(X, zscore())
+        
+        @test X_grouped ≈ X_tabular atol=1e-10
+    end
+    
+    @testset "minmax with grouped features" begin
+        X = [1.0  2.0  10.0  20.0;
+             3.0  4.0  30.0  40.0;
+             5.0  6.0  50.0  60.0]
+        
+        featvec = [mean, mean, std, std]
+        
+        X_grouped = grouped_norm(X, DT.minmax(); featvec=featvec)
+        
+        # Check group 1 (columns 1-2) normalized to [0, 1]
+        @test minimum([X_grouped[:, 1]; X_grouped[:, 2]]) ≈ 0.0 atol=1e-10
+        @test maximum([X_grouped[:, 1]; X_grouped[:, 2]]) ≈ 1.0 atol=1e-10
+        
+        # Check group 2 (columns 3-4) normalized to [0, 1]
+        @test minimum([X_grouped[:, 3]; X_grouped[:, 4]]) ≈ 0.0 atol=1e-10
+        @test maximum([X_grouped[:, 3]; X_grouped[:, 4]]) ≈ 1.0 atol=1e-10
+    end
+    
+    @testset "In-place grouped_norm!" begin
+        X_orig = [1.0  2.0  10.0  20.0;
+                  3.0  4.0  30.0  40.0;
+                  5.0  6.0  50.0  60.0]
+        
+        X_copy = copy(X_orig)
+        featvec = [mean, mean, std, std]
+        
+        # Test in-place version
+        grouped_norm!(X_copy, zscore(); featvec=featvec)
+        
+        # Should give same result as non-mutating version
+        X_grouped = grouped_norm(X_orig, zscore(); featvec=featvec)
+        
+        @test X_copy ≈ X_grouped
+    end
+    
+    @testset "Three feature groups" begin
+        X = [1.0  2.0  10.0  20.0  100.0  200.0;
+             3.0  4.0  30.0  40.0  300.0  400.0;
+             5.0  6.0  50.0  60.0  500.0  600.0]
+        
+        # Three groups: cols 1-2 (mean), 3-4 (std), 5-6 (maximum)
+        featvec = [mean, mean, std, std, maximum, maximum]
+        
+        X_grouped = grouped_norm(X, zscore(); featvec=featvec)
+        
+        # Verify each group is normalized independently
+        for (cols, name) in [([1,2], "group1"), ([3,4], "group2"), ([5,6], "group3")]
+            group_data = vec(X_grouped[:, cols])
+            @test mean(group_data) ≈ 0.0 atol=1e-10
+            @test std(group_data) ≈ 1.0 atol=1e-10
+        end
+    end
+    
+    @testset "Real to Float64 conversion" begin
+        X_int = [1  2  10  20;
+                 3  4  30  40;
+                 5  6  50  60]
+        
+        featvec = [mean, mean, std, std]
+        
+        X_grouped = grouped_norm(X_int, zscore(); featvec=featvec)
+        
+        @test eltype(X_grouped) <: AbstractFloat
+        @test mean([X_grouped[:, 1]; X_grouped[:, 2]]) ≈ 0.0 atol=1e-10
+    end
+end
