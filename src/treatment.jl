@@ -9,6 +9,9 @@ core_eltype(x) = eltype(x) <: AbstractArray ? core_eltype(eltype(x)) : eltype(x)
     ntuple(i -> intervals[i][cart_idx[i]], length(intervals))
 end
 
+@inline is_multidim_dataset(X::Union{AbstractArray, AbstractDataFrame})::Bool =
+    any(eltype(col) <: AbstractArray for col in eachcol(X))
+
 # ---------------------------------------------------------------------------- #
 #                             reducesize functions                              #
 # ---------------------------------------------------------------------------- #

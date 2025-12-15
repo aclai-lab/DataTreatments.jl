@@ -34,17 +34,12 @@ export @evalwindow
 include("windowing.jl")
 
 export reducesize, aggregate
+export is_multidim_dataset
 include("treatment.jl")
 
 export zscore, sigmoid, pnorm, scale, minmax, center, unitpower, outliersuppress
 export element_norm, tabular_norm, grouped_norm, grouped_norm!, ds_norm
 include("normalize.jl")
-
-# ---------------------------------------------------------------------------- #
-#                                    utils                                     #
-# ---------------------------------------------------------------------------- #
-is_multidim_dataframe(X::AbstractArray)::Bool =
-    any(eltype(col) <: AbstractArray for col in eachcol(X))
 
 # ---------------------------------------------------------------------------- #
 #                                  FeatureId                                   #
@@ -298,7 +293,7 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
         reducefunc :: Base.Callable=mean,
         norm       :: Union{Base.Callable, Nothing}=nothing
     )
-        is_multidim_dataframe(X) || throw(ArgumentError("Input DataFrame " * 
+        is_multidim_dataset(X) || throw(ArgumentError("Input DataFrame " * 
             "does not contain multidimensional data."))
 
         vnames isa Vector{String} && (vnames = Symbol.(vnames))
