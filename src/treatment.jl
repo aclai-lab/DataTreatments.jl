@@ -9,8 +9,53 @@ core_eltype(x) = eltype(x) <: AbstractArray ? core_eltype(eltype(x)) : eltype(x)
     ntuple(i -> intervals[i][cart_idx[i]], length(intervals))
 end
 
+"""
+    is_multidim_dataset(X::Union{AbstractArray, AbstractDataFrame}) -> Bool
+
+Return true if any feature column contains array-valued elements, indicating a
+multidimensional dataset that requires aggregation or size-reduction.
+
+Arguments
+- X: A matrix-like object or a DataFrame. Each column is inspected; if
+  `eltype(col) <: AbstractArray` for any column, the function returns true.
+
+Examples
+```julia
+# DataFrame with array-valued column:
+df = DataFrame(a=[rand(10) for _ in 1:3], b=rand(3))
+is_multidim_dataset(df)  # true
+
+# Plain numeric matrix:
+X = rand(5, 3)
+is_multidim_dataset(X)   # false
+
+# Matrix of arrays:
+X = [rand(4) for _ in 1:5, _ in 1:2]
+is_multidim_dataset(X)   # true
+```
+
+Notes
+- Used to select the preprocessing path (aggregate vs reducesize).
+"""
 @inline is_multidim_dataset(X::Union{AbstractArray, AbstractDataFrame})::Bool =
     any(eltype(col) <: AbstractArray for col in eachcol(X))
+
+"""
+    nvals(intervals) -> Int
+
+Return the total number of window combinations.
+Examples:
+- For a single vector of ranges: nvals(v) == length(v)
+- For a tuple of vectors: nvals((v1, v2, ...)) == prod(length.(...))
+
+```julia
+intervals = (UnitRange{Int}[1:50, 51:100, 101:150, 151:200],
+            UnitRange{Int}[1:30, 31:60, 61:90, 91:120])
+nvals(intervals) # 16
+```
+"""
+@inline nvals(intervals::Tuple{Vararg{<:AbstractVector}})::Int64 = prod(length.(intervals))
+@inline nvals(intervals::AbstractVector)::Int64 = length(intervals)
 
 # ---------------------------------------------------------------------------- #
 #                             reducesize functions                              #
@@ -64,7 +109,7 @@ function reducesize(
 end
 
 # ---------------------------------------------------------------------------- #
-#                            aggregate functions                              #
+#                             aggregate functions                              #
 # ---------------------------------------------------------------------------- #
 """
     aggregate(X::AbstractArray, intervals::Tuple{Vararg{Vector{UnitRange{Int64}}}}[; features::Tuple{Vararg{Base.Callable}}=(mean,)]) -> AbstractArray

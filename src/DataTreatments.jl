@@ -34,7 +34,7 @@ export @evalwindow
 include("windowing.jl")
 
 export reducesize, aggregate
-export is_multidim_dataset
+export is_multidim_dataset, nvals
 include("treatment.jl")
 
 export zscore, sigmoid, pnorm, scale, minmax, center, unitpower, outliersuppress
