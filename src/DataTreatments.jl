@@ -73,7 +73,7 @@ fid = FeatureId(:pressure, maximum, 3)
 
 # Access metadata
 get_vname(fid)    # :pressure
-get_feature(fid)  # maximum
+get_feat(fid)  # maximum
 get_nwin(fid)     # 3
 ```
 
@@ -95,7 +95,7 @@ Base.getproperty(f::FeatureId, s::Symbol) = getfield(f, s)
 Base.propertynames(::FeatureId)           = (:vname, :feat, :nwin)
 
 get_vname(f::FeatureId)   = f.vname
-get_feature(f::FeatureId) = f.feat
+get_feat(f::FeatureId) = f.feat
 get_nwin(f::FeatureId)    = f.nwin
 
 get_vecvnames(f::Vector{FeatureId})   = [get_vname(n) for n in f]
@@ -375,6 +375,48 @@ Base.getindex(dt::DataTreatment, ::Colon, j::Int) = dt.dataset[:, j]
 Base.getindex(dt::DataTreatment, i::Int, ::Colon) = dt.dataset[i, :]
 Base.getindex(dt::DataTreatment, I...) = dt.dataset[I...]
 
+"""
+    groupby(dt::DataTreatment, field::Symbol) -> (Dict, Vector)
+
+Group feature indices by values in the specified `FeatureId` field.
+
+# Arguments
+- `dt::DataTreatment`: The data treatment object containing feature metadata
+- `field::Symbol`: Any valid field of `FeatureId` (e.g. `:vname`, `:feat`, `:nwin`)
+
+# Returns
+- `groups::Dict`: Maps each distinct field value to a `Vector{Int}` of feature indices
+- `feats::Vector`: The unique field values (group keys) in `FeatureId`
+
+# Examples
+```julia
+# Group by variable name
+groups, keys = groupby(dt, :vname)
+
+# Group by feature function
+groups, keys = groupby(dt, :feat)
+
+# Group by window number
+groups, keys = groupby(dt, :nwin)
+```
+"""
+function groupby(d::DataTreatment, field::Symbol)
+    field in fieldnames(FeatureId) || 
+        throw(ArgumentError("field must be one of $(fieldnames(FeatureId))"))
+
+    getter = @eval $(Symbol(:get_, field))  
+    featureids = get_featureid(d)
+    feats = unique(getter.(featureids))
+
+    groups = Dict{eltype(feats), Vector{Int}}()
+
+    for f in feats
+        groups[f] = findall(fid -> getter(fid) == f, featureids)
+    end
+
+    return groups, feats
+end
+
 function Base.show(io::IO, dt::DataTreatment)
     nrows, ncols = size(dt.dataset)
     print(io, "DataTreatment($(dt.aggrtype), $(nrows)×$(ncols), $(length(dt.featureid)) features)")
@@ -411,7 +453,7 @@ function Base.show(io::IO, ::MIME"text/plain", dt::DataTreatment)
 end
 
 export FeatureId, DataTreatment
-export get_vname, get_feature, get_nwin
+export get_vname, get_feat, get_nwin
 export get_vecvnames, get_vecfeatures, get_vecnwins
 export get_vnames, get_features, get_nwindows
 export get_dataset, get_featureid, get_reducefunc, get_aggrtype, get_norm
