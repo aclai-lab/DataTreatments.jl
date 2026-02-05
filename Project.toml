@@ -20,7 +20,8 @@ julia = "1"
 
 [extras]
 Normalization = "be38d6a3-8366-4a42-ad57-222272b5bbe7"
+SoleData = "123f1ae1-6307-4526-ab5b-aab3a92a2b8c"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [targets]
-test = ["Normalization", "Test"]
+test = ["Normalization", "SoleData", "Test"]
