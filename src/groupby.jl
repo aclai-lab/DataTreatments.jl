@@ -63,19 +63,19 @@ function groupby(df::DataTreatment, fields::Symbol...)
     # initial setup Vector{Vector} of all indexes and featureids
     featureids = get_featureid(df)
 
-    groupby(get_dataset(df), featureids, collect(fields))
+    _groupby(get_dataset(df), featureids, collect(fields))
 end
 
-function groupby(::Matrix{T}, featureids::Vector{FeatureId}, fields::Vector{Symbol}) where {T<:Real}
+# ---------------------------------------------------------------------------- #
+#                              internal _groupby                               #
+# ---------------------------------------------------------------------------- #
+function _groupby(::Matrix{T}, featureids::Vector{FeatureId}, fields::Vector{Symbol}) where {T<:Real}
     # initial setup Vector{Vector} of all indexes
     idxs = [[1:length(featureids)...]]
 
     _groupby(idxs, [featureids], fields)
 end
 
-# ---------------------------------------------------------------------------- #
-#                              internal _groupby                               #
-# ---------------------------------------------------------------------------- #
 function _groupby(idxs::Vector{Vector{Int64}}, featureids::Vector{Vector{FeatureId}}, fields::Vector{Symbol})
     # this function performs multi-level grouping (recursive).
     # - idxs: current groups of column indices
