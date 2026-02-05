@@ -1,4 +1,13 @@
 # ---------------------------------------------------------------------------- #
+#                               GroupTreatment                                 #
+# ---------------------------------------------------------------------------- #
+struct GroupResult <: AbstractDataTreatment
+    groups::Vector{Vector{Int}}
+    feat_groups::Vector{Vector{FeatureId}}
+end
+
+
+# ---------------------------------------------------------------------------- #
 #                                  groupby                                     #
 # ---------------------------------------------------------------------------- #
 """
@@ -57,24 +66,30 @@ end
 function _groupby(idxs::Vector{Vector{Int64}}, featureids::Vector{Vector{FeatureId}}, fields::Vector{Symbol})
     if length(fields) == 1
         ngroups = length(featureids)
-        all_groups = Vector{Vector{Vector{Int}}}(undef, ngroups)
-        all_feats = Vector{Vector{Vector{FeatureId}}}(undef, ngroups)
+        results = Vector{Tuple}(undef, ngroups)
 
         for i in 1:ngroups
-            all_groups[i], all_feats[i] = _groupby(idxs[i], featureids[i], fields[1])
+            # results[i] = _groupby(idxs[i], featureids[i], fields[1])
+            g, f = _groupby(idxs[i], featureids[i], fields[1])
+            results[i] = (g, f)
         end
 
-        # flatten one level
-        return vcat(all_groups...), vcat(all_feats...)
+        # Flatten results
+        all_groups = vcat([r[1] for r in results]...)
+        all_feats = vcat([r[2] for r in results]...)
+        return all_groups, all_feats
     end
 
     ngroups = length(featureids)
-    all_groups = Vector{Any}(undef, ngroups)
-    all_feats = Vector{Any}(undef, ngroups)
+    all_groups = Vector{Vector{Int}}()
+    all_feats = Vector{Vector{FeatureId}}()
 
     for i in 1:ngroups
         sub_idxs, sub_featureids = _groupby(idxs[i], featureids[i], fields[1])
-        all_groups[i], all_feats[i] = _groupby(sub_idxs, sub_featureids, fields[2:end])
+        # Recursively group and flatten as we go
+        groups, feats = _groupby(sub_idxs, sub_featureids, fields[2:end])
+        append!(all_groups, groups)
+        append!(all_feats, feats)
     end
 
     return all_groups, all_feats
