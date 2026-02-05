@@ -1,6 +1,11 @@
 using Test
 using DataTreatments
 
+using SoleData.Artifacts
+
+# fill your Artifacts.toml file;
+fillartifacts()
+
 function run_tests(list)
     println("\n" * ("#"^50))
     for test in list
