@@ -1,20 +1,4 @@
 # ---------------------------------------------------------------------------- #
-#                               GroupTreatment                                 #
-# ---------------------------------------------------------------------------- #
-struct GroupResult <: AbstractDataTreatment
-    group::Vector{Int64}
-    feat_group::Vector{FeatureId}
-
-    function GroupResult(
-        group::Vector{Int64},
-        feat_group::Vector{FeatureId}
-    )
-        new(group, feat_group)
-    end
-end
-
-
-# ---------------------------------------------------------------------------- #
 #                                  groupby                                     #
 # ---------------------------------------------------------------------------- #
 """
@@ -69,7 +53,7 @@ end
 # ---------------------------------------------------------------------------- #
 #                              internal _groupby                               #
 # ---------------------------------------------------------------------------- #
-function _groupby(::Matrix{T}, featureids::Vector{FeatureId}, fields::Vector{Symbol}) where {T<:Real}
+function _groupby(::Matrix{T}, featureids::Vector{FeatureId}, fields::Vector{Symbol}) where T
     # initial setup Vector{Vector} of all indexes
     idxs = [[1:length(featureids)...]]
 

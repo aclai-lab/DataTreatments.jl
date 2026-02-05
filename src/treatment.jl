@@ -122,7 +122,7 @@ function reducesize(
     Xresult      = similar(X)
     cart_indices = CartesianIndices(output_dims)
     
-    @inbounds Threads.@threads for i in 1:length(X)
+    @inbounds for i in 1:length(X)
         element = X[i]
         uniform || begin
             intervals = @evalwindow X[i] win...

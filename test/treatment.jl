@@ -43,7 +43,7 @@ end
         fid = FeatureId(:temperature, mean, 1)
         
         @test get_vname(fid) == :temperature
-        @test get_feature(fid) == mean
+        @test get_feat(fid) == mean
         @test get_nwin(fid) == 1
     end
     
@@ -126,9 +126,9 @@ end
         @test all(get_nwin(fid) == 1 for fid in feature_ids)
         
         # Check ordering: features × variables
-        @test get_feature(feature_ids[1]) == mean
+        @test get_feat(feature_ids[1]) == mean
         @test get_vname(feature_ids[1]) == :var1
-        @test get_feature(feature_ids[2]) == Statistics.std
+        @test get_feat(feature_ids[2]) == Statistics.std
         @test get_vname(feature_ids[2]) == :var1
     end
 
@@ -209,7 +209,7 @@ end
     @test :featureid in props
     @test :reducefunc in props
     @test :aggrtype in props
-    @test length(props) == 5
+    @test length(props) == 6
 end
 
 @testset "DataTreatment - Accessor Functions" begin

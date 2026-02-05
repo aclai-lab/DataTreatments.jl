@@ -99,7 +99,7 @@ get_feat(f::FeatureId) = f.feat
 get_nwin(f::FeatureId)    = f.nwin
 
 get_vecvnames(f::Vector{FeatureId})   = [get_vname(n) for n in f]
-get_vecfeatures(f::Vector{FeatureId}) = [get_feature(_f) for _f in f]
+get_vecfeatures(f::Vector{FeatureId}) = [get_feat(_f) for _f in f]
 get_vecnwins(f::Vector{FeatureId})    = [get_nwin(w) for w in f]
 
 function Base.show(io::IO, f::FeatureId)
@@ -114,6 +114,22 @@ end
 function Base.show(io::IO, ::MIME"text/plain", f::FeatureId)
     print(io, "FeatureId: ")
     show(io, f)
+end
+
+
+# ---------------------------------------------------------------------------- #
+#                               GroupTreatment                                 #
+# ---------------------------------------------------------------------------- #
+struct GroupResult <: AbstractDataTreatment
+    group::Vector{Int64}
+    method::Vector{Symbol}
+
+    function GroupResult(
+        group::Vector{Int64},
+        method::Vector{Symbol}
+    )
+        new(group, method)
+    end
 end
 
 # ---------------------------------------------------------------------------- #
@@ -278,7 +294,7 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
     featureid  :: Vector{FeatureId}
     reducefunc :: Base.Callable
     aggrtype   :: Symbol
-    groups     :: Union{Tuple{Vararg{Symbol}}, Nothing}
+    groups     :: Union{Vector{GroupResult}, Nothing}
     norm       :: Union{Base.Callable, Nothing}
 
     function DataTreatment(
@@ -330,10 +346,12 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
             error("Unknown treatment type: $treat")
         end
 
-        if !isnothing(groups)
-            @show typeof(Xresult)
-            @show typeof(Xinfo)
-
+        grp_result = if !isnothing(groups)
+            fields = collect(groups)
+            groupidxs, _ = _groupby(Xresult, Xinfo, fields)
+            [GroupResult(groupidx, fields) for groupidx in groupidxs]
+        else
+            nothing
         end
 
         if !isnothing(norm)
@@ -341,7 +359,7 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
             aggrtype == :reducesize && (Xresult = ds_norm(Xresult, norm))
         end
 
-        new{eltype(Xresult), core_eltype(Xresult)}(Xresult, Xinfo, reducefunc, aggrtype, groups, norm)
+        new{eltype(Xresult), core_eltype(Xresult)}(Xresult, Xinfo, reducefunc, aggrtype, grp_result, norm)
     end
 
     function DataTreatment(
@@ -357,12 +375,13 @@ end
 
 # value access methods
 Base.getproperty(dt::DataTreatment, s::Symbol) = getfield(dt, s)
-Base.propertynames(::DataTreatment) = (:dataset, :featureid, :reducefunc, :aggrtype, :norm)
+Base.propertynames(::DataTreatment) = (:dataset, :featureid, :reducefunc, :aggrtype, :groups, :norm)
 
 get_dataset(dt::DataTreatment)    = dt.dataset
 get_featureid(dt::DataTreatment)  = dt.featureid
 get_reducefunc(dt::DataTreatment) = dt.reducefunc
 get_aggrtype(dt::DataTreatment)   = dt.aggrtype
+get_groups(dt::DataTreatment)       = dt.groups
 get_norm(dt::DataTreatment)       = dt.norm
 
 # Convenience methods for common operations
@@ -387,10 +406,7 @@ export FeatureId, DataTreatment
 export get_vname, get_feat, get_nwin
 export get_vecvnames, get_vecfeatures, get_vecnwins
 export get_vnames, get_features, get_nwindows
-export get_dataset, get_featureid, get_reducefunc, get_aggrtype, get_norm
-
-export groupby
-include("groupby.jl")
+export get_dataset, get_featureid, get_reducefunc, get_aggrtype, get_groups, get_norm
 
 function Base.show(io::IO, dt::DataTreatment)
     nrows, ncols = size(dt.dataset)
@@ -426,5 +442,8 @@ function Base.show(io::IO, ::MIME"text/plain", dt::DataTreatment)
         end
     end
 end
+
+export groupby
+include("groupby.jl")
 
 end

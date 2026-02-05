@@ -15,6 +15,7 @@ test_suites = [
     ("Windowing",  ["windowing.jl",]),
     ("FeatureSet", ["featureset.jl",]),
     ("Treatment",  ["treatment.jl",]),
+    ("Groupby", ["groupby.jl"]),
     ("Normalize",  ["normalize.jl",]),
 ]
 

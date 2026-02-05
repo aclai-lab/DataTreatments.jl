@@ -4,22 +4,24 @@ using DataTreatments
 using Statistics
 
 X = rand(200, 120)
-Xmatrix = fill(X, 50, 5)
-win = splitwindow(nwindows=3)
+var = 5
+Xmatrix = fill(X, 50, var)
+nwindows = 3
+win = splitwindow(;nwindows)
 
 @testset "base_set features" begin
     dt = DataTreatment(Xmatrix, :aggregate;
-                        vnames=Symbol.("var", 1:5),
-                        win=(win,),
+                        vnames=Symbol.("var", 1:var),
+                        win,
                         features=DataTreatments.base_set)
     
     @test size(dt, 1) == 50
-    @test length(get_features(dt)) == length(DataTreatments.base_set)
-    @test Set(get_features(dt)) == Set(DataTreatments.base_set)
+    # 2d elements, windowing will be applied both in x and y axis, resulting in nwindows^2 elements
+    @test length(get_featureid(dt)) == (length(DataTreatments.base_set) * nwindows^2 * var)
     
     # Check all base features are present
     feature_ids = get_featureid(dt)
-    feature_funcs = unique(get_feature.(feature_ids))
+    feature_funcs = unique(get_feat.(feature_ids))
     @test maximum in feature_funcs
     @test minimum in feature_funcs
     @test mean in feature_funcs
@@ -29,15 +31,15 @@ end
 @testset "catch9 features" begin
     dt = DataTreatment(Xmatrix, :aggregate;
                         vnames=Symbol.("var", 1:5),
-                        win=(win,),
+                        win,
                         features=DataTreatments.catch9)
     
     @test size(dt, 1) == 50
-    @test length(get_features(dt)) == length(DataTreatments.catch9)
+    @test length(get_featureid(dt)) == (length(DataTreatments.catch9) * nwindows^2 * var)
     
     # Check statistical features
     feature_ids = get_featureid(dt)
-    feature_funcs = unique(get_feature.(feature_ids))
+    feature_funcs = unique(get_feat.(feature_ids))
     @test maximum in feature_funcs
     @test minimum in feature_funcs
     @test mean in feature_funcs
@@ -54,15 +56,15 @@ end
 @testset "catch22_set features" begin
     dt = DataTreatment(Xmatrix, :aggregate;
                         vnames=Symbol.("var", 1:5),
-                        win=(win,),
+                        win,
                         features=DataTreatments.catch22_set)
     
     @test size(dt, 1) == 50
-    @test length(get_features(dt)) == length(DataTreatments.catch22_set)
+    @test length(get_featureid(dt)) == (length(DataTreatments.catch22_set) * nwindows^2 * var)
     
     # Check a sample of Catch22 features
     feature_ids = get_featureid(dt)
-    feature_funcs = unique(get_feature.(feature_ids))
+    feature_funcs = unique(get_feat.(feature_ids))
     @test DataTreatments.mode_5 in feature_funcs
     @test DataTreatments.mode_10 in feature_funcs
     @test DataTreatments.embedding_dist in feature_funcs
@@ -74,15 +76,15 @@ end
 @testset "complete_set features" begin
     dt = DataTreatment(Xmatrix, :aggregate;
                         vnames=Symbol.("var", 1:5),
-                        win=(win,),
+                        win,
                         features=DataTreatments.complete_set)
     
     @test size(dt, 1) == 50
-    @test length(get_features(dt)) == length(DataTreatments.complete_set)
+    @test length(get_featureid(dt)) == (length(DataTreatments.complete_set) * nwindows^2 * var)
     
     # Check basic statistics
     feature_ids = get_featureid(dt)
-    feature_funcs = unique(get_feature.(feature_ids))
+    feature_funcs = unique(get_feat.(feature_ids))
     @test maximum in feature_funcs
     @test minimum in feature_funcs
     @test mean in feature_funcs
