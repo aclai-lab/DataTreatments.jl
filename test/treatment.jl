@@ -589,3 +589,35 @@ end
     intervals_e = first(@evalwindow Xn[1,1] win)
     @test get_dataset(Rn)[1,1] ≈ [mean(Xn[1,1][r]) for r in intervals_e]
 end
+
+@testset "dataset utilities" begin
+    X = rand(100, 120)
+    Xmatrix = fill(X, 100, 10)
+    @test is_multidim_dataset(Xmatrix) == true
+    
+    intervals = (UnitRange{Int}[1:50, 51:100, 101:150, 151:200],
+            UnitRange{Int}[1:30, 31:60, 61:90, 91:120])
+    @test nvals(intervals) == 16
+end
+
+@testset "wholewindow" begin
+    X = rand(100, 120)
+    Xmatrix = fill(X, 100, 10)
+    vnames = Symbol.("var", 1:size(Xmatrix, 2))
+    win = wholewindow()
+    features = (mean, maximum)
+    
+    result = DataTreatment(Xmatrix, :aggregate; vnames, win, features)
+    
+    @test length(get_featureid(result)) == (length(vnames) * length(features))
+end
+
+@testset "DataTreatment getindex (single Int)" begin
+    X = rand(100, 120)
+    Xmatrix = fill(X, 100, 10)
+    vnames = Symbol.("var", 1:size(Xmatrix, 2))
+    dt = DataTreatment(Xmatrix, :aggregate; vnames, win=wholewindow(), features=(mean,))
+
+    i = 1
+    @test dt[i] == get_dataset(dt)[:, i]
+end
