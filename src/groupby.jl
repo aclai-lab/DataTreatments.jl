@@ -42,13 +42,27 @@ Tuple of:
 - **feat_groups**: Corresponding FeatureId groups for each group of indices
 """
 function groupby(df::DataTreatment, fields::Symbol...)
-    isempty(fields) && error("groupby requires at least one field")
-
     # initial setup Vector{Vector} of all indexes and featureids
     featureids = get_featureid(df)
 
     _groupby(get_dataset(df), featureids, collect(fields))
 end
+
+# TODO
+# function groupby(df::DataTreatment, fields::Vector{Vector{Symbol}})
+#     colnames = propertynames(df)
+#     used = unique(vcat(fields...))
+#     left = setdiff(colnames, used)
+#     !isempty(left) && push!(fields, left)
+
+#     groups = Vector{DataFrame}(undef, length(fields))
+
+#     @inbounds for i in eachindex(fields)
+#         groups[i] = df[!, fields[i]]
+#     end
+
+#     return groups
+# end
 
 """
     groupby(df::DataFrame, fields::Vector{Vector{Symbol}})
@@ -78,9 +92,8 @@ fields = [[:sepal_length, :petal_length], [:sepal_width]]
 groups = groupby(df, fields)
 ```
 """
+# TODO aggiungi union vector symbol
 function groupby(df::DataFrame, fields::Vector{Vector{Symbol}})
-    isempty(fields) && error("groupby requires at least one field")
-
     colnames = propertynames(df)
     used = unique(vcat(fields...))
     left = setdiff(colnames, used)
@@ -94,6 +107,7 @@ function groupby(df::DataFrame, fields::Vector{Vector{Symbol}})
 
     return groups
 end
+
 
 # 703.736 ns (34 allocations: 2.05 KiB)
 # ---------------------------------------------------------------------------- #

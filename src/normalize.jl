@@ -428,34 +428,36 @@ outliersuppress(x::AbstractArray; kwargs...) = _outliersuppress(x; kwargs...)
 #                                  normalize                                   #
 # ---------------------------------------------------------------------------- #
 function normalize(
-    X::AbstractArray{T},
+    X::Union{AbstractArray{T}, AbstractArray{<:AbstractArray{T}}},
     nfunc::Base.Callable;
     tabular::Bool=false,
     dim :: Symbol=:col
-)::AbstractArray where {T<:Union{AbstractFloat, AbstractArray{AbstractFloat}}}
-    if tabular
+) where {T<:Union{AbstractFloat, AbstractArray{AbstractFloat}}}
+    return if tabular
         dim in (:col, :row) || throw(ArgumentError("dim must be :col or :row, got :$dim"))
 
         Xn = similar(X)
 
         iter_func, index_func, setter_func = Dim[dim]
         for i in eachindex(iter_func(X))
-            setter_func(Xn, i, DT._normalize(index_func(X, i), nfunc))
+            setter_func(Xn, i, _normalize(index_func(X, i), nfunc))
         end
+
+        Xn
     else
         _normalize(X, nfunc)
     end
 end
 
 @inline normalize(X::AbstractArray{T}, args...; kwargs...) where {T<:Real} =
-    _normalize(Float64.(X), args...; kwargs...)
+    normalize(Float64.(X), args...; kwargs...)
 
 @inline normalize(
     X::AbstractArray{<:AbstractArray{T}},
     args...;
     kwargs...
 ) where {T<:Real} =
-    _normalize(convert(X; type=Float64), args...; kwargs...)
+    normalize(convert(X; type=Float64), args...; kwargs...)
 
 
 # ---------------------------------------------------------------------------- #
