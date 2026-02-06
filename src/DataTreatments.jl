@@ -33,12 +33,13 @@ export movingwindow, wholewindow, splitwindow, adaptivewindow
 export @evalwindow
 include("windowing.jl")
 
-export is_multidim_dataset, nvals
+export is_multidim_dataset, nvals, convert
 export has_uniform_element_size
 include("treatment.jl")
 
 export zscore, sigmoid, pnorm, scale, minmax, center, unitpower, outliersuppress
 export element_norm, tabular_norm, grouped_norm, grouped_norm!, ds_norm
+export normalize, normalize!
 include("normalize.jl")
 
 # ---------------------------------------------------------------------------- #
@@ -111,7 +112,6 @@ function Base.show(io::IO, ::MIME"text/plain", f::FeatureId)
     print(io, "FeatureId: ")
     show(io, f)
 end
-
 
 # ---------------------------------------------------------------------------- #
 #                               GroupTreatment                                 #

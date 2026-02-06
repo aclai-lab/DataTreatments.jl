@@ -1,3 +1,6 @@
+```@meta
+CurrentModule = DataTreatments
+```
 # [DataTreatment](@id datatreatment)
 
 ```@setup doda

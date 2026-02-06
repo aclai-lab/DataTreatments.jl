@@ -1,6 +1,14 @@
 # ---------------------------------------------------------------------------- #
 #                               core functions                                 #
 # ---------------------------------------------------------------------------- #
+const Dim = Dict(
+    :col => [eachcol, (X, i) -> X[:, i], (Xn, i, val) -> (Xn[:, i] .= val)],
+    :row => [eachrow, (X, i) -> X[i, :], (Xn, i, val) -> (Xn[i, :] .= val)]
+)
+
+# ---------------------------------------------------------------------------- #
+#                               core functions                                 #
+# ---------------------------------------------------------------------------- #
 function _zscore(x::AbstractArray; method::Symbol=:std)
     (y,o) = if method == :std
         (Statistics.mean(x), Statistics.std(x))
@@ -415,6 +423,64 @@ X_aggressive = element_norm(X, outliersuppress(thr=0.3))
 """
 outliersuppress(; kwargs...) = x -> _outliersuppress(x; kwargs...)
 outliersuppress(x::AbstractArray; kwargs...) = _outliersuppress(x; kwargs...)
+
+# ---------------------------------------------------------------------------- #
+#                                  normalize                                   #
+# ---------------------------------------------------------------------------- #
+function normalize(
+    X::AbstractArray{T},
+    nfunc::Base.Callable;
+    tabular::Bool=false,
+    dim :: Symbol=:col
+)::AbstractArray where {T<:Union{AbstractFloat, AbstractArray{AbstractFloat}}}
+    if tabular
+        dim in (:col, :row) || throw(ArgumentError("dim must be :col or :row, got :$dim"))
+
+        Xn = similar(X)
+
+        iter_func, index_func, setter_func = Dim[dim]
+        for i in eachindex(iter_func(X))
+            setter_func(Xn, i, DT._normalize(index_func(X, i), nfunc))
+        end
+    else
+        _normalize(X, nfunc)
+    end
+end
+
+@inline normalize(X::AbstractArray{T}, args...; kwargs...) where {T<:Real} =
+    _normalize(Float64.(X), args...; kwargs...)
+
+@inline normalize(
+    X::AbstractArray{<:AbstractArray{T}},
+    args...;
+    kwargs...
+) where {T<:Real} =
+    _normalize(convert(X; type=Float64), args...; kwargs...)
+
+
+# ---------------------------------------------------------------------------- #
+#                         internal normalize functions                         #
+# ---------------------------------------------------------------------------- #
+function _normalize(
+    X::Union{AbstractArray{T}, AbstractArray{<:AbstractArray{T}}},
+    n::Base.Callable
+) where {T<:AbstractFloat}
+    _X = Iterators.flatten(X)
+    nfunc = n(collect(_X))
+    __normalize(X, nfunc)
+end
+
+@inline __normalize(
+    X::AbstractArray{T},
+    nfunc::Base.Callable
+) where {T<:AbstractFloat} =
+    [nfunc(X[idx]) for idx in CartesianIndices(X)]
+
+@inline __normalize(
+    X::AbstractArray{<:AbstractArray{T}},
+    nfunc::Base.Callable
+) where {T<:AbstractFloat} =
+    [nfunc.(X[idx]) for idx in CartesianIndices(X)]
 
 # ---------------------------------------------------------------------------- #
 #                              normalize functions                             #

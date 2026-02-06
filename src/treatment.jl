@@ -58,6 +58,43 @@ nvals(intervals) # 16
 @inline nvals(intervals::AbstractVector)::Int64 = length(intervals)
 
 """
+    convert(X::AbstractArray{<:AbstractArray{T}}; type::Type=Float64) where {T<:Real}
+
+Convert all nested arrays in `X` to a specified numeric type in parallel.
+
+This function takes an array of arrays (e.g., `Matrix{Matrix{Float64}}`) and converts
+each inner array to the specified type using multithreaded processing for efficiency.
+
+# Arguments
+- `X::AbstractArray{<:AbstractArray{T}}`: Input array where each element is an array of real numbers
+- `type::Type=Float64`: Target numeric type for conversion (e.g., `Float32`, `Float64`, `Int32`)
+
+# Returns
+- `AbstractArray{AbstractArray{type}}`: New array with the same structure as `X`, but with all
+  inner arrays converted to the specified type
+
+# Examples
+```julia
+# Convert matrix of Float64 matrices to Float32
+X = [rand(Float64, 100, 100) for _ in 1:500, _ in 1:100]
+X_f32 = convert(X; type=Float32)
+
+# Convert to Int32
+X_int = convert(X; type=Int32)
+
+# Default conversion to Float64
+X_f64 = convert(X)
+```
+"""
+function convert(X::AbstractArray{<:AbstractArray{T}}; type::Type=Float64) where {T<:Real}
+    Xconv = similar(X, AbstractArray{type})
+    Threads.@threads for i in eachindex(X)
+        Xconv[i] = type.(X[i])
+    end
+    return Xconv
+end
+
+"""
     has_uniform_element_size(X::AbstractDataFrame) -> Bool
     has_uniform_element_size(X::AbstractArray) -> Bool
 

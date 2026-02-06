@@ -1,3 +1,6 @@
+```@meta
+CurrentModule = DataTreatments
+```
 # [Featuresets](@id featuresets)
 
 ### Basic Statistics

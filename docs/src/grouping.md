@@ -1,3 +1,6 @@
+```@meta
+CurrentModule = DataTreatments
+```
 # [Grouping](@id grouping)
 
 ## Why group features?
@@ -9,4 +12,9 @@ Several machine learning algorithms explicitly require the input data to be norm
 That is why the possibility to group columns according to a certain logic is useful.
 
 The DataTreatments package provides this functionality not only for multidimensional datasets, but also for tabular datasets.
+
+```@docs
+groupby(::DataTreatment, ::Symbol...)
+groupby(::DataFrame, ::Vector{Vector{Symbol}})
+```
 
