@@ -52,7 +52,7 @@ end
         str = sprint(show, fid)
         @test occursin("mean", str)
         @test occursin("temperature", str)
-        @test !occursin("_w", str)
+        @test occursin("_w1", str)
     end
     
     @testset "Display multi-window" begin
@@ -593,7 +593,7 @@ end
 @testset "dataset utilities" begin
     X = rand(100, 120)
     Xmatrix = fill(X, 100, 10)
-    @test is_multidim_dataset(Xmatrix) == true
+    @test DT.is_multidim_dataset(Xmatrix) == true
     
     intervals = (UnitRange{Int}[1:50, 51:100, 101:150, 151:200],
             UnitRange{Int}[1:30, 31:60, 61:90, 91:120])
