@@ -350,10 +350,10 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
             nothing
         end
 
-        if !isnothing(norm)
-            aggrtype == :aggregate  && grouped_norm!(Xresult, norm; featvec=get_vecfeatures(Xinfo))
-            aggrtype == :reducesize && (Xresult = ds_norm(Xresult, norm))
-        end
+        # if !isnothing(norm)
+        #     aggrtype == :aggregate  && grouped_norm!(Xresult, norm; featvec=get_vecfeatures(Xinfo))
+        #     aggrtype == :reducesize && (Xresult = ds_norm(Xresult, norm))
+        # end
 
         new{eltype(Xresult), core_eltype(Xresult)}(Xresult, Xinfo, reducefunc, aggrtype, grp_result, norm)
     end

@@ -9,6 +9,7 @@ using Statistics
 #                                 normalization                                #
 # ---------------------------------------------------------------------------- #
 X = [8 1 6; 3 5 7; 4 9 2]
+nfunc = zscore()
 
 DT.normalize(X, nfunc)
 
@@ -18,15 +19,13 @@ DT.normalize(X, nfunc; tabular=true, dim=:row)
 
 X = rand(1:100, 3, 2)
 Xmatrix = [rand(1:100, 4, 2) for _ in 1:10, _ in 1:5]
+nfunc = zscore()
 
 DT.normalize(Xmatrix, nfunc)
 
 DT.normalize(Xmatrix, nfunc; tabular=true)
 
 DT.normalize(Xmatrix, nfunc; tabular=true, dim=:row)
-
-
-_X = Iterators.flatten(DT.convert(Xmatrix))
 
 # ---------------------------------------------------------------------------- #
 #                             tabular normalization                            #
