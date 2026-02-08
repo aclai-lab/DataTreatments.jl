@@ -2,18 +2,29 @@ using Test
 using DataTreatments
 const DT = DataTreatments
 
-using Normalization
-using Statistics
+# using Normalization
+# using Statistics
+using MLJ, DataFrames
+using SoleData: Artifacts
+
+# ---------------------------------------------------------------------------- #
+#                                load dataset                                  #
+# ---------------------------------------------------------------------------- #
+Xc, yc = @load_iris
+Xc = DataFrame(Xc)
+
+natopsloader = Artifacts.NatopsLoader()
+Xts, yts = Artifacts.load(natopsloader)
 
 # ---------------------------------------------------------------------------- #
 #                            grouped normalization                             #
 # ---------------------------------------------------------------------------- #
 @testset "Basic grouped normalization" begin
-    X = rand(100, 4)
-    featvec = [mean, mean, std, std]
+    fileds = [[:sepal_length, :petal_length], [:sepal_width]]
+    groups = DT.groupby(Xc, fileds)
+
+    normalized = DT.normalize(groups, DT.zscore())
     
-    # Test non-mutating version
-    X_grouped = grouped_norm(X, DT.zscore(); featvec)
     @test size(X_grouped) == size(X)
     @test X_grouped isa Matrix{Float64}
     @test X != X_grouped  # Should be different array

@@ -438,6 +438,8 @@ outliersuppress(x::NormType; kwargs...) = _outliersuppress(x; kwargs...)
 # ---------------------------------------------------------------------------- #
 """
     normalize(X, nfunc; tabular=false, dim=:col)
+    normalize(df::DataFrame, nfunc; tabular=false, dim=:col)
+    normalize(df::Vector{DataFrame}, nfunc; tabular=false, dim=:col)
     normalize!(X, nfunc; tabular=false, dim=:col)
 
 Apply a normalization function to data.
@@ -447,6 +449,16 @@ Apply a normalization function to data.
 - `AbstractArray{<:AbstractArray{<:Real}}`: nested arrays (e.g., dataset of vectors or matrices)
 
 The `normalize` variants allocate a new array; `normalize!` mutates in place.
+
+## Available normalization methods
+- [`zscore`](@ref): Standardize by centering and scaling (mean=0, std=1)
+- [`sigmoid`](@ref): Map data to (0, 1) using logistic function
+- [`pnorm`](@ref): Scale by p-norm (L1, L2, L∞, etc.)
+- [`scale`](@ref): Scale by characteristic measure (std, MAD, IQR, first element)
+- [`minmax`](@ref): Rescale to specified range [lower, upper]
+- [`center`](@ref): Shift to zero mean or median
+- [`unitpower`](@ref): Scale to unit RMS power
+- [`outliersuppress`](@ref): Cap outliers beyond threshold
 
 ## Whole‑dataset normalization (default)
 By default, `tabular=false`, the normalization function is computed on the *entire*
@@ -477,6 +489,26 @@ X_row = DataTreatments.normalize(X, minmax(); tabular=true, dim=:row)
 imgs = [rand(28,28) for _ in 1:100]
 imgs_norm = DataTreatments.normalize(imgs, unitpower())
 ```
+
+```julia
+using DataFrames
+
+df = DataFrame(
+    age = [25, 30, 35, 40, 45],
+    salary = [50000, 60000, 75000, 80000, 90000],
+    score = [85, 90, 88, 92, 87]
+)
+
+# Normalize all numeric columns independently (column-wise)
+df_norm = DataTreatments.normalize(df, zscore(); tabular=true)
+
+# Aggregate specific columns
+fileds = [:salary, :score]
+groups = DataTreatments.groupby(df, fileds)
+
+df_norm = DataTreatments.normalize(groups, zscore())
+
+```
 """
 @inline normalize(
     X::Union{AbstractArray{T}, AbstractArray{<:AbstractArray{T}}},
@@ -493,6 +525,17 @@ imgs_norm = DataTreatments.normalize(imgs, unitpower())
     kwargs...
 ) where {T<:Real} =
     normalize!(convert(X; type=Float64), args...; kwargs...)
+
+normalize(dfs::Vector{DataFrame}, args...; kwargs...) =
+    [normalize(df, args...; kwargs...) for df in dfs]
+
+function normalize(df::DataFrame, args...; kwargs...)
+    colnames = propertynames(df)
+    X = Matrix{Float64}(df)
+    Xresult = normalize!(X, args...; kwargs...)
+    
+    return DataFrame(Xresult, colnames)
+end
 
 function normalize!(
     X::Union{AbstractArray{T}, AbstractArray{<:AbstractArray{T}}},

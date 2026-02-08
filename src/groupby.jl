@@ -92,7 +92,6 @@ fields = [[:sepal_length, :petal_length], [:sepal_width]]
 groups = groupby(df, fields)
 ```
 """
-# TODO aggiungi union vector symbol
 function groupby(df::DataFrame, fields::Vector{Vector{Symbol}})
     colnames = propertynames(df)
     used = unique(vcat(fields...))
@@ -108,6 +107,7 @@ function groupby(df::DataFrame, fields::Vector{Vector{Symbol}})
     return groups
 end
 
+groupby(df::DataFrame, fields::Vector{Symbol}) = groupby(df, [fileds])
 # ---------------------------------------------------------------------------- #
 #                              internal _groupby                               #
 # ---------------------------------------------------------------------------- #
