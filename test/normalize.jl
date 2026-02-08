@@ -8,32 +8,61 @@ using Statistics
 # ---------------------------------------------------------------------------- #
 #                                 normalization                                #
 # ---------------------------------------------------------------------------- #
-X = [8 1 6; 3 5 7; 4 9 2]
-nfunc = zscore()
+X = Float64.([8 1 6; 3 5 7; 4 9 2])
+nfunc = DT.minmax()
 
-DT.normalize(X, nfunc)
+all_elements = DT.normalize(X, nfunc)
+@test all_elements == [
+    0.875 0.0 0.625;
+    0.25 0.5 0.75;
+    0.375 1.0 0.125
+]
 
-DT.normalize(X, nfunc; tabular=true)
+grouby_cols = DT.normalize(X, nfunc; tabular=true)
+@test grouby_cols == [
+    1.0 0.0 0.8;
+    0.0 0.5 1.0;
+    0.2 1.0 0.0
+]
 
-DT.normalize(X, nfunc; tabular=true, dim=:row)
+grouby_rows = DT.normalize(X, nfunc; tabular=true, dim=:row)
+@test isapprox(grouby_rows, [
+    1.0 0.0 0.714285714;
+    0.0 0.5 1.0;
+    0.285714286 1.0 0.0
+])
 
-X = rand(1:100, 3, 2)
 Xmatrix = [rand(1:100, 4, 2) for _ in 1:10, _ in 1:5]
 nfunc = zscore()
 
-DT.normalize(Xmatrix, nfunc)
+@test_nowarn DT.normalize(Xmatrix, nfunc)
 
-DT.normalize(Xmatrix, nfunc; tabular=true)
+@test_nowarn DT.normalize(Xmatrix, nfunc; tabular=true)
 
-DT.normalize(Xmatrix, nfunc; tabular=true, dim=:row)
+@test_nowarn DT.normalize(Xmatrix, nfunc; tabular=true, dim=:row)
 
+X = rand(1000, 500)
+nfunc = zscore()
+
+@btime DT.normalize!(X, nfunc);
+# 2.608 ms (89 allocations: 3.82 MiB)
+# 2.611 ms (86 allocations: 5.78 KiB)
 
 X = rand(100, 12)
 Xmatrix = fill(X, 50, 10)
 nfunc = zscore()
 
-@btime DT.normalize(Xmatrix, nfunc);
+@btime DT.normalize!(Xmatrix, nfunc);
 # 3.546 ms (1503 allocations: 4.62 MiB)
+# 4.125 ms (43086 allocations: 2.83 MiB)
+# 3.048 ms (86 allocations: 5.78 KiB)
+
+X = rand(100, 12)
+Xmatrix = fill(X, 50, 10)
+nfunc = zscore()
+DT.normalize!(Xmatrix, nfunc)
+
+@btime DT.normalize!(Xmatrix, nfunc; tabulare=true);
 
 # ---------------------------------------------------------------------------- #
 #                             tabular normalization                            #

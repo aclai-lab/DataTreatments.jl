@@ -1,11 +1,6 @@
 # ---------------------------------------------------------------------------- #
-#                               core functions                                 #
+#                                    types                                     #
 # ---------------------------------------------------------------------------- #
-const Dim = Dict(
-    :col => [eachcol, (X, i) -> X[:, i], (Xn, i, val) -> (Xn[:, i] .= val)],
-    :row => [eachrow, (X, i) -> X[i, :], (Xn, i, val) -> (Xn[i, :] .= val)]
-)
-
 const NormType = Union{AbstractArray, Base.Iterators.Flatten}
 
 # ---------------------------------------------------------------------------- #
@@ -429,70 +424,70 @@ outliersuppress(x::NormType; kwargs...) = _outliersuppress(x; kwargs...)
 # ---------------------------------------------------------------------------- #
 #                                  normalize                                   #
 # ---------------------------------------------------------------------------- #
-function normalize(
+@inline normalize(
     X::Union{AbstractArray{T}, AbstractArray{<:AbstractArray{T}}},
-    nfunc::Base.Callable;
-    tabular::Bool=false,
-    dim :: Symbol=:col
-) where {T<:Union{AbstractFloat, AbstractArray{AbstractFloat}}}
-    return if tabular
-        dim in (:col, :row) || throw(ArgumentError("dim must be :col or :row, got :$dim"))
-
-        Xn = similar(X)
-
-        iter_func, index_func, setter_func = Dim[dim]
-        for i in eachindex(iter_func(X))
-            setter_func(Xn, i, _normalize(index_func(X, i), nfunc))
-        end
-
-        Xn
-    else
-        _normalize(X, nfunc)
-    end
-end
+    args...; kwargs...
+) where {T<:Float64} =
+    normalize!(deepcopy(X), args...; kwargs...)
 
 @inline normalize(X::AbstractArray{T}, args...; kwargs...) where {T<:Real} =
-    normalize(Float64.(X), args...; kwargs...)
+    normalize!(Float64.(X), args...; kwargs...)
 
 @inline normalize(
     X::AbstractArray{<:AbstractArray{T}},
     args...;
     kwargs...
 ) where {T<:Real} =
-    normalize(convert(X; type=Float64), args...; kwargs...)
+    normalize!(convert(X; type=Float64), args...; kwargs...)
 
+function normalize!(
+    X::Union{AbstractArray{T}, AbstractArray{<:AbstractArray{T}}},
+    nfunc::Base.Callable;
+    tabular::Bool=false,
+    dim :: Symbol=:col
+) where {T<:Float64}
+    return if tabular
+        if dim == :col
+            for i in axes(X, 2)
+                X[:,i] = _normalize!(X[:,i], nfunc(Iterators.flatten(X[:,i])))
+            end
+        elseif dim == :row
+            for i in axes(X, 1)
+                X[i,:] = _normalize!(X[i,:], nfunc(Iterators.flatten(X[i,:])))
+            end
+        else
+            throw(ArgumentError("dim must be :col or :row, got :$dim"))
+        end
+
+        X
+    else
+        _normalize!(X, nfunc(Iterators.flatten(X)))
+    end
+end
 
 # ---------------------------------------------------------------------------- #
 #                         internal normalize functions                         #
 # ---------------------------------------------------------------------------- #
-function _normalize(
-    X::Union{AbstractArray{T}, AbstractArray{<:AbstractArray{T}}},
-    nfunc::Base.Callable
-) where {T<:AbstractFloat}
-    _X = Iterators.flatten(X)
-    __normalize(X, nfunc(_X))
-end
-
-function __normalize(
-    X::AbstractArray{T},
-    nfunc::Base.Callable
-) where {T<:AbstractFloat}
-    Xn = similar(X)
-    Threads.@threads for idx in CartesianIndices(X)
-        Xn[idx] = nfunc(X[idx])
-    end
-    return Xn
-end
-
-function __normalize(
+function _normalize!(
     X::AbstractArray{<:AbstractArray{T}},
     nfunc::Base.Callable
-) where {T<:AbstractFloat}
-    Xn = similar(X)
-    Threads.@threads for idx in CartesianIndices(X)
-        Xn[idx] = nfunc.(X[idx])
+) where {T<:Float64}
+    for idx in CartesianIndices(X)
+        _normalize!(X[idx], nfunc)
     end
-    return Xn
+
+    return X
+end
+
+function _normalize!(
+    X::AbstractArray{T},
+    nfunc::Base.Callable
+) where {T<:Float64}
+    for idx in CartesianIndices(X)
+        X[idx] = nfunc(X[idx])
+    end
+
+    return X
 end
 
 # ---------------------------------------------------------------------------- #
