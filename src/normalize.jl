@@ -27,7 +27,7 @@ function _sigmoid(x::NormType)
 end
 
 function _pnorm(x::NormType; p::Real=2)
-    x_filtered = filter(!isnan, vec(x))
+    x_filtered = filter(!isnan, collect(x))
     s = isempty(x_filtered) ? one(eltype(x)) : LinearAlgebra.norm(x_filtered, p)
     Base.Fix2(/, s)
 end
@@ -472,8 +472,8 @@ function _normalize!(
     X::AbstractArray{<:AbstractArray{T}},
     nfunc::Base.Callable
 ) where {T<:Float64}
-    for idx in CartesianIndices(X)
-        _normalize!(X[idx], nfunc)
+    Threads.@threads for idx in CartesianIndices(X)
+        X[idx] = nfunc.(X[idx])
     end
 
     return X

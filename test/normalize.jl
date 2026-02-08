@@ -33,7 +33,7 @@ grouby_rows = DT.normalize(X, nfunc; tabular=true, dim=:row)
 ])
 
 Xmatrix = [rand(1:100, 4, 2) for _ in 1:10, _ in 1:5]
-nfunc = zscore()
+nfunc = DT.zscore()
 
 @test_nowarn DT.normalize(Xmatrix, nfunc)
 
@@ -41,28 +41,13 @@ nfunc = zscore()
 
 @test_nowarn DT.normalize(Xmatrix, nfunc; tabular=true, dim=:row)
 
-X = rand(1000, 500)
-nfunc = zscore()
-
-@btime DT.normalize!(X, nfunc);
-# 2.608 ms (89 allocations: 3.82 MiB)
-# 2.611 ms (86 allocations: 5.78 KiB)
 
 X = rand(100, 12)
 Xmatrix = fill(X, 50, 10)
 nfunc = zscore()
 
-@btime DT.normalize!(Xmatrix, nfunc);
+@btime DT.normalize(Xmatrix, nfunc);
 # 3.546 ms (1503 allocations: 4.62 MiB)
-# 4.125 ms (43086 allocations: 2.83 MiB)
-# 3.048 ms (86 allocations: 5.78 KiB)
-
-X = rand(100, 12)
-Xmatrix = fill(X, 50, 10)
-nfunc = zscore()
-DT.normalize!(Xmatrix, nfunc)
-
-@btime DT.normalize!(Xmatrix, nfunc; tabulare=true);
 
 # ---------------------------------------------------------------------------- #
 #                             tabular normalization                            #
@@ -70,100 +55,100 @@ DT.normalize!(Xmatrix, nfunc)
 a = [8 1 6; 3 5 7; 4 9 2]
 
 # test values verified against MATLAB
-zscore_norm = tabular_norm(a, zscore())
+zscore_norm = DT.normalize(a, DT.zscore(); tabular=true, dim=:col)
 @test isapprox(zscore_norm, [1.13389 -1.0 0.377964; -0.755929 0.0 0.755929; -0.377964 1.0 -1.13389], atol=1e-5)
 
-zscore_row = tabular_norm(a, zscore(); dim=:row)
+zscore_row = DT.normalize(a, DT.zscore(); tabular=true, dim=:row)
 @test isapprox(zscore_row, [0.83205 -1.1094 0.27735; -1.0 0.0 1.0; -0.27735 1.1094 -0.83205], atol=1e-5)
 
-zscore_robust = tabular_norm(a, zscore(method=:robust))
+zscore_robust = DT.normalize(a, DT.zscore(method=:robust); tabular=true, dim=:col)
 @test zscore_robust == [4.0 -1.0 0.0; -1.0 0.0 1.0; 0.0 1.0 -4.0]
 
-zscore_half = tabular_norm(a, zscore(method=:half))
+zscore_half = DT.normalize(a, DT.zscore(method=:half); tabular=true, dim=:col)
 
-@test_throws ArgumentError tabular_norm(a, zscore(); dim=:invalid)
-@test_throws ArgumentError tabular_norm(a, zscore(method=:invalid))
+@test_throws ArgumentError DT.normalize(a, DT.zscore(); tabular=true, dim=:invalid)
+@test_throws ArgumentError DT.normalize(a, DT.zscore(method=:invalid))
 
-@test_nowarn tabular_norm(a, sigmoid())
+@test_nowarn DT.normalize(a, sigmoid(); tabular=true, dim=:col)
 
-norm_norm = tabular_norm(a, pnorm())
+norm_norm = DT.normalize(a, pnorm(); tabular=true, dim=:col)
 @test isapprox(norm_norm, [0.847998 0.0966736 0.635999; 0.317999 0.483368 0.741999; 0.423999 0.870063 0.212], atol=1e-6)
 
-norm_norm = tabular_norm(a, pnorm(p=4))
+norm_norm = DT.normalize(a, pnorm(p=4); tabular=true, dim=:col)
 @test isapprox(norm_norm, [0.980428 0.108608 0.768635; 0.36766 0.543042 0.896741; 0.490214 0.977475 0.256212], atol=1e-5)
 
-norm_norm = tabular_norm(a, pnorm(p=Inf))
+norm_norm = DT.normalize(a, pnorm(p=Inf); tabular=true, dim=:col)
 @test isapprox(norm_norm, [1.0 0.111111 0.857143; 0.375 0.555556 1.0; 0.5 1.0 0.285714], atol=1e-6)
 
-scale_norm = tabular_norm(a, scale(factor=:std))
+scale_norm = DT.normalize(a, scale(factor=:std); tabular=true, dim=:col)
 @test isapprox(scale_norm, [3.02372 0.25 2.26779; 1.13389 1.25 2.64575; 1.51186 2.25 0.755929], atol=1e-5)
 
-scale_norm = tabular_norm(a, scale(factor=:mad))
+scale_norm = DT.normalize(a, scale(factor=:mad); tabular=true, dim=:col)
 @test scale_norm == [8.0 0.25 6.0; 3.0 1.25 7.0; 4.0 2.25 2.0]
 
-scale_norm = tabular_norm(a, scale(factor=:first))
+scale_norm = DT.normalize(a, scale(factor=:first); tabular=true, dim=:col)
 @test isapprox(scale_norm, [1.0 1.0 1.0; 0.375 5.0 1.16667; 0.5 9.0 0.333333], atol=1e-5)
 
-scale_norm = tabular_norm(a, scale(factor=:iqr))
+scale_norm = DT.normalize(a, scale(factor=:iqr); tabular=true, dim=:col)
 
-minmax_norm = tabular_norm(a, DT.minmax())
+minmax_norm = DT.normalize(a, DT.minmax(); tabular=true, dim=:col)
 @test minmax_norm == [1.0 0.0 0.8; 0.0 0.5 1.0; 0.2 1.0 0.0]
 
-minmax_norm = tabular_norm(a, DT.minmax(lower=-2, upper=4))
+minmax_norm = DT.normalize(a, DT.minmax(lower=-2, upper=4); tabular=true, dim=:col)
 @test minmax_norm == [4.0 -2.0 2.8; -2.0 1.0 4.0; -0.8 4.0 -2.0]
 
-center_norm = tabular_norm(a, center())
+center_norm = DT.normalize(a, center(); tabular=true, dim=:col)
 @test center_norm == [3.0 -4.0 1.0; -2.0 0.0 2.0; -1.0 4.0 -3.0]
 
-center_norm = tabular_norm(a, center(method=:median))
+center_norm = DT.normalize(a, center(method=:median); tabular=true, dim=:col)
 @test center_norm == [4.0 -4.0 0.0; -1.0 0.0 1.0; 0.0 4.0 -4.0]
 
-@test_nowarn tabular_norm(a, unitpower())
+@test_nowarn DT.normalize(a, unitpower(); tabular=true, dim=:col)
 
-@test_nowarn tabular_norm(a, outliersuppress())
-@test_nowarn tabular_norm(a, outliersuppress(thr=3))
+@test_nowarn DT.normalize(a, outliersuppress(); tabular=true, dim=:col)
+@test_nowarn DT.normalize(a, outliersuppress(thr=3); tabular=true, dim=:col)
 
 # test against julia package Normalization
 X = rand(200,100)
 
-test = tabular_norm(X, zscore())
+test = DT.normalize(X, DT.zscore(); tabular=true, dim=:col)
 n = fit(ZScore, X, dims=1)
-norm = DataTreatments.normalize(X, n)
+norm = Normalization.normalize(X, n)
 @test isapprox(test, norm)
 
-test = tabular_norm(X, zscore(method=:half))
+test = DT.normalize(X, DT.zscore(method=:half); tabular=true, dim=:col)
 n = fit(HalfZScore, X, dims=1)
-norm = DataTreatments.normalize(X, n)
+norm = Normalization.normalize(X, n)
 @test isapprox(test, norm)
 
-test = tabular_norm(X, sigmoid())
+test = DT.normalize(X, sigmoid(); tabular=true, dim=:col)
 n = fit(Sigmoid, X, dims=1)
-norm = DataTreatments.normalize(X, n)
+norm = Normalization.normalize(X, n)
 @test isapprox(test, norm)
 
-test = tabular_norm(X, pnorm())
+test = DT.normalize(X, pnorm(); tabular=true, dim=:col)
 n = fit(UnitEnergy, X, dims=1)
-norm = DataTreatments.normalize(X, n)
+norm = Normalization.normalize(X, n)
 @test isapprox(test, norm)
 
-test = tabular_norm(X, DT.minmax())
+test = DT.normalize(X, DT.minmax(); tabular=true, dim=:col)
 n = fit(MinMax, X, dims=1)
-norm = DataTreatments.normalize(X, n)
+norm = Normalization.normalize(X, n)
 @test isapprox(test, norm)
 
-test = tabular_norm(X, center())
+test = DT.normalize(X, center(); tabular=true, dim=:col)
 n = fit(Center, X, dims=1)
-norm = DataTreatments.normalize(X, n)
+norm = Normalization.normalize(X, n)
 @test isapprox(test, norm)
 
-test = tabular_norm(X, unitpower())
+test = DT.normalize(X, unitpower(); tabular=true, dim=:col)
 n = fit(UnitPower, X, dims=1)
-norm = DataTreatments.normalize(X, n)
+norm = Normalization.normalize(X, n)
 @test isapprox(test, norm)
 
-test = tabular_norm(X, outliersuppress(;thr=5))
+test = DT.normalize(X, outliersuppress(;thr=5); tabular=true, dim=:col)
 n = fit(OutlierSuppress, X, dims=1)
-norm = DataTreatments.normalize(X, n)
+norm = Normalization.normalize(X, n)
 @test isapprox(test, norm)
 
 # ---------------------------------------------------------------------------- #
@@ -171,59 +156,59 @@ norm = DataTreatments.normalize(X, n)
 # ---------------------------------------------------------------------------- #
 X = rand(100,75, 2)
 
-@test_nowarn element_norm(X, zscore())
-@test_nowarn element_norm(X, sigmoid())
-@test_nowarn element_norm(X, pnorm())
-@test_nowarn element_norm(X, scale())
-@test_nowarn element_norm(X, DT.minmax())
-@test_nowarn element_norm(X, center())
-@test_nowarn element_norm(X, unitpower())
-@test_nowarn element_norm(X, outliersuppress())
+@test_nowarn DT.normalize(X, DT.zscore())
+@test_nowarn DT.normalize(X, sigmoid())
+@test_nowarn DT.normalize(X, pnorm())
+@test_nowarn DT.normalize(X, scale())
+@test_nowarn DT.normalize(X, DT.minmax())
+@test_nowarn DT.normalize(X, center())
+@test_nowarn DT.normalize(X, unitpower())
+@test_nowarn DT.normalize(X, outliersuppress())
 
 # non-float convertion
-@test_nowarn element_norm(a, zscore())
+@test_nowarn DT.normalize(a, DT.zscore())
 
 # test against julia package Normalization
 X = rand(200,100)
 
-test = element_norm(X, zscore())
+test = DT.normalize(X, DT.zscore())
 n = fit(ZScore, X)
-norm = DataTreatments.normalize(X, n)
+norm = Normalization.normalize(X, n)
 @test isapprox(test, norm)
 
-test = element_norm(X, zscore(method=:half))
+test = DT.normalize(X, DT.zscore(method=:half))
 n = fit(HalfZScore, X)
-norm = DataTreatments.normalize(X, n)
+norm = Normalization.normalize(X, n)
 @test isapprox(test, norm)
 
-test = element_norm(X, sigmoid())
+test = DT.normalize(X, sigmoid())
 n = fit(Sigmoid, X)
-norm = DataTreatments.normalize(X, n)
+norm = Normalization.normalize(X, n)
 @test isapprox(test, norm)
 
-test = element_norm(X, pnorm())
+test = DT.normalize(X, pnorm())
 n = fit(UnitEnergy, X)
-norm = DataTreatments.normalize(X, n)
+norm = Normalization.normalize(X, n)
 @test isapprox(test, norm)
 
-test = element_norm(X, DT.minmax())
+test = DT.normalize(X, DT.minmax())
 n = fit(MinMax, X)
-norm = DataTreatments.normalize(X, n)
+norm = Normalization.normalize(X, n)
 @test isapprox(test, norm)
 
-test = element_norm(X, center())
+test = DT.normalize(X, center())
 n = fit(Center, X)
-norm = DataTreatments.normalize(X, n)
+norm = Normalization.normalize(X, n)
 @test isapprox(test, norm)
 
-test = element_norm(X, unitpower())
+test = DT.normalize(X, unitpower())
 n = fit(UnitPower, X)
-norm = DataTreatments.normalize(X, n)
+norm = Normalization.normalize(X, n)
 @test isapprox(test, norm)
 
-test = element_norm(X, outliersuppress(;thr=5))
+test = DT.normalize(X, outliersuppress(;thr=5))
 n = fit(OutlierSuppress, X)
-norm = DataTreatments.normalize(X, n)
+norm = Normalization.normalize(X, n)
 @test isapprox(test, norm)
 
 # ---------------------------------------------------------------------------- #
@@ -231,21 +216,21 @@ norm = DataTreatments.normalize(X, n)
 # ---------------------------------------------------------------------------- #
 X = [rand(200, 100) .* 1000 for _ in 1:100, _ in 1:100]
 
-@test_nowarn ds_norm(X, zscore())
-@test_nowarn ds_norm(X, sigmoid())
-@test_nowarn ds_norm(X, pnorm())
-@test_nowarn ds_norm(X, scale())
-@test_nowarn ds_norm(X, DT.minmax())
-@test_nowarn ds_norm(X, center())
-@test_nowarn ds_norm(X, unitpower())
-@test_nowarn ds_norm(X, outliersuppress())
+@test_nowarn DT.normalize(X, DT.zscore())
+@test_nowarn DT.normalize(X, sigmoid())
+@test_nowarn DT.normalize(X, pnorm())
+@test_nowarn DT.normalize(X, scale())
+@test_nowarn DT.normalize(X, DT.minmax())
+@test_nowarn DT.normalize(X, center())
+@test_nowarn DT.normalize(X, unitpower())
+@test_nowarn DT.normalize(X, outliersuppress())
 
 function test_ds_norm(X, norm_func, NormType)
-    test = ds_norm(X, norm_func)
+    test = DT.normalize(X, norm_func; tabular=true)
     # compute normalization the way ds_norm does (per column)
     col1_data = collect(Iterators.flatten(X[:, 1]))
     n = fit(NormType, reshape(col1_data, :, 1); dims=nothing)
-    norm = DataTreatments.normalize(X[1,1], n)
+    norm = Normalization.normalize(X[1,1], n)
     
     @test isapprox(test[1,1], norm)
 end
@@ -253,8 +238,8 @@ end
 # Run all tests
 X = fill(rand(20, 10) .* 10, 10, 100)
 
-test_ds_norm(X, zscore(), ZScore)
-test_ds_norm(X, zscore(method=:half), HalfZScore)
+test_ds_norm(X, DT.zscore(), ZScore)
+test_ds_norm(X, DT.zscore(method=:half), HalfZScore)
 test_ds_norm(X, sigmoid(), Sigmoid)
 test_ds_norm(X, pnorm(), UnitEnergy)
 test_ds_norm(X, DT.minmax(), MinMax)
@@ -264,7 +249,7 @@ test_ds_norm(X, outliersuppress(;thr=5), OutlierSuppress)
 
 # non-float convertion
 b = [rand(0:10, 20) for _ in 1:25, _ in 1:5]
-@test_nowarn ds_norm(b, zscore())
+@test_nowarn DT.normalize(b, DT.zscore())
 
 # ---------------------------------------------------------------------------- #
 #                            grouped normalization                             #
@@ -274,14 +259,14 @@ b = [rand(0:10, 20) for _ in 1:25, _ in 1:5]
     featvec = [mean, mean, std, std]
     
     # Test non-mutating version
-    X_grouped = grouped_norm(X, zscore(); featvec)
+    X_grouped = grouped_norm(X, DT.zscore(); featvec)
     @test size(X_grouped) == size(X)
     @test X_grouped isa Matrix{Float64}
     @test X != X_grouped  # Should be different array
     
     # Test mutating version
     X_mut = copy(X)
-    result = grouped_norm!(X_mut, zscore(); featvec)
+    result = grouped_norm!(X_mut, DT.zscore(); featvec)
     @test result === nothing
     @test X_mut ≈ X_grouped  # Should produce same result
 end
@@ -291,7 +276,7 @@ end
     X_int = rand(0:10, 50, 4)
     featvec = [mean, mean, maximum, minimum]
     
-    X_norm = grouped_norm(X_int, zscore(); featvec)
+    X_norm = grouped_norm(X_int, DT.zscore(); featvec)
     @test eltype(X_norm) == Float64
     @test size(X_norm) == size(X_int)
     
@@ -308,7 +293,7 @@ end
     # Two groups: cols 1-3 (mean), cols 4-6 (std)
     featvec = [mean, mean, mean, std, std, std]
     
-    X_grouped = grouped_norm(X, zscore(); featvec)
+    X_grouped = grouped_norm(X, DT.zscore(); featvec)
     
     # Verify columns in same group share normalization
     # Collect all values from columns 1-3
@@ -332,8 +317,8 @@ end
     # Each column is its own group
     featvec = [mean, std, maximum]
     
-    X_grouped = grouped_norm(X, zscore(); featvec)
-    X_tabular = tabular_norm(X, zscore())
+    X_grouped = grouped_norm(X, DT.zscore(); featvec)
+    X_tabular = tabular_norm(X, DT.zscore())
     
     # Should behave like tabular_norm when no grouping
     @test X_grouped ≈ X_tabular
@@ -344,8 +329,8 @@ end
     # All columns in same group
     featvec = fill(mean, 5)
     
-    X_grouped = grouped_norm(X, zscore(); featvec)
-    X_element = element_norm(X, zscore())
+    X_grouped = grouped_norm(X, DT.zscore(); featvec)
+    X_element = element_norm(X, DT.zscore())
     
     # Should behave like element_norm when all grouped
     @test X_grouped ≈ X_element
@@ -355,8 +340,8 @@ end
     X = rand(100, 4)
     featvec = [mean, mean, std, std]
     
-    # zscore
-    X_z = grouped_norm(X, zscore(); featvec)
+    # DT.zscore
+    X_z = grouped_norm(X, DT.zscore(); featvec)
     @test eltype(X_z) == Float64
     
     # minmax
@@ -396,19 +381,19 @@ end
     # Small dataset
     X = rand(5, 2)
     featvec = [mean, std]
-    @test_nowarn grouped_norm(X, zscore(); featvec)
+    @test_nowarn grouped_norm(X, DT.zscore(); featvec)
     
     # Many groups
     X = rand(100, 10)
     featvec = [mean, std, minimum, maximum, median, 
                 mean, std, minimum, maximum, median]
-    X_grouped = grouped_norm(X, zscore(); featvec)
+    X_grouped = grouped_norm(X, DT.zscore(); featvec)
     @test size(X_grouped) == size(X)
     
     # Large dataset (test threading)
     X = rand(1000, 20)
     featvec = repeat([mean, std, maximum, minimum], 5)
-    X_grouped = grouped_norm(X, zscore(); featvec)
+    X_grouped = grouped_norm(X, DT.zscore(); featvec)
     @test size(X_grouped) == (1000, 20)
 end
 
@@ -417,7 +402,7 @@ end
     featvec = [mean, mean, std, std]
     
     X_copy = copy(X)
-    grouped_norm!(X_copy, zscore(); featvec)
+    grouped_norm!(X_copy, DT.zscore(); featvec)
     
     # Verify it actually modified the array
     @test X != X_copy
@@ -432,10 +417,10 @@ end
     X = rand(100, 6)
     featvec = [mean, mean, std, std, maximum, maximum]
     
-    X1 = grouped_norm(X, zscore(); featvec)
+    X1 = grouped_norm(X, DT.zscore(); featvec)
     
     X2 = copy(X)
-    grouped_norm!(X2, zscore(); featvec)
+    grouped_norm!(X2, DT.zscore(); featvec)
     
     @test X1 ≈ X2
 end
@@ -449,11 +434,11 @@ end
         
         featvec = [mean, mean, std, std]
         
-        X_grouped = grouped_norm(X, zscore(); featvec=featvec)
+        X_grouped = grouped_norm(X, DT.zscore(); featvec=featvec)
         
         # Columns 1-2 should be normalized together using all values from both columns
         all_means = vec([X[:, 1]; X[:, 2]])  # [1,3,5,2,4,6]
-        expected_mean_cols = zscore()(all_means)
+        expected_mean_cols = DT.zscore()(all_means)
         
         # Check that columns 1-2 are normalized as a group
         μ_group1 = mean([X[:, 1]; X[:, 2]])
@@ -482,10 +467,10 @@ end
         # All columns from same feature
         featvec = [mean, mean, mean]
         
-        X_grouped = grouped_norm(X, zscore(); featvec=featvec)
+        X_grouped = grouped_norm(X, DT.zscore(); featvec=featvec)
         
         # Should behave like element_norm since all columns are in same group
-        X_element = element_norm(X, zscore())
+        X_element = element_norm(X, DT.zscore())
         
         @test X_grouped ≈ X_element atol=1e-10
     end
@@ -498,10 +483,10 @@ end
         # Each column is its own group (different features)
         featvec = [mean, maximum, minimum]
         
-        X_grouped = grouped_norm(X, zscore(); featvec=featvec)
+        X_grouped = grouped_norm(X, DT.zscore(); featvec=featvec)
         
         # Should behave like tabular_norm since each column is separate
-        X_tabular = tabular_norm(X, zscore())
+        X_tabular = tabular_norm(X, DT.zscore())
         
         @test X_grouped ≈ X_tabular atol=1e-10
     end
@@ -533,10 +518,10 @@ end
         featvec = [mean, mean, std, std]
         
         # Test in-place version
-        grouped_norm!(X_copy, zscore(); featvec=featvec)
+        grouped_norm!(X_copy, DT.zscore(); featvec=featvec)
         
         # Should give same result as non-mutating version
-        X_grouped = grouped_norm(X_orig, zscore(); featvec=featvec)
+        X_grouped = grouped_norm(X_orig, DT.zscore(); featvec=featvec)
         
         @test X_copy ≈ X_grouped
     end
@@ -549,7 +534,7 @@ end
         # Three groups: cols 1-2 (mean), 3-4 (std), 5-6 (maximum)
         featvec = [mean, mean, std, std, maximum, maximum]
         
-        X_grouped = grouped_norm(X, zscore(); featvec=featvec)
+        X_grouped = grouped_norm(X, DT.zscore(); featvec=featvec)
         
         # Verify each group is normalized independently
         for (cols, name) in [([1,2], "group1"), ([3,4], "group2"), ([5,6], "group3")]
@@ -566,7 +551,7 @@ end
         
         featvec = [mean, mean, std, std]
         
-        X_grouped = grouped_norm(X_int, zscore(); featvec=featvec)
+        X_grouped = grouped_norm(X_int, DT.zscore(); featvec=featvec)
         
         @test eltype(X_grouped) <: AbstractFloat
         @test mean([X_grouped[:, 1]; X_grouped[:, 2]]) ≈ 0.0 atol=1e-10
@@ -576,12 +561,12 @@ end
 @testset "different function calling method" begin
     X = rand(100, 50)
 
-    X1 = element_norm(X, zscore())
-    X2 = element_norm(X, zscore)
+    X1 = element_norm(X, DT.zscore())
+    X2 = element_norm(X, DT.zscore)
     @test X1 == X2
 
-    X1 = element_norm(X, zscore(method=:std)) # default
-    X2 = element_norm(X, zscore)
+    X1 = element_norm(X, DT.zscore(method=:std)) # default
+    X2 = element_norm(X, DT.zscore)
     @test X1 == X2
     
     X1 = element_norm(X, sigmoid())
