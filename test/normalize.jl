@@ -27,6 +27,14 @@ DT.normalize(Xmatrix, nfunc; tabular=true)
 
 DT.normalize(Xmatrix, nfunc; tabular=true, dim=:row)
 
+
+X = rand(100, 12)
+Xmatrix = fill(X, 50, 10)
+nfunc = zscore()
+
+@btime DT.normalize(Xmatrix, nfunc);
+# 3.546 ms (1503 allocations: 4.62 MiB)
+
 # ---------------------------------------------------------------------------- #
 #                             tabular normalization                            #
 # ---------------------------------------------------------------------------- #
