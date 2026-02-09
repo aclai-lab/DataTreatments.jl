@@ -23,35 +23,116 @@ Xts, yts = Artifacts.load(natopsloader)
     fileds = [[:sepal_length, :petal_length], [:sepal_width]]
     groups = DT.groupby(Xc, fileds)
 
-    normalized = DT.normalize(groups, DT.zscore())
+    normalized = DT.normalize(groups, DT.zscore(); dims=0)
 
     for i in eachindex(groups)
-        group_data = vec(Matrix(groups[i]))
         n = fit(ZScore, groups[i], dims=nothing)
         test_norm = Normalization.normalize(groups[i], n)
-    end
 
-    # Group 1: sepal_length and petal_length combined
-    group1_data = vec(Matrix(groups[1]))
-    μ = mean(group1_data)
-    σ = std(group1_data)
-    group1_expected = (group1_data .- μ) ./ σ
-    
-    # Verify the normalized group matches
-    group1_result = vec(Matrix(normalized[1]))
-    @test group1_result ≈ group1_expected
-    
-    # Group 2: sepal_width alone
-    group2_data = vec(Matrix(groups[2]))
-    μ2 = mean(group2_data)
-    σ2 = std(group2_data)
-    group2_expected = (group2_data .- μ2) ./ σ2
-    group2_result = vec(Matrix(normalized[2]))
-    @test group2_result ≈ group2_expected
-    
-    # Alternative: test properties of zscore normalization
-    @test mean(group1_result) ≈ 0.0 atol=1e-10
-    @test std(group1_result) ≈ 1.0 atol=1e-10
-    @test mean(group2_result) ≈ 0.0 atol=1e-10
-    @test std(group2_result) ≈ 1.0 atol=1e-10
+        @test isapprox(normalized[i], test_norm)
+    end
+end
+
+# ---------------------------------------------------------------------------- #
+#                     DataTreatment groupby normalization                      #
+# ---------------------------------------------------------------------------- #
+@test_nowarn DataTreatment(
+    Xts,
+    :aggregate,
+    win=splitwindow(nwindows=2),
+    features=(mean, maximum)
+)
+
+@test_nowarn DataTreatment(
+    Xts,
+    :aggregate,
+    win=splitwindow(nwindows=2),
+    features=(mean, maximum),
+    norm=DT.minmax(lower=0.0, upper=1.0)
+)
+
+@test_nowarn DataTreatment(
+    Xts,
+    :reducesize,
+    win=splitwindow(nwindows=2),
+    features=(mean, maximum),
+    norm=DT.minmax(lower=0.0, upper=1.0)
+)
+
+@test_nowarn DataTreatment(
+    Xts,
+    :aggregate,
+    win=splitwindow(nwindows=2),
+    features=(mean, maximum),
+    groups=(:vname, :feat),
+    norm=DT.minmax(lower=0.0, upper=1.0)
+)
+
+@test_nowarn DataTreatment(
+    Xts,
+    :reducesize,
+    win=splitwindow(nwindows=2),
+    features=(mean, maximum),
+    groups=(:vname, :feat),
+    norm=DT.minmax(lower=0.0, upper=1.0)
+)
+
+# ---------------------------------------------------------------------------- #
+#                         check against normalization                          #
+# ---------------------------------------------------------------------------- #
+m1 = [1.0 1.0 1.0; 1.0 2.5 1.0; 1.0 1.0 1.0]
+m2 = [1.0 1.0 1.0; 1.0 7.5 1.0; 1.0 1.0 1.0]
+m3 = [9.0 9.0 9.0; 9.0 2.5 9.0; 9.0 9.0 9.0]
+m4 = [9.0 9.0 9.0; 9.0 7.5 9.0; 9.0 9.0 9.0]
+
+M = reshape([m1, m2, m3, m4], 2, 2) # 2x2 matrix of matrices
+
+test1 = DataTreatment(
+    M,
+    :reducesize,
+    vnames = [:V1,:V2],
+    win=splitwindow(nwindows=3), #should actually not change the dataset
+    features=(mean, maximum),
+    groups=(:vname,),
+    norm=DT.minmax(lower=0.0, upper=1.0)
+)
+
+# Since the dataset is composed of two columns named :v1 and :v2 and we have grouped by :vname,
+# we expect the dataset to have been normalized separately for :v1 and for :v2
+
+@testset "DataTreatment reducesize groupby normalization" begin
+    for (i, m) in enumerate(eachcol(M))
+        merged = vcat(m...)
+        n = fit(MinMax, merged, dims=nothing)
+        test_norm = Normalization.normalize(merged, n)
+
+        res_merged = vcat(get_dataset(test1)[:,i]...)
+        @test isapprox(res_merged, test_norm)
+    end
+end
+
+test2 = DataTreatment(
+    M,
+    :aggregate,
+    vnames = [:V1,:V2],
+    win=splitwindow(nwindows=3), #should actually not change the dataset
+    features=(mean,),
+    groups=(:vname,),
+    norm=DT.minmax(lower=0.0, upper=1.0)
+)
+
+# In this case as well, since a windowing of 3 elements was used, the windowing will generate
+# single elements, so we expect the normalization to have been applied separately for :v1 and :v2
+
+@testset "DataTreatment aggregate groupby normalization" begin
+    for (i, m) in enumerate(eachcol(M))
+        merged = vcat(m...)
+        n = fit(MinMax, merged, dims=nothing)
+        test_norm = Normalization.normalize(merged, n)
+
+        i == 1 && (i = 1:9)
+        i == 2 && (i = 10:18)
+        res_merged = vcat(get_dataset(test2)[:,i]'...)
+        @test isapprox(res_merged, vcat(test_norm'...))
+    end
 end

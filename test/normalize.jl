@@ -64,14 +64,6 @@ multidim_norm = DT.normalize(M, DT.minmax(lower=0.0, upper=1.0))
 @test multidim_norm[2,2] ==
     [1.0 1.0 1.0; 1.0 0.8125 1.0; 1.0 1.0 1.0]
 
-@btime DT.normalize(M, DT.minmax(lower=0.0, upper=1.0))
-# 5.852 μs (123 allocations: 8.42 KiB)
-
-# n = Normalization.fit.(MinMax, M, dims=nothing)
-# test_norm = Normalization.normalize.(M, n)
-
-# n = Normalization.fit(MinMax, Iterators.flatten(M), dims=nothing)
-# test_norm = Normalization.normalize(M, n)
 # ---------------------------------------------------------------------------- #
 #                             tabular normalization                            #
 # ---------------------------------------------------------------------------- #

@@ -72,7 +72,7 @@ end
     @testset ":reducesize mode" begin
         dt = DataTreatment(Xmatrix, :reducesize; 
                             vnames=Symbol.("var", 1:10),
-                            win=(win,), 
+                            win, 
                             reducefunc=mean)
         
         @test size(dt, 1) == 100
@@ -83,7 +83,7 @@ end
     @testset ":aggregate mode" begin
         dt = DataTreatment(Xmatrix, :aggregate;
                             vnames=Symbol.("var", 1:10),
-                            win=(win,),
+                            win,
                             features=features)
         
         @test size(dt) == (100, 10 * length(features) * 16)  # 10 vars × 3 features × 16 windows
@@ -139,7 +139,7 @@ end
 
         dt = DataTreatment(X, :aggregate;
                             vnames=Symbol.("var", 1:4),
-                            win=(win,),
+                            win,
                             features=features)
     
         vnames_vec = get_vecvnames(dt.featureid)
@@ -166,7 +166,7 @@ end
         features = (mean, std)
         
         # Test without specifying vnames (should use propertynames)
-        dt = DataTreatment(df, :reducesize; win=(win,), features=features)
+        dt = DataTreatment(df, :reducesize; win, features=features)
         
         @test Set(get_vnames(dt)) == Set([:ch1, :ch2, :ch3])
         @test size(dt, 1) == 50
@@ -187,7 +187,7 @@ end
         custom_names = [:custom1, :custom2, :custom3]
         dt = DataTreatment(df, :reducesize; 
                           vnames=custom_names, 
-                          win=(win,), 
+                          win, 
                           features=features)
         
         @test Set(get_vnames(dt)) == Set(custom_names)
@@ -201,7 +201,7 @@ end
     )
     
     win = splitwindow(nwindows=2)
-    dt = DataTreatment(df, :reducesize; win=(win,), features=(mean,))
+    dt = DataTreatment(df, :reducesize; win, features=(mean,))
     
     props = propertynames(dt)
     
@@ -220,7 +220,7 @@ end
     
     dt = DataTreatment(Xmatrix, :aggregate;
                       vnames=Symbol.("var", 1:5),
-                      win=(win,),
+                      win,
                       features=features)
     
     @testset "get_dataset" begin
@@ -251,7 +251,7 @@ end
     
     dt = DataTreatment(Xmatrix, :aggregate;
                       vnames=Symbol.("var", 1:4),
-                      win=(win,),
+                      win,
                       features=features)
     
     @testset "length" begin
@@ -302,7 +302,7 @@ end
     
     dt = DataTreatment(Xmatrix, :aggregate;
                       vnames=Symbol.("var", 1:3),
-                      win=(win,),
+                      win,
                       features=features)
     
     @testset "Compact show" begin
@@ -355,7 +355,7 @@ end
     @testset "Display with different aggrtype" begin
         dt_agg = DataTreatment(Xmatrix, :aggregate;
                               vnames=Symbol.("var", 1:3),
-                              win=(win,),
+                              win,
                               features=features)
         
         str = sprint(show, dt_agg)
@@ -374,7 +374,7 @@ end
         
         dt = DataTreatment(Xmatrix, :reducesize;
                           vnames=[:single],
-                          win=(win,),
+                          win,
                           features=(mean,))
         
         @test get_vnames(dt) == [:single]
@@ -388,7 +388,7 @@ end
         
         dt = DataTreatment(Xmatrix, :reducesize;
                           vnames=Symbol.("var", 1:3),
-                          win=(win,),
+                          win,
                           features=(mean,))
         
         feature_funcs = get_features(dt)
@@ -404,7 +404,7 @@ end
         
         dt = DataTreatment(Xmatrix, :reducesize;
                           vnames=[:v1, :v2],
-                          win=(win,),
+                          win,
                           features=features)
         
         @test get_nwindows(dt) == 1
@@ -421,7 +421,7 @@ end
     @testset "element_norm - Z-score" begin
         dt = DataTreatment(Xmatrix, :aggregate;
                           vnames=Symbol.("var", 1:5),
-                          win=(win,),
+                          win,
                           features=features,
                           norm=zscore())
         
@@ -432,7 +432,7 @@ end
     @testset "element_norm - MinMax" begin
         dt = DataTreatment(Xmatrix, :aggregate;
                           vnames=Symbol.("var", 1:5),
-                          win=(win,),
+                          win,
                           features=features,
                           norm=DT.minmax())
         
@@ -443,7 +443,7 @@ end
     @testset "element_norm - Sigmoid" begin
         dt = DataTreatment(Xmatrix, :aggregate;
                           vnames=Symbol.("var", 1:5),
-                          win=(win,),
+                          win,
                           features=features,
                           norm=sigmoid())
         
@@ -453,7 +453,7 @@ end
     @testset "element_norm - Center" begin
         dt = DataTreatment(Xmatrix, :aggregate;
                           vnames=Symbol.("var", 1:5),
-                          win=(win,),
+                          win,
                           features=features,
                           norm=center())
         
@@ -463,7 +463,7 @@ end
     @testset "element_norm - Unit Power" begin
         dt = DataTreatment(Xmatrix, :aggregate;
                           vnames=Symbol.("var", 1:5),
-                          win=(win,),
+                          win,
                           features=features,
                           norm=unitpower())
         
@@ -479,7 +479,7 @@ end
         
         dt = DataTreatment(Xmatrix_outlier, :aggregate;
                           vnames=Symbol.("var", 1:5),
-                          win=(win,),
+                          win,
                           features=features,
                           norm=outliersuppress(;thr=0.3))
         
@@ -496,7 +496,7 @@ end
     @testset "Basic ds_norm" begin
         dt = DataTreatment(X_nested, :reducesize;
                           vnames=Symbol.("ch", 1:3),
-                          win=(win,),
+                          win,
                           features=features,
                           norm=DT.minmax())
         

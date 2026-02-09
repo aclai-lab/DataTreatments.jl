@@ -4,11 +4,7 @@ CurrentModule = DataTreatments
 # Normalization
 
 ```@docs
-element_norm
-tabular_norm
-grouped_norm
-grouped_norm!
-ds_norm
+normalize
 ```
 
 # [Methods Api](@id dtattreatments)

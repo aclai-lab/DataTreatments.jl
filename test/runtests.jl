@@ -22,6 +22,7 @@ test_suites = [
     ("Treatment",  ["treatment.jl",]),
     ("Groupby", ["groupby.jl"]),
     ("Normalize",  ["normalize.jl",]),
+    ("Grouped Norm", ["grouped_norm.jl"]),
 ]
 
 @testset "DataTreatments.jl" begin

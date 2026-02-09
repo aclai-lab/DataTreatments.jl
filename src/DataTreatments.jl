@@ -128,6 +128,9 @@ struct GroupResult <: AbstractDataTreatment
     end
 end
 
+get_group(g::GroupResult) = g.group
+get_method(g::GroupResult) = g.method
+
 # ---------------------------------------------------------------------------- #
 #                                DataTreatment                                 #
 # ---------------------------------------------------------------------------- #
@@ -171,9 +174,28 @@ DataTreatment(
 
 # Processing Modes
 
+## `:aggregate` Mode
+Transforms the dataset from multi-dimensional to tabular format.
+- The dataset is windowed to reduce its dimensionality
+- Reduction functions from the `features` parameter are applied to each window (default: `mean`, `maximum`)
+
+```julia
+Xmatrix = fill(rand(200, 120), 100, 10)  # 100 samples, 10 variables
+win = splitwindow(nwindows=4)
+features = (mean, std, maximum)
+
+dt = DataTreatment(Xmatrix, :aggregate; 
+                   vnames=Symbol.("var", 1:10);
+                   win, 
+                   features)
+# Returns 100×(10×3×16) = 100×480 flat matrix
+# 10 vars × 3 features × 16 windows (4×4 grid)
+```
+
 ## `:reducesize` Mode
-Applies multiple feature functions to windowed regions, preserving the dataset structure.
-Each element is reduced but the matrix dimensions are maintained.
+Reduces the dataset dimensionality by windowing.
+- Once windowed, a reduction function called `reducefunc` (default: `mean`) is applied to each window
+- Note: it is still possible to specify `features` as in `:aggregate`, but these will simply be saved for future use (as in modal algorithms like ModalDecisionTrees)
 
 ```julia
 Xmatrix = fill(rand(200, 120), 100, 10)  # 100 samples, 10 variables
@@ -181,23 +203,65 @@ win = splitwindow(nwindows=4)
 features = (mean, std, maximum)
 
 dt = DataTreatment(Xmatrix, :reducesize; 
-                   vnames=Symbol.("var", 1:10),
-                   win=(win,), 
-                   features=features)
+                   vnames=Symbol.("var", 1:10);
+                   win, 
+                   features)
 # Each 200×120 element becomes 4×4, resulting in 100×10 output
 ```
 
-## `:aggregate` Mode
-Flattens multidimensional data into a single feature matrix suitable for ML models.
-Applies multiple features across windows and concatenates results.
+# Grouping
+
+## `groups` Parameter
+Optional parameter to group dataset elements before processing.
+- Accepts a tuple of symbols specifying grouping columns
+- Creates logical groups within the dataset for separate processing
+- Common grouping strategies: `(:vname,)`, `(:vname, :feat)`, `(:vname, :timestamp)`
 
 ```julia
-dt = DataTreatment(Xmatrix, :aggregate;
-                   vnames=Symbol.("var", 1:10),
-                   win=(win,),
-                   features=features)
-# Returns 100×(10×3×16) = 100×480 flat matrix
-# 10 vars × 3 features × 16 windows (4×4 grid)
+dt = DataTreatment(Xts, :aggregate;
+                   win=splitwindow(nwindows=2),
+                   features=(mean, maximum),
+                   groups=(:vname, :feat))
+# Processes each (vname, feat) group independently
+```
+
+# Normalization
+
+## `norm` Parameter
+Optional normalization function to apply during processing.
+- Accepts a normalization function (e.g., `zscore`, `minmax`, `center`)
+- Applied after windowing and feature reduction
+- Can be created with keyword arguments for customization
+
+```julia
+# Min-max normalization with custom range
+dt = DataTreatment(Xts, :aggregate;
+                   win=splitwindow(nwindows=2),
+                   features=(mean, maximum),
+                   norm=DT.minmax(lower=0.0, upper=1.0))
+
+# Z-score normalization
+dt = DataTreatment(Xts, :aggregate;
+                   win=splitwindow(nwindows=2),
+                   features=(mean, maximum),
+                   norm=DT.zscore())
+```
+
+## Grouped Normalization
+When using `groups` with `norm`, **never specify `dims` parameter**.
+- Grouped normalization works on all elements of each group as a whole
+- The `dims` parameter should NOT be used: it operates column-wise or row-wise, which breaks group semantics
+- Each group is normalized independently using all its data
+
+```julia
+# CORRECT: Grouped normalization without dims
+groups = DT.groupby(X, [[:var1, :var2]])
+normalized = DT.normalize(groups, DT.zscore())
+# Each group normalized using all its elements
+
+# INCORRECT: Do not use dims with grouped normalization
+# normalized = DT.normalize(groups, DT.zscore(dims=2))
+# This breaks the group semantics!
 ```
 
 # Examples
@@ -292,6 +356,7 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
     aggrtype   :: Symbol
     groups     :: Union{Vector{GroupResult}, Nothing}
     norm       :: Union{Base.Callable, Nothing}
+    normdims:: Int64
 
     function DataTreatment(
         X          :: AbstractArray{T},
@@ -301,7 +366,8 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
         features   :: Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
         reducefunc :: Base.Callable=mean,
         groups     :: Union{Tuple{Vararg{Symbol}}, Nothing}=nothing,
-        norm       :: Union{Base.Callable, Nothing}=nothing
+        norm       :: Union{Base.Callable, Nothing}=nothing,
+        dims::Int64=0
     ) where {T<:AbstractArray{<:Real}}
         is_multidim_dataset(X) || throw(ArgumentError("Input DataFrame " * 
             "does not contain multidimensional data."))
@@ -351,14 +417,18 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
         end
 
         if !isnothing(norm)
-            aggrtype == :aggregate  &&
-                grouped_norm!(Xresult, norm; featvec=get_vecfeatures(Xinfo))
-            aggrtype == :reducesize &&
-                (Xresult = ds_norm(Xresult, norm))
+            if isnothing(grp_result)
+                normalize!(Xresult, norm; dims)
+            else
+                Threads.@threads for g in grp_result
+                    Xresult[:, get_group(g)] =
+                        normalize!(Xresult[:, get_group(g)], norm; dims)
+                end
+            end
         end
 
         new{eltype(Xresult), core_eltype(Xresult)}(
-            Xresult, Xinfo, reducefunc, aggrtype, grp_result, norm
+            Xresult, Xinfo, reducefunc, aggrtype, grp_result, norm, dims
         )
     end
 
@@ -384,6 +454,7 @@ get_reducefunc(dt::DataTreatment) = dt.reducefunc
 get_aggrtype(dt::DataTreatment)   = dt.aggrtype
 get_groups(dt::DataTreatment)       = dt.groups
 get_norm(dt::DataTreatment)       = dt.norm
+get_normdims(dt::DataTreatment) = dt.normdims
 
 # Convenience methods for common operations
 get_vnames(dt::DataTreatment)   = unique(get_vecvnames(dt.featureid))
@@ -407,7 +478,8 @@ export FeatureId, DataTreatment
 export get_vname, get_feat, get_nwin
 export get_vecvnames, get_vecfeatures, get_vecnwins
 export get_vnames, get_features, get_nwindows
-export get_dataset, get_featureid, get_reducefunc, get_aggrtype, get_groups, get_norm
+export get_dataset, get_featureid, get_reducefunc, get_aggrtype
+export get_groups, get_norm, get_normdims
 
 function Base.show(io::IO, dt::DataTreatment)
     nrows, ncols = size(dt.dataset)
