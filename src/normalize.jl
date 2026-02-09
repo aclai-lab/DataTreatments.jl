@@ -2,6 +2,7 @@
 #                                    types                                     #
 # ---------------------------------------------------------------------------- #
 const NormType = Union{AbstractArray, Base.Iterators.Flatten}
+const FloatType = Union{Float32, Float64}
 
 # ---------------------------------------------------------------------------- #
 #                               core functions                                 #
@@ -437,16 +438,18 @@ outliersuppress(x::NormType; kwargs...) = _outliersuppress(x; kwargs...)
 #                                  normalize                                   #
 # ---------------------------------------------------------------------------- #
 """
-    normalize(X, nfunc; tabular=false, dim=:col)
-    normalize(df::DataFrame, nfunc; tabular=false, dim=:col)
-    normalize(df::Vector{DataFrame}, nfunc; tabular=false, dim=:col)
-    normalize!(X, nfunc; tabular=false, dim=:col)
+    normalize(X, nfunc; tabular=false, dims=0)
+    normalize(df::DataFrame, nfunc; tabular=false, dims=0)
+    normalize(df::Vector{DataFrame}, nfunc; tabular=false, dims=0)
+    normalize!(X, nfunc; tabular=false, dims=0)
 
 Apply a normalization function to data.
 
 ## Supported inputs
 - `AbstractArray{<:Real}`: any numeric array (vector, matrix, or N‑D array)
 - `AbstractArray{<:AbstractArray{<:Real}}`: nested arrays (e.g., dataset of vectors or matrices)
+- `DataFrame`: tabular data with numeric columns (normalized column‑wise by default, `dims=2`)
+- `Vector{DataFrame}`: multiple dataframes to normalize together
 
 The `normalize` variants allocate a new array; `normalize!` mutates in place.
 
@@ -461,16 +464,16 @@ The `normalize` variants allocate a new array; `normalize!` mutates in place.
 - [`outliersuppress`](@ref): Cap outliers beyond threshold
 
 ## Whole‑dataset normalization (default)
-By default, `tabular=false`, the normalization function is computed on the *entire*
+By default, `dims=0`, the normalization function is computed on the *entire*
 dataset (flattened) and then applied element‑wise. This works for:
 - N‑D arrays (e.g., tensors)
 - arrays of vectors (audio segments)
 - arrays of matrices (images)
 
-## Tabular normalization (row/column‑wise)
-For tabular data (rows/columns as samples/features), set `tabular=true`.
-- `dim=:col`: normalize each column independently (typical: each column is a feature)
-- `dim=:row`: normalize each row independently
+## Tabular normalization (row/column‑wise: `dims=1` or `dims=2`)
+For tabular data (rows/columns as samples/features), set `dims` to the dimension:
+- `dims=1`: normalize each row independently
+- `dims=2`: normalize each column independently (typical: each column is a feature)
 
 ## Examples
 ```julia
@@ -480,10 +483,10 @@ X = rand(100, 50)
 X_all = DataTreatments.normalize(X, zscore())
 
 # Column‑wise zscore (each feature independently)
-X_col = DataTreatments.normalize(X, zscore(); tabular=true, dim=:col)
+X_col = DataTreatments.normalize(X, zscore(); dims=2)
 
 # Row‑wise minmax
-X_row = DataTreatments.normalize(X, minmax(); tabular=true, dim=:row)
+X_row = DataTreatments.normalize(X, minmax(); dims=1)
 
 # Nested dataset (e.g., images)
 imgs = [rand(28,28) for _ in 1:100]
@@ -500,20 +503,19 @@ df = DataFrame(
 )
 
 # Normalize all numeric columns independently (column-wise)
-df_norm = DataTreatments.normalize(df, zscore(); tabular=true)
+df_norm = DataTreatments.normalize(df, zscore())
 
 # Aggregate specific columns
 fileds = [:salary, :score]
 groups = DataTreatments.groupby(df, fileds)
 
-df_norm = DataTreatments.normalize(groups, zscore())
-
+df_norm = DataTreatments.normalize(groups, zscore(); dims=0)
 ```
 """
 @inline normalize(
     X::Union{AbstractArray{T}, AbstractArray{<:AbstractArray{T}}},
     args...; kwargs...
-) where {T<:Float64} =
+) where {T<:FloatType} =
     normalize!(deepcopy(X), args...; kwargs...)
 
 @inline normalize(X::AbstractArray{T}, args...; kwargs...) where {T<:Real} =
@@ -529,10 +531,11 @@ df_norm = DataTreatments.normalize(groups, zscore())
 normalize(dfs::Vector{DataFrame}, args...; kwargs...) =
     [normalize(df, args...; kwargs...) for df in dfs]
 
-function normalize(df::DataFrame, args...; kwargs...)
+# dataframes are normalized column‑wise by default
+function normalize(df::DataFrame, args...; dims::Int64=2, kwargs...)
     colnames = propertynames(df)
     X = Matrix{Float64}(df)
-    Xresult = normalize!(X, args...; kwargs...)
+    Xresult = normalize!(X, args...; dims, kwargs...)
     
     return DataFrame(Xresult, colnames)
 end
@@ -540,32 +543,30 @@ end
 function normalize!(
     X::Union{AbstractArray{T}, AbstractArray{<:AbstractArray{T}}},
     nfunc::Base.Callable;
-    tabular::Bool=false,
-    dim :: Symbol=:col
-) where {T<:Float64}
-    return if tabular
-        # column-wise or row-wise normalization for tabular data
-        if dim == :col
-            for i in axes(X, 2)
-                # build normalization function from each column's stats
-                # nfunc coeff is obtained flattering the whole column
-                X[:,i] = _normalize!(X[:,i], nfunc(Iterators.flatten(X[:,i])))
-            end
-        elseif dim == :row
-            for i in axes(X, 1)
-                # build normalization function from each row's stats
-                # nfunc coeff is obtained flattering the whole row
-                X[i,:] = _normalize!(X[i,:], nfunc(Iterators.flatten(X[i,:])))
-            end
-        else
-            throw(ArgumentError("dim must be :col or :row, got :$dim"))
-        end
-
-        X
-    else
+    dims::Int64=0
+) where {T<:FloatType}
+    if dims == 0
         # whole-dataset normalization
         # nfunc coefficient is obtained spanning the whole dataset
-        _normalize!(X, nfunc(Iterators.flatten(X)))
+        return _normalize!(X, nfunc(Iterators.flatten(X)))
+    elseif dims == 1
+        # row-wise normalization for tabular data
+        for i in axes(X, 1)
+            # build normalization function from each row's stats
+            # nfunc coeff is obtained flattering the whole row
+            X[i,:] = _normalize!(X[i,:], nfunc(Iterators.flatten(X[i,:])))
+        end
+        return X
+    elseif dims == 2
+        # column-wise normalization for tabular data
+        for i in axes(X, 2)
+            # build normalization function from each column's stats
+            # nfunc coeff is obtained flattering the whole column
+            X[:,i] = _normalize!(X[:,i], nfunc(Iterators.flatten(X[:,i])))
+        end
+        return X
+    else
+        throw(ArgumentError("dim must be 0 no dims, 1 row-wise or 2 col-wise."))
     end
 end
 
@@ -575,7 +576,7 @@ end
 function _normalize!(
     X::AbstractArray{<:AbstractArray{T}},
     nfunc::Base.Callable
-) where {T<:Float64}
+) where {T<:FloatType}
     # normalize each nested element (e.g., each vector/matrix) in parallel
     Threads.@threads for idx in CartesianIndices(X)
         # apply normalization coefficient to every element
@@ -588,7 +589,7 @@ end
 function _normalize!(
     X::AbstractArray{T},
     nfunc::Base.Callable
-) where {T<:Float64}
+) where {T<:FloatType}
     # in-place element-wise normalization for numeric arrays
     for idx in CartesianIndices(X)
         # apply normalization coefficient to every element
@@ -597,3 +598,5 @@ function _normalize!(
 
     return X
 end
+
+# TODO pass FloatType

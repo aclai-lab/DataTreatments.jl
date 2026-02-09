@@ -351,11 +351,15 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
         end
 
         if !isnothing(norm)
-            aggrtype == :aggregate  && grouped_norm!(Xresult, norm; featvec=get_vecfeatures(Xinfo))
-            aggrtype == :reducesize && (Xresult = ds_norm(Xresult, norm))
+            aggrtype == :aggregate  &&
+                grouped_norm!(Xresult, norm; featvec=get_vecfeatures(Xinfo))
+            aggrtype == :reducesize &&
+                (Xresult = ds_norm(Xresult, norm))
         end
 
-        new{eltype(Xresult), core_eltype(Xresult)}(Xresult, Xinfo, reducefunc, aggrtype, grp_result, norm)
+        new{eltype(Xresult), core_eltype(Xresult)}(
+            Xresult, Xinfo, reducefunc, aggrtype, grp_result, norm
+        )
     end
 
     function DataTreatment(
@@ -371,7 +375,8 @@ end
 
 # value access methods
 Base.getproperty(dt::DataTreatment, s::Symbol) = getfield(dt, s)
-Base.propertynames(::DataTreatment) = (:dataset, :featureid, :reducefunc, :aggrtype, :groups, :norm)
+Base.propertynames(::DataTreatment) =
+    (:dataset, :featureid, :reducefunc, :aggrtype, :groups, :norm)
 
 get_dataset(dt::DataTreatment)    = dt.dataset
 get_featureid(dt::DataTreatment)  = dt.featureid
