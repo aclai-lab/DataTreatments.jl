@@ -32,12 +32,11 @@ Pkg.add("DataTreatments")
 using DataTreatments
 
 # Create a dataset with multidimensional elements
-X = rand(200, 120)  # Example: 200×120 matrix
-Xmatrix = fill(X, 100, 10)  # 100×10 dataset where each element is a 200×120 matrix
-vnames = Symbol.("auto", 1:10)
+Xmatrix = [rand(1:100, 4, 2) for _ in 1:10, _ in 1:5]  # 10×5 dataset where each element is a 4×2 matrix
+vnames = Symbol.("auto", 1:5)
 
 # Define processing parameters
-win = splitwindow(nwindows=4)
+win = splitwindow(nwindows=2)
 features = (mean, std, maximum, minimum)
 norm = zscore()
 reducefunc = median
@@ -129,34 +128,36 @@ DataTreatments provides flexible normalization strategies for different data str
 #### Normalization Methods
 
 ```julia
+const DT = DataTreatments
+
 # Z-score normalization (mean=0, std=1)
-zscore()                    # Standard z-score
-zscore(method=:robust)      # Robust z-score (median, MAD)
-zscore(method=:half)        # Half-normal z-score
+DT.zscore()                    # Standard z-score
+DT.zscore(method=:robust)      # Robust z-score (median, MAD)
+DT.zscore(method=:half)        # Half-normal z-score
 
 # Min-max scaling
-minmax()                    # Scale to [0, 1]
-minmax(lower=-1, upper=1)   # Scale to custom range
+DT.minmax()                    # Scale to [0, 1]
+DT.minmax(lower=-1, upper=1)   # Scale to custom range
 
 # Sigmoid transformation
-sigmoid()                   # Logistic sigmoid to (0, 1)
+DT.sigmoid()                   # Logistic sigmoid to (0, 1)
 
 # Centering
-center()                    # Center to mean=0
-center(method=:median)      # Center to median=0
+DT.center()                    # Center to mean=0
+DT.center(method=:median)      # Center to median=0
 
 # Scaling
-scale()                     # Scale to std=1
-scale(factor=:mad)          # Scale by MAD
+DT.scale()                     # Scale to std=1
+DT.scale(factor=:mad)          # Scale by MAD
 
 # Power normalization
-unitpower()                 # Normalize to unit RMS power
+DT.unitpower()                 # Normalize to unit RMS power
 
 # P-norm normalization
-pnorm(p=2)                  # L2 normalization (unit length)
+DT.pnorm(p=2)                  # L2 normalization (unit length)
 
 # Outlier suppression
-outliersuppress(thr=3.0)    # Cap outliers beyond threshold
+DT.outliersuppress(thr=3.0)    # Cap outliers beyond threshold
 ```
 
 #### Element-wise Normalization
@@ -167,7 +168,13 @@ Normalize using global statistics across all elements:
 X = rand(100, 50)  # 100 samples, 50 features
 
 # Z-score: mean ≈ 0, std ≈ 1 globally
-X_norm = element_norm(X, zscore())
+X_norm = DT.normalize(X, DT.zscore())
+
+# Time series dataset: each element is a time series
+X = [rand(100) for _ in 1:50, _ in 1:3]  # 50 samples × 3 channels
+
+# Each channel normalized across all 50 time series
+X_norm = DT.normalize(X, DT.zscore())
 ```
 
 #### Tabular Normalization
@@ -178,39 +185,26 @@ Normalize each column or row independently:
 X = rand(100, 50)  # 100 samples, 50 features
 
 # Column-wise (each feature normalized independently)
-X_norm = tabular_norm(X, zscore(); dim=:col)
-# Each column: mean ≈ 0, std ≈ 1
+X_norm = DT.normalize(X, zscore(); dims=2)
 
 # Row-wise (each sample normalized independently)
-X_norm = tabular_norm(X, zscore(); dim=:row)
-# Each row: mean ≈ 0, std ≈ 1
+X_norm = DT.normalize(X, zscore(); dims=1)
 ```
 
-#### Dataset Normalization (Nested Arrays)
+### Grouping Functions
 
-For datasets composed of n-dimensional elements:
-
-```julia
-# Time series dataset: each element is a time series
-X = [rand(100) for _ in 1:50, _ in 1:3]  # 50 samples × 3 channels
-
-# Each channel normalized across all 50 time series
-X_norm = ds_norm(X, zscore())
-```
-
-#### Grouped Normalization
-
-Normalize columns that share the same feature type together:
+Grouping lets you partition related feature columns (e.g., by variable name, window, or feature) so that operations like normalization are applied with shared coefficients across each group instead of per-column.
+This preserves consistent scaling for semantically related parts of the dataset.
 
 ```julia
-# Dataset with windowed features
-dt = DataTreatment(df, :aggregate; 
-                   win=(splitwindow(nwindows=3),),
-                   features=(mean, std, maximum))
+dt = DataFrame([rand(1:100, 4, 2) for _ in 1:10, _ in 1:5], :auto)
+win = splitwindow(nwindows=2)
 
-# All mean-based features share normalization, std-based share another
-X_grouped = grouped_norm(dt.dataset, zscore(); 
-                        featvec=get_vecfeatures(dt.featureid))
+grp1 = [:x1, :x2]
+
+groups = DT.groupby(dt, grp1)
+
+dt_norm = DataTreatment(dt, :aggregate; win, features, groups=(:vname,), norm=DT.zscore())
 ```
 
 ## Data Structures
@@ -230,11 +224,6 @@ feature_ids = get_featureid(dt)
 # - vname: Source variable name
 # - feat: Feature function applied
 # - nwin: Window number
-
-# Use for feature selection
-mean_features = filter(fid -> get_feature(fid) == mean, feature_ids)
-temp_features = filter(fid -> get_vname(fid) == :temperature, feature_ids)
-window1_features = filter(fid -> get_nwin(fid) == 1, feature_ids)
 ```
 
 ### `DataTreatment` - Complete Processing Container
@@ -242,8 +231,6 @@ window1_features = filter(fid -> get_nwin(fid) == 1, feature_ids)
 A comprehensive container that stores processed data along with all parameters for full reproducibility:
 
 ```julia
-using DataFrames, Statistics
-
 # Create dataset
 df = DataFrame(
     channel1 = [rand(200, 120) for _ in 1:1000],
@@ -255,10 +242,7 @@ df = DataFrame(
 win = adaptivewindow(nwindows=6, overlap=0.15)
 features = (mean, std, maximum, minimum, median)
 
-dt = DataTreatment(df, :reducesize; 
-                   win=(win,), 
-                   features=features,
-                   norm=zscore())
+dt = DataTreatment(df, :reducesize; win, features, norm=DT.minmax())
 
 # Access processed data
 X_flat = get_dataset(dt)        # Flat feature matrix
@@ -270,57 +254,7 @@ reduction = get_reducefunc(dt)   # mean (default)
 var_names = get_vnames(dt)       # [:channel1, :channel2, :channel3]
 feat_funcs = get_features(dt)    # (mean, std, maximum, minimum, median)
 n_windows = get_nwindows(dt)     # 6
-
-# Document experiment
-println("Processing: $aggrtype mode")
-println("Variables: $(join(var_names, ", "))")
-println("Features: $(join(nameof.(feat_funcs), ", "))")
-println("Windows: $n_windows per dimension")
 ```
-
-## API Reference
-
-### Windowing Functions
-- `splitwindow(; nwindows::Int)` - Equal non-overlapping windows
-- `movingwindow(; winsize::Int, winstep::Int)` - Fixed-size sliding windows
-- `adaptivewindow(; nwindows::Int, overlap::Float64)` - Windows with overlap
-- `wholewindow()` - Single window covering entire dimension
-
-### Data Structures
-- `DataTreatment` - Container for processed data with complete metadata
-- `FeatureId` - Metadata for individual features (variable, function, window)
-
-### Accessor Functions
-- `get_dataset(dt)` - Extract processed feature matrix
-- `get_featureid(dt)` - Get feature metadata vector
-- `get_reducefunc(dt)` - Get reduction function used
-- `get_aggrtype(dt)` - Get processing mode
-- `get_vnames(dt)` - Get unique variable names
-- `get_features(dt)` - Get unique feature functions
-- `get_nwindows(dt)` - Get maximum window number
-- `get_vname(fid)` - Get variable name from FeatureId
-- `get_feature(fid)` - Get feature function from FeatureId
-- `get_nwin(fid)` - Get window number from FeatureId
-
-### Macros
-- `@evalwindow(X, winfuncs...)` - Evaluate window functions for array dimensions
-
-### Normalization Constructors
-- `zscore(; method=:std)` - Z-score normalization (standard, robust, or half-normal)
-- `minmax(; lower=0, upper=1)` - Min-max scaling to custom range
-- `sigmoid()` - Sigmoid transformation to (0, 1)
-- `center(; method=:mean)` - Center data (mean or median)
-- `scale(; factor=:std)` - Scale data (std or MAD)
-- `unitpower()` - Unit RMS power normalization
-- `pnorm(; p=2)` - P-norm normalization
-- `outliersuppress(; thr=3.0)` - Outlier suppression
-
-### Normalization Functions
-- `element_norm(X, n)` - Normalize using global statistics
-- `tabular_norm(X, n; dim=:col)` - Normalize columns/rows independently
-- `ds_norm(X, n)` - Normalize datasets with n-dimensional elements
-- `grouped_norm(X, n; featvec)` - Normalize grouped columns together
-- `grouped_norm!(X, n; featvec)` - In-place grouped normalization
 
 ## Use Cases
 

@@ -381,6 +381,9 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
         # computing the window each time is a significant overhead
         uniform = has_uniform_element_size(X)
 
+        # convert to float
+        T isa AbstractFloat || (X = convert(X))
+
         vnames isa Vector{String} && (vnames = Symbol.(vnames))
         win isa Base.Callable && (win = (win,))
         intervals = @evalwindow first(X) win...
