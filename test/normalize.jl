@@ -3,57 +3,40 @@ using DataTreatments
 const DT = DataTreatments
 
 using Normalization
+const N = Normalization
 using Statistics
-
-# ---------------------------------------------------------------------------- #
-#                                    methods                                   #
-# ---------------------------------------------------------------------------- #
-X = Float64.([8 1 6; 3 5 7; 4 9 2])
-
-@test_nowarn DT.zscore(X)
-@test_nowarn DT.sigmoid(X)
-@test_nowarn DT.pnorm(X)
-@test_nowarn DT.scale(X)
-@test_nowarn DT.minmax(X)
-@test_nowarn DT.center(X)
-@test_nowarn DT.unitpower(X)
-@test_nowarn DT.outliersuppress(X)
 
 # ---------------------------------------------------------------------------- #
 #                                 normalization                                #
 # ---------------------------------------------------------------------------- #
 X = Float64.([8 1 6; 3 5 7; 4 9 2])
-nfunc = DT.minmax()
 
-all_elements = DT.normalize(X, nfunc)
+all_elements = N.normalize(X, MinMax)
 @test all_elements == [
     0.875 0.0 0.625;
     0.25 0.5 0.75;
     0.375 1.0 0.125
 ]
 
-grouby_cols = DT.normalize(X, nfunc; dims=2)
+grouby_cols = N.normalize(X, MinMax; dims=1)
 @test grouby_cols == [
     1.0 0.0 0.8;
     0.0 0.5 1.0;
     0.2 1.0 0.0
 ]
 
-grouby_rows = DT.normalize(X, nfunc; dims=1)
+grouby_rows = N.normalize(X, MinMax; dims=2)
 @test isapprox(grouby_rows, [
     1.0 0.0 0.714285714;
     0.0 0.5 1.0;
     0.285714286 1.0 0.0
 ])
 
-Xmatrix = [rand(1:100, 4, 2) for _ in 1:10, _ in 1:5]
-nfunc = DT.zscore()
+Xmatrix = [Float64.(rand(1:100, 4, 2)) for _ in 1:10, _ in 1:5]
 
-@test_nowarn DT.normalize(Xmatrix, nfunc)
-
-@test_nowarn DT.normalize(Xmatrix, nfunc; dims=2)
-
-@test_nowarn DT.normalize(Xmatrix, nfunc; dims=1)
+@test_nowarn N.normalize(Xmatrix, ZScore)
+@test_nowarn N.normalize(Xmatrix, ZScore; dims=1)
+@test_nowarn N.normalize(Xmatrix, ZScore; dims=2)
 
 # ---------------------------------------------------------------------------- #
 #                            multi dim normalization                           #
@@ -65,7 +48,7 @@ m4 = [9.0 9.0 9.0; 9.0 7.5 9.0; 9.0 9.0 9.0]
 
 M = reshape([m1, m2, m3, m4], 2, 2) # 2x2 matrix of matrices
 
-multidim_norm = DT.normalize(M, DT.minmax(lower=0.0, upper=1.0))
+multidim_norm = N.normalize(M, MinMax)
 
 # all elements of the matrices were scaled by the same coefficient,
 # computed using all values across the matrices.
