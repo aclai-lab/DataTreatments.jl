@@ -1,10 +1,17 @@
 module DataTreatments
 
+using Reexport
+
 using Statistics
 using StatsBase
 using LinearAlgebra
 using DataFrames
 using Catch22
+
+using Normalization
+@reexport using Normalization: fit!, fit, normalize!, normalize
+@reexport using Normalization: ZScore, Sigmoid, MinMax, Center
+@reexport using Normalization: UnitEnergy, UnitPower, HalfZScore
 
 # ---------------------------------------------------------------------------- #
 #                               abstract types                                 #
@@ -36,11 +43,6 @@ include("windowing.jl")
 export is_multidim_dataset, nvals, convert
 export has_uniform_element_size
 include("treatment.jl")
-
-export zscore, sigmoid, pnorm, scale, minmax, center, unitpower, outliersuppress
-export element_norm, tabular_norm, grouped_norm, grouped_norm!, ds_norm
-export normalize, normalize!
-include("normalize.jl")
 
 # ---------------------------------------------------------------------------- #
 #                                  FeatureId                                   #
@@ -355,7 +357,7 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
     reducefunc :: Base.Callable
     aggrtype   :: Symbol
     groups     :: Union{Vector{GroupResult}, Nothing}
-    norm       :: Union{Base.Callable, Nothing}
+    norm       :: Union{Type{<:AbstractNormalization}, Nothing}
     normdims:: Int64
 
     function DataTreatment(
@@ -366,7 +368,7 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
         features   :: Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
         reducefunc :: Base.Callable=mean,
         groups     :: Union{Tuple{Vararg{Symbol}}, Nothing}=nothing,
-        norm       :: Union{Base.Callable, Nothing}=nothing,
+        norm       :: Union{Type{<:AbstractNormalization}, Nothing}=nothing,
         dims::Int64=0
     ) where {T<:AbstractArray{<:Real}}
         is_multidim_dataset(X) || throw(ArgumentError("Input DataFrame " * 
