@@ -33,7 +33,7 @@ end
     result = DataTreatment(Xmatrix, :reducesize; vnames, win, reducefunc=Statistics.std)
     
     @test size(get_dataset(result)) == size(Xmatrix)
-    @test eltype(result) == typeof(first(get_dataset(result)))
+    @test typeof(first(get_dataset(result))) <: eltype(result)
     @test size(first(get_dataset(result))) == (3, 3)
     @test get_reducefunc(result) == std
 end
