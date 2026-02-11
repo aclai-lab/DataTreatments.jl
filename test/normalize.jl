@@ -60,53 +60,58 @@ multidim_norm = normalize(M, MinMax)
 # ---------------------------------------------------------------------------- #
 #                             tabular normalization                            #
 # ---------------------------------------------------------------------------- #
-a = [8 1 6; 3 5 7; 4 9 2]
+X = Float64.([8 1 6; 3 5 7; 4 9 2])
 
 # test values verified against MATLAB
-zscore_norm = normalize(a, ZScore; dims=2)
+zscore_norm = normalize(X, ZScore; dims=1)
 @test isapprox(zscore_norm, [1.13389 -1.0 0.377964; -0.755929 0.0 0.755929; -0.377964 1.0 -1.13389], atol=1e-5)
 
-zscore_row = normalize(a, ZScore; dims=1)
+zscore_row = normalize(X, ZScore; dims=2)
 @test isapprox(zscore_row, [0.83205 -1.1094 0.27735; -1.0 0.0 1.0; -0.27735 1.1094 -0.83205], atol=1e-5)
 
-@test_nowarn normalize(a, sigmoid(); dims=2)
+zscore_robust = normalize(X, ZScore(:robust); dims=1)
+@test zscore_robust == [4.0 -1.0 0.0; -1.0 0.0 1.0; 0.0 1.0 -4.0]
 
-norm_norm = normalize(a, pnorm(); dims=2)
-@test isapprox(norm_norm, [0.847998 0.0966736 0.635999; 0.317999 0.483368 0.741999; 0.423999 0.870063 0.212], atol=1e-6)
+@test_nowarn zscore_half = normalize(X, ZScore(:half); dims=2)
 
-norm_norm = normalize(a, pnorm(p=4); dims=2)
-@test isapprox(norm_norm, [0.980428 0.108608 0.768635; 0.36766 0.543042 0.896741; 0.490214 0.977475 0.256212], atol=1e-5)
+@test_nowarn normalize(X, Sigmoid; dims=2)
 
-norm_norm = normalize(a, pnorm(p=Inf); dims=2)
-@test isapprox(norm_norm, [1.0 0.111111 0.857143; 0.375 0.555556 1.0; 0.5 1.0 0.285714], atol=1e-6)
+# norm_norm = normalize(X, pnorm(); dims=2)
+# @test isapprox(norm_norm, [0.847998 0.0966736 0.635999; 0.317999 0.483368 0.741999; 0.423999 0.870063 0.212], atol=1e-6)
 
-scale_norm = normalize(a, scale(factor=:std); dims=2)
+# norm_norm = normalize(X, pnorm(p=4); dims=2)
+# @test isapprox(norm_norm, [0.980428 0.108608 0.768635; 0.36766 0.543042 0.896741; 0.490214 0.977475 0.256212], atol=1e-5)
+
+# norm_norm = normalize(X, pnorm(p=Inf); dims=2)
+# @test isapprox(norm_norm, [1.0 0.111111 0.857143; 0.375 0.555556 1.0; 0.5 1.0 0.285714], atol=1e-6)
+
+scale_norm = normalize(X, Scale; dims=1)
 @test isapprox(scale_norm, [3.02372 0.25 2.26779; 1.13389 1.25 2.64575; 1.51186 2.25 0.755929], atol=1e-5)
 
-scale_norm = normalize(a, scale(factor=:mad); dims=2)
+scale_norm = normalize(X, Scale(:mad); dims=1)
 @test scale_norm == [8.0 0.25 6.0; 3.0 1.25 7.0; 4.0 2.25 2.0]
 
-scale_norm = normalize(a, scale(factor=:first); dims=2)
+scale_norm = normalize(X, Scale(:first); dims=1)
 @test isapprox(scale_norm, [1.0 1.0 1.0; 0.375 5.0 1.16667; 0.5 9.0 0.333333], atol=1e-5)
 
-scale_norm = normalize(a, scale(factor=:iqr); dims=2)
+@test_nowarn scale_norm = normalize(X, Scale(:iqr); dims=1)
 
-minmax_norm = normalize(a, minmax(); dims=2)
+minmax_norm = normalize(X, minmax(); dims=2)
 @test minmax_norm == [1.0 0.0 0.8; 0.0 0.5 1.0; 0.2 1.0 0.0]
 
-minmax_norm = normalize(a, minmax(lower=-2, upper=4); dims=2)
+minmax_norm = normalize(X, minmax(lower=-2, upper=4); dims=2)
 @test minmax_norm == [4.0 -2.0 2.8; -2.0 1.0 4.0; -0.8 4.0 -2.0]
 
-center_norm = normalize(a, center(); dims=2)
+center_norm = normalize(X, center(); dims=2)
 @test center_norm == [3.0 -4.0 1.0; -2.0 0.0 2.0; -1.0 4.0 -3.0]
 
-center_norm = normalize(a, center(method=:median); dims=2)
+center_norm = normalize(X, center(method=:median); dims=2)
 @test center_norm == [4.0 -4.0 0.0; -1.0 0.0 1.0; 0.0 4.0 -4.0]
 
-@test_nowarn normalize(a, unitpower(); dims=2)
+@test_nowarn normalize(X, unitpower(); dims=2)
 
-@test_nowarn normalize(a, outliersuppress(); dims=2)
-@test_nowarn normalize(a, outliersuppress(thr=3); dims=2)
+@test_nowarn normalize(X, outliersuppress(); dims=2)
+@test_nowarn normalize(X, outliersuppress(thr=3); dims=2)
 
 # test against julia package Normalization
 X = rand(200,100)

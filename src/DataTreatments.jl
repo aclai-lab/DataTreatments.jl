@@ -44,6 +44,15 @@ export is_multidim_dataset, nvals, convert
 export has_uniform_element_size
 include("treatment.jl")
 
+using Normalization: HalfZScore, halfstd, zscore
+import Normalization: @_Normalization, ZScore
+
+using Statistics: mean, median, std
+using StatsBase: mad, iqr
+
+export Scale
+include("normalize.jl")
+
 # ---------------------------------------------------------------------------- #
 #                                  FeatureId                                   #
 # ---------------------------------------------------------------------------- #

@@ -6,6 +6,9 @@ using DataTreatments
 import Normalization: __mapdims!, fit!, fit
 import Normalization: dimparams, negdims, estimators, dims!, params!
 
+# ---------------------------------------------------------------------------- #
+#                 extend fit & normalize to multidim elements                  #
+# ---------------------------------------------------------------------------- #
 function __mapdims!(z, f, x::AbstractArray{<:AbstractArray}, y)
     @inbounds map!.(f(map(only, y)...), z, x)
 end
