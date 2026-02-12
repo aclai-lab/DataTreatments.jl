@@ -2,12 +2,6 @@ using Test
 using DataTreatments
 const DT = DataTreatments
 
-function z(;kwargs...)
-    @show typeof(kwargs)
-    @show typeof(kwargs...)
-    @show kwargs
-end
-
 # ---------------------------------------------------------------------------- #
 #                                 normalization                                #
 # ---------------------------------------------------------------------------- #
@@ -107,31 +101,6 @@ minmax_norm = normalize(X, MinMax; dims=1)
 
 minmax_norm = normalize(X, ScaledMinMax; dims=1, lower=-2, upper=4)
 @test minmax_norm == [4.0 -2.0 2.8; -2.0 1.0 4.0; -0.8 4.0 -2.0]
-
-using Normalization
-
-abstract type AbstractParamNormalization{T} <: AbstractNormalization{T} end
-
-parameters(::N) where {N<:AbstractNormalization} = parameters(N)
-
-macro _ParamNormalization(name, 𝑝, 𝑠, 𝑓)
-    quote
-        mutable struct $(esc(name)){T} <: AbstractParamNormalization{T}
-            dims
-            p::NTuple{length($(esc(𝑝))), AbstractArray{T}}
-            s::NTuple{length($(esc(𝑠))), Real}
-        end
-        Normalization.estimators(::Type{N}) where {N<:$(esc(name))} = $(esc(𝑝))
-        parameters(::Type{N}) where {N<:$(esc(name))} = $(esc(𝑠))
-        Normalization.forward(::Type{N}) where {N<:$(esc(name))} = $(esc(𝑓))
-    end
-end
-
-(::Type{N})(;
-    dims=nothing,
-    p=ntuple(_->Vector{T}(), length(estimators(N))),
-    s=ntuple(_->Vector{T}(), length(parameters(N)))
-) where {T, N<:AbstractParamNormalization{T}} = N(dims, p, s);
 
 center_norm = normalize(X, center(); dims=2)
 @test center_norm == [3.0 -4.0 1.0; -2.0 0.0 2.0; -1.0 4.0 -3.0]

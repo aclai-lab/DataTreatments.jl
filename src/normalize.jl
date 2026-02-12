@@ -1,4 +1,5 @@
 abstract type AbstractParamNormalization{T} <: AbstractNormalization{T} end
+const ParamNormUnion = Union{<:AbstractParamNormalization, Type{<:AbstractParamNormalization}}
 
 macro _ParamNormalization(name, 𝑝, 𝑠, 𝑓)
     quote
@@ -13,6 +14,36 @@ macro _ParamNormalization(name, 𝑝, 𝑠, 𝑓)
     end
 end
 parameters(::N) where {N<:AbstractParamNormalization} = parameters(N)
+params(N::AbstractParamNormalization) = N.p
+options(N::AbstractParamNormalization) = N.s
+
+function __parammapdims!(z, f, x, y, o)
+    @inbounds map!(f(map(only, y)..., o...), z, x)
+end
+function _parammapdims!(zs::Slices{<:AbstractArray}, f, xs::Slices{<:AbstractArray}, ys::NTuple{N, <:AbstractArray}, o) where {N}
+    @sync Threads.@threads for i in eachindex(xs) #
+        y = ntuple((j -> @inbounds ys[j][i]), Val(N)) # Extract parameters for nth slice
+        __parammapdims!(zs[i], f, xs[i], y, o)
+    end
+end
+
+function parammapdims!(z, f, x::AbstractArray{T, n}, y, o; dims) where {T, n}
+    @show dims
+    @show n
+    isnothing(dims) && (dims = 1:n)
+     max(dims...) <= n || error("A chosen dimension is greater than the number of dimensions of the reference array")
+    unique(dims) == [dims...] || error("Repeated dimensions")
+    length(dims) == n && return __mapdims!(z, f, x, y) # ? Shortcut for global normalisation
+    all(all(size.(y, i) .== 1) for i ∈ dims) || error("Inconsistent dimensions; dimensions $dims must have size 1")
+
+    negs = negdims(dims, n)
+    all(all(size(x, i) .== size.(y, i)) for i ∈ negs) || error("Inconsistent dimensions; dimensions $negs must have size $(size(x)[collect(negs)])")
+
+    xs = eachslice(x; dims=negs)
+    zs = eachslice(z; dims=negs)
+    ys = eachslice.(y; dims=negs)
+    _parammapdims!(zs, f, xs, ys, o)
+end
 
 # ---------------------------------------------------------------------------- #
 #                                     fit                                      #
@@ -48,23 +79,23 @@ fit(N::AbstractParamNormalization, X::AbstractArray{A}; dims=Normalization.dims(
 # ---------------------------------------------------------------------------- #
 #                                  normalize                                   #
 # ---------------------------------------------------------------------------- #
-function normalize!(Z::AbstractArray, X::AbstractArray, T::AbstractNormalization)
+function normalize!(Z::AbstractArray, X::AbstractArray, T::AbstractParamNormalization)
     dims = Normalization.dims(T)
     isfit(T) || fit!(T, X; dims)
-    mapdims!(Z, forward(T), X, params(T); dims)
+    parammapdims!(Z, forward(T), X, params(T), options(T); dims)
     return nothing
 end
-function normalize!(Z, X, ::Type{𝒯}; kwargs...) where {𝒯 <: AbstractNormalization}
+function normalize!(Z, X, ::Type{𝒯}; kwargs...) where {𝒯 <: AbstractParamNormalization}
     normalize!(Z, X, fit(𝒯, X; kwargs...))
 end
-normalize!(X, T::NormUnion; kwargs...) = normalize!(X, X, T; kwargs...)
+normalize!(X, T::ParamNormUnion; kwargs...) = normalize!(X, X, T; kwargs...)
 
-function normalize(X, T::AbstractNormalization; kwargs...)
+function normalize(X, T::AbstractParamNormalization; kwargs...)
     Y = copy(X)
     normalize!(Y, T; kwargs...)
     return Y
 end
-function normalize(X, ::Type{𝒯}; kwargs...) where {𝒯 <: AbstractNormalization}
+function normalize(X, ::Type{𝒯}; kwargs...) where {𝒯 <: AbstractParamNormalization}
     normalize(X, fit(𝒯, X; kwargs...))
 end
 
@@ -121,38 +152,10 @@ end
     upper::Real=1.0
 ) where {T, N<:ScaledMinMax{T}} = N(dims, p, (lower, upper));
 
-# function scaled_minmax(xmin, xmax; lower, upper)
-#     scale = (upper - lower) / (xmax - xmin)
-#     (x) -> clamp(lower + (x - xmin) * scale, lower, upper)
-# end
-
-function scaled_minmax(l, u)
-    (x)->(x - l) / (u - l)
+function scaled_minmax(xmin, xmax, lower, upper)
+    scale = (upper - lower) / (xmax - xmin)
+    (x) -> clamp(lower + (x - xmin) * scale, lower, upper)
 end
-
-
-
-# # * Normalizations
-# function normalize!(Z::AbstractArray, X::AbstractArray, T::AbstractNormalization)
-#     dims = Normalization.dims(T)
-#     isfit(T) || fit!(T, X; dims)
-#     mapdims!(Z, forward(T), X, params(T); dims)
-#     return nothing
-# end
-# function normalize!(Z, X, ::Type{𝒯}; kwargs...) where {𝒯 <: AbstractNormalization}
-#     normalize!(Z, X, fit(𝒯, X; kwargs...))
-# end
-# normalize!(X, T::NormUnion; kwargs...) = normalize!(X, X, T; kwargs...)
-
-# function normalize(X, T::AbstractNormalization; kwargs...)
-#     Y = copy(X)
-#     normalize!(Y, T; kwargs...)
-#     return Y
-# end
-# function normalize(X, ::Type{𝒯}; kwargs...) where {𝒯 <: AbstractNormalization}
-#     normalize(X, fit(𝒯, X; kwargs...))
-# end
-
 
 # # ---------------------------------------------------------------------------- #
 # #                                    types                                     #
