@@ -45,12 +45,14 @@ export has_uniform_element_size
 include("treatment.jl")
 
 using Normalization: HalfZScore, halfstd, zscore
+using Normalization: dimparams, negdims, estimators, normalization
 import Normalization: @_Normalization, ZScore
+import Normalization: fit
 
 using Statistics: mean, median, std
 using StatsBase: mad, iqr
 
-export Scale
+export Scale, ScaledMinMax
 include("normalize.jl")
 
 # ---------------------------------------------------------------------------- #

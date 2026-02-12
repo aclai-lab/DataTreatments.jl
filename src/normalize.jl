@@ -1,5 +1,26 @@
+abstract type AbstractParamNormalization{T} <: AbstractNormalization{T} end
+
+macro _ParamNormalization(name, 𝑝, 𝑠, 𝑓)
+    quote
+        mutable struct $(esc(name)){T} <: AbstractParamNormalization{T}
+            dims
+            p::NTuple{length($(esc(𝑝))), AbstractArray{T}}
+            s::NTuple{length($(esc(𝑠))), Real}
+        end
+        Normalization.estimators(::Type{N}) where {N<:$(esc(name))} = $(esc(𝑝))
+        DataTreatments.parameters(::Type{N}) where {N<:$(esc(name))} = $(esc(𝑠))
+        Normalization.forward(::Type{N}) where {N<:$(esc(name))} = $(esc(𝑓))
+    end
+end
+parameters(::N) where {N<:AbstractParamNormalization} = parameters(N)
+
+# function optparams!(N::AbstractNormalization, ps)
+#     all(x->x==ps[1], length.(ps)) && error("Inconsistent parameter dimensions")
+#     normalization(N).s = ps
+# end
+
 # ---------------------------------------------------------------------------- #
-#                                extend methods                                #
+#                                    ZScore                                    #
 # ---------------------------------------------------------------------------- #
 @_Normalization ZScoreRobust (median, (x)->median(abs.(x .- median(x)))) zscore
 
@@ -13,12 +34,9 @@ function(::Type{ZScore})(method::Symbol)
     end
 end
 
-# function _pnorm(x::NormType; p::Real=2)
-#     x_filtered = filter(!isnan, collect(x))
-#     s = isempty(x_filtered) ? one(eltype(x)) : LinearAlgebra.norm(x_filtered, p)
-#     Base.Fix2(/, s)
-# end
-
+# ---------------------------------------------------------------------------- #
+#                                     Scale                                    #
+# ---------------------------------------------------------------------------- #
 @_Normalization Scale (std,) scale
 @_Normalization ScaleMad ((x)->mad(x; normalize=false),) scale
 @_Normalization ScaleFirst (first,) scale
@@ -36,6 +54,37 @@ function(::Type{Scale})(factor::Symbol=:std)
     else
         Scale
     end
+end
+
+# ---------------------------------------------------------------------------- #
+#                                    MinMax                                    #
+# ---------------------------------------------------------------------------- #
+@_ParamNormalization ScaledMinMax (minimum, maximum) (:lower, :upper) scaled_minmax
+
+# (::Type{N})(;
+#     dims=nothing,
+#     p=ntuple(_->Vector{T}(), length(estimators(N))),
+#     lower::Real=0.0,
+#     upper::Real=1.0
+# ) where {T, N<:AbstractParamNormalization{T}} = N(dims, p, (lower, upper));
+
+# function scaled_minmax(xmin, xmax; lower, upper)
+#     scale = (upper - lower) / (xmax - xmin)
+#     (x) -> clamp(lower + (x - xmin) * scale, lower, upper)
+# end
+
+function scaled_minmax(l, u)
+    @show "PASO3"
+    (x)->(x - l) / (u - l)
+end
+
+function fit(𝒯::Type{ScaledMinMax{T}}, X::AbstractArray{A}; dims=nothing, lower::Real=0.0, upper::Real=1.0) where {A,T}
+    dims, nps = dimparams(dims, X)
+    Xs = eachslice(X; dims=negdims(dims, ndims(X)), drop=false)
+    ps = map(estimators(𝒯)) do f
+        reshape(map(f, Xs), nps...)
+    end
+    𝒯(dims, ps, (lower, upper))
 end
 
 
