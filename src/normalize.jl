@@ -132,17 +132,9 @@ end
 
 normalize(X, p::NamedTuple) = normalize(X, p[1]; Base.tail(p)...)
 
-
-
-scale(s) = Base.Fix2(/, s)
-
 # ---------------------------------------------------------------------------- #
-#                                    MinMax                                    #
+#                                    utils                                     #
 # ---------------------------------------------------------------------------- #
-
-
-
-
 (::Type{N})(
     dims=nothing,
     p=ntuple(_->Vector{T}(), length(estimators(N)));
@@ -150,21 +142,12 @@ scale(s) = Base.Fix2(/, s)
     upper::Real=1.0
 ) where {T, N<:ScaledMinMax{T}} = N(dims, p, (lower, upper));
 
-# (::Type{N})(
-#     dims=nothing,
-#     _p=ntuple(_->Vector{T}(), length(estimators(N)));
-#     p::Real=2.0,
-# ) where {T, N<:PNorm{T}} = N(dims, _p, (p,));
+scale(s) = Base.Fix2(/, s)
 
 function scaled_minmax(xmin, xmax, lower, upper)
     scale = (upper - lower) / (xmax - xmin)
     (x) -> clamp(lower + (x - xmin) * scale, lower, upper)
 end
-
-# ---------------------------------------------------------------------------- #
-#                                     Center                                   #
-# ---------------------------------------------------------------------------- #
-
 
 # ---------------------------------------------------------------------------- #
 #                                    callers                                   #
