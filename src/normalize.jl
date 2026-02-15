@@ -14,7 +14,6 @@ _nt(ns::NormSpec) = (type = ns.type, dims = ns.dims)
 Base.show(io::IO, ns::NormSpec) = show(io, _nt(ns))
 Base.show(io::IO, ::MIME"text/plain", ns::NormSpec) = show(io, _nt(ns))
 
-Base.convert(::Type{NamedTuple}, ns::NormSpec) = _nt(ns)
 Base.Tuple(ns::NormSpec) = (ns.type, ns.dims)
 
 # ---------------------------------------------------------------------------- #

@@ -165,3 +165,25 @@ norm_pnorm = normalize(X, PNorm(dims=1))
 
 norm_pnorm = normalize(X, PNorm(dims=1, p=Inf))
 @test isapprox(norm_pnorm, [1.0 0.111111 0.857143; 0.375 0.555556 1.0; 0.5 1.0 0.285714], atol=1e-6)
+
+@testset "NormSpec show/convert/Tuple" begin
+    ns1 = ZScore(dims=1)
+    ns2 = MinMax()
+
+    for ns in (ns1, ns2)
+        nt = DT._nt(ns)
+
+        @test nt isa NamedTuple
+        @test haskey(nt, :type)
+        @test haskey(nt, :dims)
+
+        @test Tuple(ns) == (nt.type, nt.dims)
+
+        # Base.show(io::IO, ns::NormSpec)
+        @test sprint(show, ns) == sprint(show, nt)
+
+        # Base.show(io::IO, ::MIME"text/plain", ns::NormSpec)
+        @test sprint(show, MIME"text/plain"(), ns) ==
+              sprint(show, MIME"text/plain"(), nt)
+    end
+end
