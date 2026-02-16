@@ -166,16 +166,16 @@ full experiment documentation and reproducibility.
 
 # Constructor
 ```julia
-# DataTreatment(
-#     X::Union{AbstractMatrix, AbstractDataFrame},
-#     aggrtype::Symbol;
-#     vnames::Vector{<:NameTypes},
-#     win::Union{Base.Callable, Tuple{Vararg{Base.Callable}}},
-#     features::Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
-#     reducefunc::Base.Callable=mean,
-#     groups::Union{Tuple{Vararg{Symbol}},Nothing}=nothing,
-#     norm::Union{NormSpec,Type{<:AbstractNormalization},Nothing}=nothing
-# )
+DataTreatment(
+    X::Union{AbstractMatrix, AbstractDataFrame},
+    aggrtype::Symbol;
+    vnames::Vector{<:NameTypes},
+    win::Union{Base.Callable, Tuple{Vararg{Base.Callable}}},
+    features::Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
+    reducefunc::Base.Callable=mean,
+    groups::Union{Tuple{Vararg{Symbol}},Nothing}=nothing,
+    norm::Union{NormSpec,Type{<:AbstractNormalization},Nothing}=nothing
+)
 ```
 
 # Arguments
@@ -277,26 +277,6 @@ When using `groups` with `norm`, **never specify `dims` parameter**.
 # INCORRECT: Do not use dims with grouped normalization
 # normalized = DataTreatments.normalize(groups, UnitPower(dims=2))
 # This breaks the group semantics!
-```
-
-# Examples
-## Reproducibility and Documentation
-```julia
-# All parameters are stored for experiment reproduction
-dt = DataTreatment(df, :reducesize; win=(win,), features=features)
-
-# Extract processing metadata
-aggrtype = get_aggrtype(dt)       # :reducesize
-reduction = get_reducefunc(dt)    # mean
-var_names = get_vnames(dt)        # [:channel1, :channel2, :channel3]
-feat_funcs = get_features(dt)     # (mean, std, maximum, minimum, median)
-n_windows = get_nwindows(dt)      # 6
-
-# Document experiment
-println("Processing: $aggrtype mode")
-println("Variables: $(join(var_names, ", "))")
-println("Features: $(join(nameof.(feat_funcs), ", "))")
-println("Windows: $n_windows per dimension")
 ```
 
 # Accessor Functions
