@@ -89,8 +89,7 @@ M = reshape([m1, m2, m3, m4], 2, 2) # 2x2 matrix of matrices
 
 test1 = DataTreatment(
     M,
-    :reducesize,
-    vnames = [:V1,:V2],
+    :reducesize;
     win=splitwindow(nwindows=3), #should actually not change the dataset
     features=(mean, maximum),
     groups=(:vname,),
@@ -115,8 +114,7 @@ end
 
 test2 = DataTreatment(
     M,
-    :aggregate,
-    vnames = [:V1,:V2],
+    :aggregate;
     win=splitwindow(nwindows=3), #should actually not change the dataset
     features=(mean,),
     groups=(:vname,),

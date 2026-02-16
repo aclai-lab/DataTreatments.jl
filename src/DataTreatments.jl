@@ -20,7 +20,7 @@ abstract type AbstractDataTreatment end
 # ---------------------------------------------------------------------------- #
 #                                   types                                      #
 # ---------------------------------------------------------------------------- #
-const ValidVnames = Union{Symbol, String}
+const NameTypes = Union{Symbol, String}
 
 # ---------------------------------------------------------------------------- #
 #                                   files                                      #
@@ -98,7 +98,7 @@ struct FeatureId <: AbstractFeatureId
     feat  :: Base.Callable
     nwin  :: Int64
 
-    function FeatureId(vname::ValidVnames, feat::Base.Callable, nwin::Int64)
+    function FeatureId(vname::NameTypes, feat::Base.Callable, nwin::Int64)
         new(vname, feat, nwin)
     end
 end
@@ -169,7 +169,7 @@ full experiment documentation and reproducibility.
 DataTreatment(
     X::Union{AbstractMatrix, AbstractDataFrame},
     aggrtype::Symbol;
-    vnames::Vector{<:ValidVnames},
+    vnames::Vector{<:NameTypes},
     win::Union{Base.Callable, Tuple{Vararg{Base.Callable}}},
     features::Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
     reducefunc::Base.Callable=mean,
@@ -361,28 +361,24 @@ length(dt)    # Number of features
 - [`FeatureId`](@ref): Individual feature metadata
 - [`@evalwindow`](@ref): Window evaluation macro
 """
-struct DataTreatment{T, S} <: AbstractDataTreatment
-    dataset    :: AbstractMatrix{T}
-    featureid  :: Vector{FeatureId}
-    reducefunc :: Base.Callable
-    aggrtype   :: Symbol
-    groups     :: Union{Vector{GroupResult}, Nothing}
-    norm       :: Union{NormSpec, Nothing}
-    normdims:: Int64
+struct DataTreatment{T,S} <: AbstractDataTreatment
+    dataset::AbstractMatrix{T}
+    featureid::Vector{FeatureId}
+    reducefunc::Base.Callable
+    aggrtype::Symbol
+    groups::Union{Vector{GroupResult},Nothing}
+    norm::Union{NormSpec,Nothing}
 
     function DataTreatment(
-        X          :: AbstractArray{T},
-        aggrtype   :: Symbol;
-        vnames     :: Vector{<:ValidVnames},
-        win        :: Union{Base.Callable, Tuple{Vararg{Base.Callable}}},
-        features   :: Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
-        reducefunc :: Base.Callable=mean,
-        groups     :: Union{Tuple{Vararg{Symbol}}, Nothing}=nothing,
-        norm       :: Union{NormSpec, Type{<:AbstractNormalization}, Nothing}=nothing
+        X::AbstractArray{T},
+        aggrtype::Symbol;
+        vnames::Union{Vector{<:NameTypes},Nothing}=nothing,
+        win::Union{Base.Callable,Tuple{Vararg{Base.Callable}}},
+        features::Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
+        reducefunc::Base.Callable=mean,
+        groups::Union{Tuple{Vararg{Symbol}},Nothing}=nothing,
+        norm::Union{NormSpec,Type{<:AbstractNormalization},Nothing}=nothing
     ) where {T<:AbstractArray{<:Real}}
-        is_multidim_dataset(X) || throw(ArgumentError("Input DataFrame " * 
-            "does not contain multidimensional data."))
-
         # checks the special case of a dataset whose elements have different sizes
         # verifies that the chosen window is either adaptivewindow (recommended) or wholewindow,
         # and otherwise throws an error
@@ -395,6 +391,7 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
         # convert to float
         T isa AbstractFloat || (X = convert(X))
 
+        isnothing(vnames) && (vnames = [Symbol("V$i") for i in 1:size(X, 2)])
         vnames isa Vector{String} && (vnames = Symbol.(vnames))
         win isa Base.Callable && (win = (win,))
         intervals = @evalwindow first(X) win...
@@ -450,7 +447,7 @@ struct DataTreatment{T, S} <: AbstractDataTreatment
     function DataTreatment(
         X      :: AbstractDataFrame,
         args...;
-        vnames :: Union{Vector{<:ValidVnames}, Nothing}=nothing,
+        vnames :: Union{Vector{<:NameTypes}, Nothing}=nothing,
         kwargs...
     )
         isnothing(vnames) && (vnames = propertynames(X))
