@@ -9,7 +9,7 @@ using DataFrames
 using Catch22
 
 using Normalization
-@reexport using Normalization: fit!, fit, normalize!, normalize
+@reexport using Normalization: AbstractNormalization, fit!, fit, normalize!, normalize
 
 # ---------------------------------------------------------------------------- #
 #                               abstract types                                 #
