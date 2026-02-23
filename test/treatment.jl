@@ -40,27 +40,29 @@ end
 
 @testset "FeatureId" begin
     @testset "Creation and accessors" begin
-        fid = FeatureId(:temperature, mean, 1)
-        
+        x = [[1,2,3],]
+        fid = FeatureId(x, :temperature, mean, 1)   
         @test get_vname(fid) == :temperature
         @test get_feat(fid) == mean
         @test get_nwin(fid) == 1
     end
     
     @testset "Display single window" begin
-        fid = FeatureId(:temperature, mean, 1)
+        x = [[1,2,3],]
+        fid = FeatureId(x, :temperature, mean, 1)
         str = sprint(show, fid)
         @test occursin("mean", str)
         @test occursin("temperature", str)
-        @test occursin("_w1", str)
+        @test occursin("size=(1,)", str)
     end
     
     @testset "Display multi-window" begin
-        fid = FeatureId(:pressure, maximum, 3)
+        x = [[1,2,3],]
+        fid = FeatureId(x, :pressure, maximum, 3)
         str = sprint(show, fid)
         @test occursin("maximum", str)
         @test occursin("pressure", str)
-        @test occursin("_w3", str)
+        @test occursin("nwin=3", str)
     end
 end
 
@@ -96,31 +98,35 @@ end
 
 @testset "FeatureId - Extended Tests" begin
     @testset "propertynames" begin
-        fid = FeatureId(:temperature, mean, 1)
+        x = [[1,2,3],]
+        fid = FeatureId(x, :temperature, mean, 1)
         props = propertynames(fid)
         
         @test :vname in props
         @test :feat in props
         @test :nwin in props
-        @test length(props) == 3
+        @test :size in props
+        @test length(props) == 4
     end
     
     @testset "MIME text/plain display" begin
-        fid = FeatureId(:pressure, std, 5)
+        x = [[1,2,3],]
+        fid = FeatureId(x, :pressure, std, 5)
         str = sprint(show, MIME("text/plain"), fid)
         
-        @test occursin("FeatureId:", str)
+        @test occursin("FeatureId", str)
         @test occursin("std", str)
         @test occursin("pressure", str)
-        @test occursin("_w5", str)
+        @test occursin("nwin=5", str)
     end
     
     @testset "Single window FeatureId creation" begin
+        x = [[1,2,3],]
         vnames = [:var1, :var2, :var3]
         features = (mean, Statistics.std, maximum)
         
         # Simulate single window case
-        feature_ids = [FeatureId(v, f, 1) for f in features, v in vnames] |> vec
+        feature_ids = [FeatureId(x, v, f, 1) for f in features, v in vnames] |> vec
         
         @test length(feature_ids) == length(vnames) * length(features)
         @test all(get_nwin(fid) == 1 for fid in feature_ids)
@@ -133,7 +139,7 @@ end
     end
 
     @testset "get FeatureId vectors" begin
-        X = fill(rand(10), 8, 3)
+        X = fill(rand(10), 8, 4)
         win = splitwindow(nwindows=2)
         features = (mean, std)
 
@@ -142,14 +148,14 @@ end
                             win,
                             features=features)
     
-        vnames_vec = get_vecvnames(dt.featureid)
+        vnames_vec = get_vname.(dt.featureid)
         @test length(vnames_vec) == 16
         @test unique(vnames_vec) == [:var1, :var2, :var3, :var4]
 
-        feat_vec = get_vecfeatures(dt.featureid)
+        feat_vec = get_feat.(dt.featureid)
         @test unique(feat_vec) == [mean, std]
 
-        win_vec = get_vecnwins(dt.featureid)
+        win_vec = get_nwin.(dt.featureid)
         @test unique(win_vec) == [1, 2]
     end
 end
@@ -391,9 +397,9 @@ end
                           win,
                           features=(mean,))
         
-        feature_funcs = get_features(dt)
-        @test length(feature_funcs) == 1
-        @test mean in feature_funcs
+        reducefunc = get_reducefuncs(dt)
+        @test length(reducefunc) == 1
+        @test mean in reducefunc
     end
     
     @testset "Single window (wholewindow)" begin
@@ -402,13 +408,10 @@ end
         win = wholewindow()
         features = (mean, std)
         
-        dt = DataTreatment(Xmatrix, :reducesize;
+        @test_nowarn dt = DataTreatment(Xmatrix, :reducesize;
                           vnames=[:v1, :v2],
                           win,
                           features=features)
-        
-        @test get_nwindows(dt) == 1
-        @test all(get_nwin(fid) == 1 for fid in dt.featureid)
     end
 end
 

@@ -111,14 +111,14 @@ groupby(df::DataFrame, fields::Vector{Symbol}) = groupby(df, [fields])
 # ---------------------------------------------------------------------------- #
 #                              internal _groupby                               #
 # ---------------------------------------------------------------------------- #
-function _groupby(::Matrix{T}, featureids::Vector{FeatureId}, fields::Vector{Symbol}) where T
+function _groupby(::Matrix{T}, featureids::Vector{<:AbstractFeatureId}, fields::Vector{Symbol}) where T
     # initial setup Vector{Vector} of all indexes
     idxs = [[1:length(featureids)...]]
 
     _groupby(idxs, [featureids], fields)
 end
 
-function _groupby(idxs::Vector{Vector{Int64}}, featureids::Vector{Vector{FeatureId}}, fields::Vector{Symbol})
+function _groupby(idxs::Vector{Vector{Int64}}, featureids::Vector{<:Vector{<:AbstractFeatureId}}, fields::Vector{Symbol})
     # this function performs multi-level grouping (recursive).
     # - idxs: current groups of column indices
     # - featureids: current groups of FeatureId metadata (aligned with idxs)
@@ -126,7 +126,7 @@ function _groupby(idxs::Vector{Vector{Int64}}, featureids::Vector{Vector{Feature
 
     ngroups = length(featureids)
     all_groups = Vector{Vector{Int}}()
-    all_feats = Vector{Vector{FeatureId}}()
+    all_feats = Vector{Vector{<:AbstractFeatureId}}()
 
     for i in 1:ngroups
         # first, split the i-th group by the first field
@@ -147,7 +147,7 @@ function _groupby(idxs::Vector{Vector{Int64}}, featureids::Vector{Vector{Feature
     return all_groups, all_feats
 end
 
-function _groupby(idxs::Vector{Int64}, featureids::Vector{FeatureId}, field::Symbol)
+function _groupby(idxs::Vector{Int64}, featureids::Vector{<:AbstractFeatureId}, field::Symbol)
     # dynamically construct the appropriate getter function (get_vname, get_nwin, or get_feat)
     # based on the field symbol passed as argument
     getter = @eval $(Symbol(:get_, field))
@@ -158,7 +158,7 @@ function _groupby(idxs::Vector{Int64}, featureids::Vector{FeatureId}, field::Sym
 
     # pre-allocate vectors to store grouped indices and their corresponding FeatureIds
     groups = Vector{Vector{Int}}(undef, length(feats))
-    feat_groups = Vector{Vector{FeatureId}}(undef, length(feats))
+    feat_groups = Vector{Vector{<:AbstractFeatureId}}(undef, length(feats))
 
     # iterate through each unique field value and partition the data
     for (i, f) in enumerate(feats)

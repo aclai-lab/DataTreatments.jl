@@ -51,7 +51,7 @@ ag_grp = DataTreatment(Xts, :aggregate; win, features, groups=(:vname, :feat))
 @testset "Manual groupby vs built-in groupby" begin
     # manual grouping for rs_no_grp by :vname
     rs_featureids = get_featureid(rs_no_grp)
-    rs_vnames = unique(get_vecvnames(rs_featureids))
+    rs_vnames = unique(get_vname.(rs_featureids))
     rs_manual_groups = [findall(fid -> get_vname(fid) == vn, rs_featureids) for vn in rs_vnames]
     
     @test length(rs_manual_groups) == length(get_groups(rs_grp))
@@ -59,7 +59,7 @@ ag_grp = DataTreatment(Xts, :aggregate; win, features, groups=(:vname, :feat))
     
     # manual grouping for ag_no_grp by :vname then :feat
     ag_featureids = get_featureid(ag_no_grp)
-    ag_vnames = unique(get_vecvnames(ag_featureids))
+    ag_vnames = unique(get_vname.(ag_featureids))
     
     # first level: group by vname
     ag_manual_groups_l1 = [findall(fid -> get_vname(fid) == vn, ag_featureids) for vn in ag_vnames]
@@ -67,7 +67,7 @@ ag_grp = DataTreatment(Xts, :aggregate; win, features, groups=(:vname, :feat))
     # second level: within each vname group, split by feat
     ag_manual_groups = Vector{Vector{Int64}}()
     for group_l1 in ag_manual_groups_l1
-        feats_in_group = unique(get_vecfeatures(ag_featureids[group_l1]))
+        feats_in_group = unique(get_feat.(ag_featureids[group_l1]))
         for f in feats_in_group
             mask = findall(i -> get_feat(ag_featureids[i]) == f, group_l1)
             push!(ag_manual_groups, group_l1[mask])

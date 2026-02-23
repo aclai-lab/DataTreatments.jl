@@ -55,75 +55,81 @@ export ZScore, MinMax, Scale, Center, Sigmoid, UnitEnergy, UnitPower, PNorm
 include("normalize.jl")
 
 # ---------------------------------------------------------------------------- #
-#                                  FeatureId                                   #
+#                               data structures                                #
 # ---------------------------------------------------------------------------- #
-"""
-    FeatureId <: AbstractFeatureId
+export FeatureId
+include("featureid.jl")
 
-A metadata container for individual features in a processed dataset.
+# # ---------------------------------------------------------------------------- #
+# #                                  FeatureId                                   #
+# # ---------------------------------------------------------------------------- #
+# """
+#     FeatureId <: AbstractFeatureId
 
-This struct stores information about each feature column, including the source variable name,
-the transformation function applied, and the window number. It is designed for:
+# A metadata container for individual features in a processed dataset.
 
-- **Experiment documentation**: All feature extraction parameters are preserved for reproducibility
-- **Feature selection**: Metadata enables intelligent feature filtering and selection strategies
-- **Traceability**: Each feature can be traced back to its source variable and transformation
+# This struct stores information about each feature column, including the source variable name,
+# the transformation function applied, and the window number. It is designed for:
 
-# Fields
-- `vname::Symbol`: Source variable name from the original dataset
-- `feat::Base.Callable`: Feature extraction function (e.g., `mean`, `std`, `maximum`)
-- `nwin::Int64`: Window number (1 for single window, >1 for multiple windows)
+# - **Experiment documentation**: All feature extraction parameters are preserved for reproducibility
+# - **Feature selection**: Metadata enables intelligent feature filtering and selection strategies
+# - **Traceability**: Each feature can be traced back to its source variable and transformation
 
-# Examples
-```julia
-# Single window feature
-fid = FeatureId(:temperature, mean, 1)
-# Displays as: mean(temperature)
+# # Fields
+# - `vname::Symbol`: Source variable name from the original dataset
+# - `feat::Base.Callable`: Feature extraction function (e.g., `mean`, `std`, `maximum`)
+# - `nwin::Int64`: Window number (1 for single window, >1 for multiple windows)
 
-# Multi-window feature
-fid = FeatureId(:pressure, maximum, 3)
-# Displays as: maximum(pressure)_w3
+# # Examples
+# ```julia
+# # Single window feature
+# fid = FeatureId(:temperature, mean, 1)
+# # Displays as: mean(temperature)
 
-# Access metadata
-get_vname(fid)    # :pressure
-get_feat(fid)  # maximum
-get_nwin(fid)     # 3
-```
+# # Multi-window feature
+# fid = FeatureId(:pressure, maximum, 3)
+# # Displays as: maximum(pressure)_w3
 
-# See Also
-- [`DataTreatment`](@ref): Main container using FeatureId for metadata
-"""
-struct FeatureId <: AbstractFeatureId
-    vname :: Symbol
-    feat  :: Base.Callable
-    nwin  :: Int64
+# # Access metadata
+# get_vname(fid)    # :pressure
+# get_feat(fid)  # maximum
+# get_nwin(fid)     # 3
+# ```
 
-    function FeatureId(vname::NameTypes, feat::Base.Callable, nwin::Int64)
-        new(vname, feat, nwin)
-    end
-end
+# # See Also
+# - [`DataTreatment`](@ref): Main container using FeatureId for metadata
+# """
+# struct FeatureId <: AbstractFeatureId
+#     vname :: Symbol
+#     feat  :: Base.Callable
+#     nwin  :: Int64
 
-# value access methods
-Base.getproperty(f::FeatureId, s::Symbol) = getfield(f, s)
-Base.propertynames(::FeatureId)           = (:vname, :feat, :nwin)
+#     function FeatureId(vname::NameTypes, feat::Base.Callable, nwin::Int64)
+#         new(vname, feat, nwin)
+#     end
+# end
 
-get_vname(f::FeatureId)   = f.vname
-get_feat(f::FeatureId) = f.feat
-get_nwin(f::FeatureId)    = f.nwin
+# # value access methods
+# Base.getproperty(f::FeatureId, s::Symbol) = getfield(f, s)
+# Base.propertynames(::FeatureId)           = (:vname, :feat, :nwin)
 
-get_vecvnames(f::Vector{FeatureId})   = [get_vname(n) for n in f]
-get_vecfeatures(f::Vector{FeatureId}) = [get_feat(_f) for _f in f]
-get_vecnwins(f::Vector{FeatureId})    = [get_nwin(w) for w in f]
+# get_vname(f::FeatureId)   = f.vname
+# get_feat(f::FeatureId) = f.feat
+# get_nwin(f::FeatureId)    = f.nwin
 
-function Base.show(io::IO, f::FeatureId)
-    feat_name = nameof(f.feat)
-    print(io, "$(feat_name)_$(f.vname)_w$(f.nwin)")
-end
+# get_vecvnames(f::Vector{FeatureId})   = [get_vname(n) for n in f]
+# get_vecfeatures(f::Vector{FeatureId}) = [get_feat(_f) for _f in f]
+# get_vecnwins(f::Vector{FeatureId})    = [get_nwin(w) for w in f]
 
-function Base.show(io::IO, ::MIME"text/plain", f::FeatureId)
-    print(io, "FeatureId: ")
-    show(io, f)
-end
+# function Base.show(io::IO, f::FeatureId)
+#     feat_name = nameof(f.feat)
+#     print(io, "$(feat_name)_$(f.vname)_w$(f.nwin)")
+# end
+
+# function Base.show(io::IO, ::MIME"text/plain", f::FeatureId)
+#     print(io, "FeatureId: ")
+#     show(io, f)
+# end
 
 # ---------------------------------------------------------------------------- #
 #                               GroupTreatment                                 #
@@ -296,7 +302,7 @@ When using `groups` with `norm`, **never specify `dims` parameter**.
 """
 struct DataTreatment{T,S} <: AbstractDataTreatment
     dataset::AbstractMatrix{T}
-    featureid::Vector{FeatureId}
+    featureid::Vector{<:AbstractFeatureId}
     reducefunc::Base.Callable
     aggrtype::Symbol
     groups::Union{Vector{GroupResult},Nothing}
@@ -334,17 +340,17 @@ struct DataTreatment{T,S} <: AbstractDataTreatment
             (aggregate(X, intervals; features, win, uniform),
             if nwindows == 1
                 # single window: apply to whole time series
-                [FeatureId(v, f, 1) for f in features, v in vnames] |> vec
+                [FeatureId(X[:,c], vnames[c], f, 1) for f in features, c in axes(X,2)] |> vec
             else
                 # multiple windows: apply to each interval
-                [FeatureId(v, f, i) for i in 1:nwindows, f in features, v in vnames] |> vec
+                [FeatureId(X[:,c], vnames[c], f, i) for i in 1:nwindows, f in features, c in axes(X,2)] |> vec
             end
             )
         end
 
         elseif aggrtype == :reducesize begin
             (reducesize(X, intervals; reducefunc, win, uniform),
-            [FeatureId(v, reducefunc, 1) for v in vnames]
+            [FeatureId(X[:,c], vnames[c], reducefunc) for c in axes(X,2)]
             )
         end
 
@@ -378,9 +384,9 @@ struct DataTreatment{T,S} <: AbstractDataTreatment
     end
 
     function DataTreatment(
-        X      :: AbstractDataFrame,
+        X::AbstractDataFrame,
         args...;
-        vnames :: Union{Vector{<:NameTypes}, Nothing}=nothing,
+        vnames::Union{Vector{<:NameTypes},Nothing}=nothing,
         kwargs...
     )
         isnothing(vnames) && (vnames = propertynames(X))
@@ -393,20 +399,21 @@ Base.getproperty(dt::DataTreatment, s::Symbol) = getfield(dt, s)
 Base.propertynames(::DataTreatment) =
     (:dataset, :featureid, :reducefunc, :aggrtype, :groups, :norm)
 
-get_dataset(dt::DataTreatment)    = dt.dataset
-get_featureid(dt::DataTreatment)  = dt.featureid
+get_dataset(dt::DataTreatment) = dt.dataset
+get_featureid(dt::DataTreatment) = dt.featureid
 get_reducefunc(dt::DataTreatment) = dt.reducefunc
-get_aggrtype(dt::DataTreatment)   = dt.aggrtype
-get_groups(dt::DataTreatment)       = dt.groups
-get_norm(dt::DataTreatment)       = dt.norm
+get_aggrtype(dt::DataTreatment) = dt.aggrtype
+get_groups(dt::DataTreatment) = dt.groups
+get_norm(dt::DataTreatment) = dt.norm
 
 # Convenience methods for common operations
-get_vnames(dt::DataTreatment)   = unique(get_vecvnames(dt.featureid))
-get_features(dt::DataTreatment) = unique(get_vecfeatures(dt.featureid))
-get_nwindows(dt::DataTreatment) = maximum(get_vecnwins(dt.featureid))
+get_vnames(dt::DataTreatment) = unique(get_vname.(dt.featureid))
+get_features(dt::DataTreatment) = unique(get_feat.(dt.featureid))
+get_nwindows(dt::DataTreatment) = maximum(get_nwin.(dt.featureid))
+get_reducefuncs(dt::DataTreatment) = unique(get_reducefunc.(dt.featureid))
 
 # Size and iteration methods
-Base.size(dt::DataTreatment)   = size(dt.dataset)
+Base.size(dt::DataTreatment) = size(dt.dataset)
 Base.size(dt::DataTreatment, dim::Int) = size(dt.dataset, dim)
 Base.length(dt::DataTreatment) = length(dt.featureid)
 Base.eltype(dt::DataTreatment) = eltype(dt.dataset)
@@ -420,8 +427,7 @@ Base.getindex(dt::DataTreatment, I...) = dt.dataset[I...]
 
 export FeatureId, DataTreatment
 export get_vname, get_feat, get_nwin
-export get_vecvnames, get_vecfeatures, get_vecnwins
-export get_vnames, get_features, get_nwindows
+export get_vnames, get_features, get_nwindows, get_reducefuncs
 export get_dataset, get_featureid, get_reducefunc, get_aggrtype
 export get_groups, get_norm, get_normdims
 

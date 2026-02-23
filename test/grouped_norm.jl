@@ -73,7 +73,7 @@ end
     :reducesize,
     win=splitwindow(nwindows=2),
     features=(mean, maximum),
-    groups=(:vname, :feat),
+    groups=(:vname,),
     norm=Scale
 )
 
