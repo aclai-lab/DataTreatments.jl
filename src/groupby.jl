@@ -112,7 +112,7 @@ groupby(df::DataFrame, fields::Vector{Symbol}) = groupby(df, [fields])
 # ---------------------------------------------------------------------------- #
 #                 internal _groupby for DataTreatment struct                   #
 # ---------------------------------------------------------------------------- #
-function _groupby(::Matrix{T}, f::Vector{<:AbstractDataFeature}, args...) where T
+function _groupby(f::Vector{<:AbstractDataFeature}, args...)
     _groupby(collect(1:length(f)), f, args...)
 end
 
@@ -157,24 +157,21 @@ function _groupby(
     return groups, feat_groups
 end
 
+# this function performs multi-level grouping (recursive).
+# - idxs: current groups of column indices
+# - datafeats: current groups of FeatureId metadata (aligned with idxs)
+# - fields: remaining fields to group by (e.g., [:feat, :vname, :nwin])
 function _groupby(
     idxs::Vector{Int64},
     datafeats::Vector{<:AbstractDataFeature},
     fields::Vector{Symbol}
 )
-    # this function performs multi-level grouping (recursive).
-    # - idxs: current groups of column indices
-    # - datafeats: current groups of FeatureId metadata (aligned with idxs)
-    # - fields: remaining fields to group by (e.g., [:feat, :vname, :nwin])
-
     isempty(fields) && return [idxs], [datafeats]
 
-    # split by the first field
     sub_idxs, sub_datafeats = _groupby(idxs, datafeats, first(fields))
 
     isempty(fields[2:end]) && return sub_idxs, sub_datafeats
 
-    # recursively group each sub-group by remaining fields
     all_groups = Vector{Vector{Int}}()
     all_feats = Vector{Vector{<:AbstractDataFeature}}()
 
@@ -192,42 +189,31 @@ function _groupby(
     datafeats::Vector{<:AbstractDataFeature},
     field::Symbol
 )
-    # casi speciali:
-    # questo if prende su tutti i casi speciali
-    # per ora si limita a catturare il caso speciale :all
-    # quando il raggruppamento non deve essere columwise(default)
-    # ma tutte le variabili devono essere raggruppate insieme
-    # per esempio per normalizzazioni particolari
+    # Special cases:
+    # Handles :all, where all variables are grouped together
+    # instead of the default column-wise grouping.
+    # Useful for normalizations that require a global fit.
     field == :all && return [idxs], [datafeats]
 
     getter = Symbol(:get_, field)
     feat_type = eltype(datafeats)
 
-    # check if the getter exists for the given feature type
     if !isdefined(DataTreatments, getter) || !hasmethod(eval(getter), Tuple{feat_type})
         throw(ArgumentError(
             "Field `$(field)` is not available for $(feat_type). "))
     end
 
-    # dynamically construct the appropriate getter function (get_vname, get_nwin, or get_feat)
-    # based on the field symbol passed as argument
     getter = @eval $(Symbol(:get_, field))
 
-    # extract unique values of the specified field across all DataFeature objects
-    # this determines how many distinct groups we'll create
     feats = unique(getter.(datafeats))
 
-    # pre-allocate vectors to store grouped indices and their corresponding DataFeatures
     groups = Vector{Vector{Int}}(undef, length(feats))
     feat_groups = Vector{Vector{<:AbstractDataFeature}}(undef, length(feats))
 
-    # iterate through each unique field value and partition the data
     for (i, f) in enumerate(feats)
-        # find all positions where the field value matches current unique value
         mask = findall(fid -> getter(fid) == f, datafeats)
-        # store the original indices that belong to this group
+
         groups[i] = idxs[mask]
-        # store the corresponding DataFeature objects for this group
         feat_groups[i] = datafeats[mask]
     end
 

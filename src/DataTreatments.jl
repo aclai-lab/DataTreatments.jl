@@ -2,6 +2,8 @@ module DataTreatments
 
 using Reexport
 
+using InMemoryDatasets
+
 using Statistics
 using StatsBase
 using LinearAlgebra
@@ -98,20 +100,20 @@ end
 # ---------------------------------------------------------------------------- #
 #                                DataTreatment                                 #
 # ---------------------------------------------------------------------------- #
-struct DataTreatment{T,S} <: AbstractDataTreatment
-    X::Matrix{T}
-    y::Vector{S}
+struct DataTreatment <: AbstractDataTreatment
+    X::Dataset
+    y::Vector
     datafeature::Vector{<:AbstractDataFeature}
     metadata::MetaData
 
     function DataTreatment(
-        X::Matrix{T},
+        X::Dataset,
         y::Union{AbstractVector,Nothing}=nothing;
         vnames::Union{Vector{String},Vector{Symbol},Nothing}=nothing,
         norm::Union{NormSpec,Type{<:AbstractNormalization},Nothing}=nothing,
         groups::Union{Symbol, Tuple{Vararg{Symbol}}, Vector{Vector{Symbol}}}=:vname,
         kwargs...
-    ) where T
+    )
         # se non è nothing, verifica la lunghezza di y
         isnothing(y) ? (y = Vector{Nothing}(nothing, size(X, 1))) : size(X, 1) != length(y) &&
             throw(DimensionMismatch("y length ($(length(y))) must match X rows ($(size(X, 1)))"))
@@ -129,16 +131,16 @@ struct DataTreatment{T,S} <: AbstractDataTreatment
         # - tutto il dataset :all
         # - speciale: bitvector, oppure scelta manuale colonne
         fields = groups isa Symbol ? [groups] : collect(groups)
-        groupidxs, _ = _groupby(X, features, fields)
+        groupidxs, _ = _groupby(features, fields)
 
-        if !isnothing(norm)
-            norm isa Type{<:AbstractNormalization} && (norm = norm())
+        # if !isnothing(norm)
+        #     norm isa Type{<:AbstractNormalization} && (norm = norm())
 
-            Threads.@threads for g in groupidxs
-                X[:, g] =
-                    normalize(X[:, g], norm)
-            end
-        end
+        #     Threads.@threads for g in groupidxs
+        #         X[:, g] =
+        #             normalize(X[:, g], norm)
+        #     end
+        # end
 
         metadata = MetaData(groupidxs)
 
@@ -146,7 +148,7 @@ struct DataTreatment{T,S} <: AbstractDataTreatment
     end
 
     DataTreatment(X::AbstractDataFrame, args...; kwargs...) =
-        DataTreatment(Matrix(X), args...; vnames=propertynames(X), kwargs...)
+        DataTreatment(Dataset(X), args...; vnames=propertynames(X), kwargs...)
 end
 
 # value access methods
