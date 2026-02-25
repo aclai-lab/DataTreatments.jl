@@ -2,7 +2,7 @@
 #                               dataset builder                                #
 # ---------------------------------------------------------------------------- #
 function build_dataset(
-    X::Matrix{T};
+    X::Dataset;
     aggrtype::Symbol=:aggregate,
     kwargs...
 ) where T
@@ -17,8 +17,6 @@ function build_dataset(
     # caso normale: è uniforme
     # ma dobbiamo splittare se multidimensionale
     X, features = _build_dataset(X; aggrtype, kwargs...)
-
-
 end
 
 function _build_dataset(

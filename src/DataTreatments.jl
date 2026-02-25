@@ -2,8 +2,6 @@ module DataTreatments
 
 using Reexport
 
-using InMemoryDatasets
-
 using Statistics
 using StatsBase
 using LinearAlgebra
@@ -144,7 +142,7 @@ struct DataTreatment <: AbstractDataTreatment
 
         metadata = MetaData(groupidxs)
 
-        new{eltype(X),eltype(y)}(X, y, features, metadata)
+        new(X, y, features, metadata)
     end
 
     DataTreatment(X::AbstractDataFrame, args...; kwargs...) =
