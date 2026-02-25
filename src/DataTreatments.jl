@@ -91,27 +91,38 @@ get_reducefunc(f::ReduceFeat) = f.reducefunc
 #                                  MetaData                                    #
 # # ---------------------------------------------------------------------------- #
 struct MetaData <: AbstractMetaData
-    groups::Vector{Vector{Int64}}
+    # groups::Vector{Vector{Int64}}
+    groups::Tuple
     # method::Vector{Symbol}
+end
+
+# @generated function norm_t(t, ::Val{groupidxs}, ::Val{norm}) where {groupidxs, norm}
+#     quote
+#         $(Expr(:block, [:(normalize(reduce(hcat, t[collect($g)]), $norm)) for g in groupidxs]...))
+#     end
+# end
+
+function norm_t(t, groupidxs, norm)
+    ntuple(i -> normalize(reduce(hcat, [t[j] for j in groupidxs[i]]), norm), length(groupidxs))
 end
 
 # ---------------------------------------------------------------------------- #
 #                                DataTreatment                                 #
 # ---------------------------------------------------------------------------- #
 struct DataTreatment{T,S} <: AbstractDataTreatment
-    X::Matrix{T}
-    y::Vector{S}
+    X::Tuple
+    y::Vector
     datafeature::Vector{<:AbstractDataFeature}
     metadata::MetaData
 
     function DataTreatment(
-        X::Matrix{T},
+        X::NTuple{S,T},
         y::Union{AbstractVector,Nothing}=nothing;
         vnames::Union{Vector{String},Vector{Symbol},Nothing}=nothing,
         norm::Union{NormSpec,Type{<:AbstractNormalization},Nothing}=nothing,
         groups::Union{Symbol, Tuple{Vararg{Symbol}}, Vector{Vector{Symbol}}}=:vname,
         kwargs...
-    ) where T
+    ) where {S,T}
         # se non è nothing, verifica la lunghezza di y
         isnothing(y) ? (y = Vector{Nothing}(nothing, size(X, 1))) : size(X, 1) != length(y) &&
             throw(DimensionMismatch("y length ($(length(y))) must match X rows ($(size(X, 1)))"))
@@ -129,24 +140,29 @@ struct DataTreatment{T,S} <: AbstractDataTreatment
         # - tutto il dataset :all
         # - speciale: bitvector, oppure scelta manuale colonne
         fields = groups isa Symbol ? [groups] : collect(groups)
-        groupidxs, _ = _groupby(X, features, fields)
+        groupidxs, _ = _groupby(features, fields)
+
+        groupidxs = Tuple(Tuple(g) for g in groupidxs)
 
         if !isnothing(norm)
             norm isa Type{<:AbstractNormalization} && (norm = norm())
+            X = Tuple(eachcol(reduce(hcat, norm_t(X, groupidxs, norm))))
 
-            Threads.@threads for g in groupidxs
-                X[:, g] =
-                    normalize(X[:, g], norm)
-            end
+            # Threads.@threads for g in groupidxs
+            #     # X[:, g] = 
+            #     normalize(reduce(hcat, X[g]), norm)
+            # end
         end
 
         metadata = MetaData(groupidxs)
 
-        new{eltype(X),eltype(y)}(X, y, features, metadata)
+        new{eltype(T),eltype(y)}(X, y, features, metadata)
     end
 
+    # dispatch Tuple{T} vettore: dataset non omogeneo!
+
     DataTreatment(X::AbstractDataFrame, args...; kwargs...) =
-        DataTreatment(Matrix(X), args...; vnames=propertynames(X), kwargs...)
+        DataTreatment(Tuple(eachcol(X)), args...; vnames=propertynames(X), kwargs...)
 end
 
 # value access methods

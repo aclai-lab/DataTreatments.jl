@@ -2,11 +2,11 @@
 #                               dataset builder                                #
 # ---------------------------------------------------------------------------- #
 function build_dataset(
-    X::Matrix{T};
+    X::NTuple{S,T};
     aggrtype::Symbol=:aggregate,
     kwargs...
-) where T
-    if T == Any
+) where {S,T}
+    if T == Any # se uso le tuple sarò un vettore?
         # caso speciale: non è uniforme.
         # costruire un vettore dei tipi colonna?
         # costruire i groupby?
@@ -17,15 +17,13 @@ function build_dataset(
     # caso normale: è uniforme
     # ma dobbiamo splittare se multidimensionale
     X, features = _build_dataset(X; aggrtype, kwargs...)
-
-
 end
 
 function _build_dataset(
-    X::Matrix{T};
+    X::NTuple{S,T};
     vnames::Vector{Symbol},
     kwargs...
-) where T
+) where {S,T}
     # l'output sarà X e vnames
     # vnames non viene alterato
     # X necessita di normalizzazione?
@@ -39,11 +37,11 @@ function _build_dataset(
     # features = [TabularFeat{T}(v) for v in vnames]
 
     # per ora ritorno X pulito
-    return X, [TabularFeat{T}(T, v) for v in vnames]
+    return X, [TabularFeat{eltype(T)}(eltype(T), v) for v in vnames]
 end
 
 function _build_dataset(
-    X::Matrix{T};
+    X::Tuple{T};
     vnames::Vector{Symbol},
     aggrtype::Symbol=:aggregate,
     win::Union{Base.Callable,Tuple{Vararg{Base.Callable}}}=wholewindow(),

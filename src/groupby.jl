@@ -112,7 +112,7 @@ groupby(df::DataFrame, fields::Vector{Symbol}) = groupby(df, [fields])
 # ---------------------------------------------------------------------------- #
 #                 internal _groupby for DataTreatment struct                   #
 # ---------------------------------------------------------------------------- #
-function _groupby(::Matrix{T}, f::Vector{<:AbstractDataFeature}, args...) where T
+function _groupby(f::Vector{<:AbstractDataFeature}, args...)
     _groupby(collect(1:length(f)), f, args...)
 end
 
@@ -124,7 +124,7 @@ function _groupby(
     length(mask) == length(idxs) || throw(ArgumentError(
         "BitVector length ($(length(mask))) must match number of indices ($(length(idxs)))."))
 
-    groups     = [idxs[mask], idxs[.!mask]]
+    groups = (Tuple(idxs[mask]), Tuple(idxs[.!mask]))
     feat_groups = [datafeats[mask], datafeats[.!mask]]
 
     return groups, feat_groups
@@ -145,16 +145,16 @@ function _groupby(
     left = setdiff(fnames, used)
     !isempty(left) && push!(fields, left)
 
-    groups     = Vector{Vector{Int}}(undef, length(fields))
+    groups     = Vector{Tuple}(undef, length(fields))
     feat_groups = Vector{Vector{<:AbstractDataFeature}}(undef, length(fields))
 
     for (i, group_names) in enumerate(fields)
         mask = findall(fid -> get_vname(fid) ∈ group_names, datafeats)
-        groups[i]      = idxs[mask]
+        groups[i]      = Tuple(idxs[mask])
         feat_groups[i] = datafeats[mask]
     end
 
-    return groups, feat_groups
+    return Tuple(groups), feat_groups
 end
 
 function _groupby(
@@ -175,7 +175,7 @@ function _groupby(
     isempty(fields[2:end]) && return sub_idxs, sub_datafeats
 
     # recursively group each sub-group by remaining fields
-    all_groups = Vector{Vector{Int}}()
+    all_groups = Vector{Tuple}()
     all_feats = Vector{Vector{<:AbstractDataFeature}}()
 
     for (sidx, sfeat) in zip(sub_idxs, sub_datafeats)
@@ -184,7 +184,7 @@ function _groupby(
         append!(all_feats, feats)
     end
 
-    return all_groups, all_feats
+    return Tuple(all_groups), all_feats
 end
 
 function _groupby(
@@ -218,7 +218,7 @@ function _groupby(
     feats = unique(getter.(datafeats))
 
     # pre-allocate vectors to store grouped indices and their corresponding DataFeatures
-    groups = Vector{Vector{Int}}(undef, length(feats))
+    groups = Vector{Tuple}(undef, length(feats))
     feat_groups = Vector{Vector{<:AbstractDataFeature}}(undef, length(feats))
 
     # iterate through each unique field value and partition the data
@@ -226,10 +226,10 @@ function _groupby(
         # find all positions where the field value matches current unique value
         mask = findall(fid -> getter(fid) == f, datafeats)
         # store the original indices that belong to this group
-        groups[i] = idxs[mask]
+        groups[i] = Tuple(idxs[mask])
         # store the corresponding DataFeature objects for this group
         feat_groups[i] = datafeats[mask]
     end
 
-    return groups, feat_groups
+    return Tuple(groups), feat_groups
 end

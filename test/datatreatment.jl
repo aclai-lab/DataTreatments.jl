@@ -23,7 +23,7 @@ using MLJ
 Xc, yc = @load_iris
 Xc = DataFrame(Xc)
 
-a = DataTreatment(Xc)
+a = DataTreatment(Xc, norm=MinMax)
 fields = [[:sepal_length, :petal_length], [:sepal_width]]
 DataTreatments._groupby(a.X, a.datafeature, fields)
 b = BitVector([1, 0, 1, 0])
@@ -73,6 +73,8 @@ dfmt = DataFrame(
     int_col  = [1, 7, 3, 4, 6],
     float_col = [1.1, 2.2, 3.5, 4.4, 5.3]
 )
+a = NamedTuple{Tuple(propertynames(dfmt))}(Tuple(eachcol(dfmt)))
+b = Tuple(eachcol(dfmt))
 
 df_str = DataFrame(
     a = ["foo", "bar", "baz", "qux"],
@@ -129,5 +131,61 @@ end
 
 X = DataFrame([Symbol("col_$i") => rand(1000) for i in 1:2000]...)
 
-@btime(DataTreatment(X, norm=MinMax))
+@btime NamedTuple{Tuple(propertynames(X))}(Tuple(eachcol(X)));
+# 202.404 μs (15 allocations: 110.09 KiB)
+
+@btime Tuple(eachcol(X));
+# 60.914 μs (6 allocations: 47.15 KiB)
+
+@btime Matrix(X);
+# 3.286 ms (2005 allocations: 15.30 MiB)
+
+@btime ComponentArray(; (name => col for (name, col) in pairs(eachcol(X)))...);
+# 16.115 μs (70 allocations: 28.56 KiB)
+
+@btime(DataTreatment(X, norm=MinMax));
 # 191.981 ms (4151584 allocations: 204.24 MiB)
+# 125.769 ms (4238135 allocations: 148.51 MiB)
+
+@btime(DataTreatment(X))
+
+# a.vec_col
+# a[:vec_col]
+
+# # by index
+# a[1]
+
+# # iterate
+# for (k, v) in pairs(a)
+#     println(k, " => ", eltype(v))
+# end
+
+# # destructure
+# vec_col, str_col, int_col, float_col = a
+
+test = NamedTuple{Tuple(propertynames(X))}(Tuple(eachcol(X)));
+
+@btime begin
+    for t in test
+    end
+end
+# 78.858 μs (3490 allocations: 85.78 KiB)
+
+@btime begin
+    for (name, value) in pairs(test)
+    end
+end
+# 8.187 ms (9491 allocations: 288.97 KiB)
+
+groupidxs_t = Tuple(g for g in groupidxs)
+
+@generated function iterate_nt(t, ::Val{groupidxs}, ::Val{norm}) where {groupidxs, norm}
+    quote
+        $(Expr(:block, [:(normalize(reduce(hcat, t[collect($g)]), $norm)) for g in groupidxs]...))
+    end
+end
+
+@btime begin
+    iterate_nt(test)
+end
+# 103.784 ns (2 allocations: 64 bytes)
