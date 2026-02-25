@@ -131,17 +131,14 @@ struct DataTreatment{T,S} <: AbstractDataTreatment
         fields = groups isa Symbol ? [groups] : collect(groups)
         groupidxs, _ = _groupby(X, features, fields)
 
-        # if !isnothing(norm)
-        #     norm isa Type{<:AbstractNormalization} && (norm = norm())
-        #     if isnothing(grp_result)
-        #         X = normalize(X, norm)
-        #     else
-        #         Threads.@threads for g in grp_result
-        #             X[:, get_group(g)] =
-        #                 normalize(X[:, get_group(g)], norm)
-        #         end
-        #     end
-        # end
+        if !isnothing(norm)
+            norm isa Type{<:AbstractNormalization} && (norm = norm())
+
+            Threads.@threads for g in groupidxs
+                X[:, g] =
+                    normalize(X[:, g], norm)
+            end
+        end
 
         metadata = MetaData(groupidxs)
 

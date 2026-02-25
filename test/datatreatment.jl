@@ -23,6 +23,15 @@ using MLJ
 Xc, yc = @load_iris
 Xc = DataFrame(Xc)
 
+a = DataTreatment(Xc)
+fields = [[:sepal_length, :petal_length], [:sepal_width]]
+DataTreatments._groupby(a.X, a.datafeature, fields)
+b = BitVector([1, 0, 1, 0])
+DataTreatments._groupby(a.X, a.datafeature, b)
+
+DataTreatment(Xc, groupby=fields)
+DataTreatment(Xc, groupby=b)
+
 # 2 - multidim
 using SoleData: Artifacts
 
@@ -39,24 +48,16 @@ DataTreatments._groupby(a.X, a.datafeature, fields)
 DataTreatment(Xts, win=splitwindow(nwindows=3), groupby=field)
 DataTreatment(Xts, win=splitwindow(nwindows=3), groupby=fields)
 
-a = DataTreatment(Xc)
-fields = [[:sepal_length, :petal_length], [:sepal_width]]
-DataTreatments._groupby(a.X, a.datafeature, fields)
-b = BitVector([1, 0, 1, 0])
-DataTreatments._groupby(a.X, a.datafeature, b)
-
-DataTreatment(Xc, groupby=fields)
-DataTreatment(Xc, groupby=b)
-
-
 # 3 - tabular with one missing
-dfm = DataFrame(
+Xm = DataFrame(
     a = [1.0, 2.0, NaN, 4.0, 5.0],
     b = [1.1, 2.2, 3.3, 4.4, 5.5],
     c = [1.2, 2.3, 3.4, 4.5, 5.6],
     d = [1.3, 2.4, 3.5, 4.6, 5.7],
-    e = [1.4, 2.5, 3.6, 4.7, 5.8]
+    e = [1.4, 2.5, 3.6, missing, 5.8]
 )
+
+a = DataTreatment(Xm, norm=MinMax)
 
 # 4 - multitype with missing
 dfmtm = DataFrame(
@@ -125,3 +126,8 @@ end
 # https://it.mathworks.com/help/matlab/ref/rmmissing.html
 # https://it.mathworks.com/help/matlab/ref/ismissing.html
 
+
+X = DataFrame([Symbol("col_$i") => rand(1000) for i in 1:2000]...)
+
+@btime(DataTreatment(X, norm=MinMax))
+# 191.981 ms (4151584 allocations: 204.24 MiB)
