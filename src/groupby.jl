@@ -192,44 +192,33 @@ function _groupby(
     datafeats::Vector{<:AbstractDataFeature},
     field::Symbol
 )
-    # casi speciali:
-    # questo if prende su tutti i casi speciali
-    # per ora si limita a catturare il caso speciale :all
-    # quando il raggruppamento non deve essere columwise(default)
-    # ma tutte le variabili devono essere raggruppate insieme
-    # per esempio per normalizzazioni particolari
     field == :all && return [idxs], [datafeats]
 
-    getter = Symbol(:get_, field)
-    feat_type = eltype(datafeats)
+    FT = eltype(datafeats)
+    getter = _field_getter(field, FT)
 
-    # check if the getter exists for the given feature type
-    if !isdefined(DataTreatments, getter) || !hasmethod(eval(getter), Tuple{feat_type})
-        throw(ArgumentError(
-            "Field `$(field)` is not available for $(feat_type). "))
-    end
+    seen = Dict{Any,Int}()
+    groups = Vector{Vector{Int}}()
+    feat_groups = Vector{Vector{FT}}()
 
-    # dynamically construct the appropriate getter function (get_vname, get_nwin, or get_feat)
-    # based on the field symbol passed as argument
-    getter = @eval $(Symbol(:get_, field))
+    @inbounds for (j, fid) in enumerate(datafeats)
+        v = getter(fid)
+        g = get!(seen, v, length(seen) + 1)
 
-    # extract unique values of the specified field across all DataFeature objects
-    # this determines how many distinct groups we'll create
-    feats = unique(getter.(datafeats))
-
-    # pre-allocate vectors to store grouped indices and their corresponding DataFeatures
-    groups = Vector{Vector{Int}}(undef, length(feats))
-    feat_groups = Vector{Vector{<:AbstractDataFeature}}(undef, length(feats))
-
-    # iterate through each unique field value and partition the data
-    for (i, f) in enumerate(feats)
-        # find all positions where the field value matches current unique value
-        mask = findall(fid -> getter(fid) == f, datafeats)
-        # store the original indices that belong to this group
-        groups[i] = idxs[mask]
-        # store the corresponding DataFeature objects for this group
-        feat_groups[i] = datafeats[mask]
+        if g > length(groups)
+            push!(groups, Int[])
+            push!(feat_groups, FT[])
+        end
+        push!(groups[g], idxs[j])
+        push!(feat_groups[g], fid)
     end
 
     return groups, feat_groups
 end
+
+@inline _field_getter(field::Symbol, ::Type{<:AbstractDataFeature}) =
+    field == :type ? get_type :
+    field == :vname ? get_vname :
+    field == :nwin ? get_nwin :
+    field == :feat ? get_feat :
+    throw(ArgumentError("Unknown field: $field"))

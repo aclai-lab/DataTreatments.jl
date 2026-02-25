@@ -61,19 +61,19 @@ include("normalize.jl")
 #                                DataFeature                                   #
 # ---------------------------------------------------------------------------- #
 struct TabularFeat{T} <: AbstractDataFeature
-    type::DataType
+    type::Type
     vname::Symbol
 end
 
 struct AggregateFeat{T} <: AbstractDataFeature
-    type::DataType
+    type::Type
     vname::Symbol
     feat::Base.Callable
     nwin::Int64
 end
 
 struct ReduceFeat{T} <: AbstractDataFeature
-    type::DataType
+    type::Type
     vname::Symbol
     reducefunc::Base.Callable
 end
@@ -139,6 +139,8 @@ struct DataTreatment{T,S} <: AbstractDataTreatment
                     normalize(X[:, g], norm)
             end
         end
+
+        # groupidxs=[[1,2,3],[4,5,6]]
 
         metadata = MetaData(groupidxs)
 
