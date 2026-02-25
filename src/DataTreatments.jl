@@ -146,7 +146,7 @@ struct DataTreatment{T,S} <: AbstractDataTreatment
     end
 
     DataTreatment(X::AbstractDataFrame, args...; kwargs...) =
-        DataTreatment(Matrix(X), args...; vnames=propertynames(X), kwargs...)
+        DataTreatment(reduce(hcat, vec.(eachcol(X))), args...; vnames=propertynames(X), kwargs...)
 end
 
 # value access methods

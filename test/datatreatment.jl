@@ -126,8 +126,11 @@ end
 # https://it.mathworks.com/help/matlab/ref/rmmissing.html
 # https://it.mathworks.com/help/matlab/ref/ismissing.html
 
+using DataFrames
+using DataTreatments
 
 X = DataFrame([Symbol("col_$i") => rand(1000) for i in 1:2000]...)
 
 @btime(DataTreatment(X, norm=MinMax))
-# 191.981 ms (4151584 allocations: 204.24 MiB)
+# 69.963 ms (4194469 allocations: 176.17 MiB)
+# 62.531 ms (4133659 allocations: 173.23 MiB)
