@@ -4,7 +4,7 @@ using DataTreatments
 using SoleData.Artifacts
 
 # fill your Artifacts.toml file;
-fillartifacts()
+# fillartifacts()
 
 function run_tests(list)
     println("\n" * ("#"^50))

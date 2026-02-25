@@ -1,6 +1,12 @@
+# ---------------------------------------------------------------------------- #
+#                               abstract types                                 #
+# ---------------------------------------------------------------------------- #
 abstract type AbstractFeatureId end
 abstract type AbstractMultiDimFeatId <: AbstractFeatureId end
 
+# ---------------------------------------------------------------------------- #
+#                             featureid structs                                #
+# ---------------------------------------------------------------------------- #
 struct FeatureId_T{T} <: AbstractFeatureId
     vname::Symbol
 
@@ -39,7 +45,10 @@ struct FeatureId_RD{T} <: AbstractMultiDimFeatId
     end
 end
 
-function FeatureId(::Union{Missing, AbstractArray{T}}, vname::Symbol) where {T}
+# ---------------------------------------------------------------------------- #
+#                                  callers                                     #
+# ---------------------------------------------------------------------------- #
+function FeatureId(::Union{Missing, AbstractArray{T}}, vname::Symbol) where T
     FeatureId_T(nonmissingtype(T), vname)
 end
 
@@ -48,7 +57,7 @@ function FeatureId(
     vname::Symbol,
     feat::Base.Callable,
     nwin::Int64
-) where {T}
+) where T
     FeatureId_MT(nonmissingtype(T), vname, feat, nwin, size(x))
 end
 
@@ -56,7 +65,7 @@ function FeatureId(
     x::AbstractArray{<:Union{Missing, AbstractArray{T}}},
     vname::Symbol,
     reducefunc::Base.Callable,
-) where {T}
+) where T
     FeatureId_RD(nonmissingtype(T), vname, reducefunc, size(x))
 end
 
