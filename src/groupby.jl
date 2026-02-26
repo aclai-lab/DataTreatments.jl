@@ -51,28 +51,10 @@ Tuple of:
 - **groups**: Vector of index groups mapping to original dataset positions
 - **feat_groups**: Corresponding FeatureId groups for each group of indices
 """
-function groupby(df::DataTreatment, fields::Symbol...)
-    # initial setup Vector{Vector} of all indexes and featureids
+function groupby(df::DataTreatment, fields::Union{Symbol,Vector{Symbol},Vector{Vector{Symbol}}})
     featureids = get_featureid(df)
-
-    _groupby(get_dataset(df), featureids, collect(fields))
+    groupby(featureids, fields)
 end
-
-# TODO
-# function groupby(df::DataTreatment, fields::Vector{Vector{Symbol}})
-#     colnames = propertynames(df)
-#     used = unique(vcat(fields...))
-#     left = setdiff(colnames, used)
-#     !isempty(left) && push!(fields, left)
-
-#     groups = Vector{DataFrame}(undef, length(fields))
-
-#     @inbounds for i in eachindex(fields)
-#         groups[i] = df[!, fields[i]]
-#     end
-
-#     return groups
-# end
 
 """
     groupby(df::DataFrame, fields::Vector{Vector{Symbol}})
@@ -122,22 +104,19 @@ groupby(df::DataFrame, fields::Vector{Symbol}) = groupby(df, [fields])
 # ---------------------------------------------------------------------------- #
 #                 internal groupby for DataTreatment struct                    #
 # ---------------------------------------------------------------------------- #
-function _groupby(
-    idxs::Vector{Int64},
+function groupby(
+    idxs::Vector{Int},
     datafeats::Vector{<:AbstractDataFeature},
     mask::BitVector
 )
     length(mask) == length(idxs) || throw(ArgumentError(
         "BitVector length ($(length(mask))) must match number of indices ($(length(idxs)))."))
 
-    groups = [idxs[mask], idxs[.!mask]]
-    feat_groups = [datafeats[mask], datafeats[.!mask]]
-
-    return groups, feat_groups
+    return ((@view(idxs[findall(m)]) for i in findall(m)) for m in (mask, .!mask))
 end
 
-function _groupby(
-    idxs::Vector{Int64},
+function groupby(
+    idxs::Vector{Int},
     datafeats::Vector{<:AbstractDataFeature},
     fields::Vector{Vector{Symbol}}
 )
@@ -151,16 +130,10 @@ function _groupby(
     left = setdiff(fnames, used)
     !isempty(left) && push!(fields, left)
 
-    groups     = Vector{Vector{Int}}(undef, length(fields))
-    feat_groups = Vector{Vector{<:AbstractDataFeature}}(undef, length(fields))
-
-    for (i, group_names) in enumerate(fields)
-        mask = findall(fid -> get_vname(fid) ∈ group_names, datafeats)
-        groups[i] = idxs[mask]
-        feat_groups[i] = datafeats[mask]
-    end
-
-    return groups, feat_groups
+    return (
+        (@view(idxs[findall(fid -> get_vname(fid) ∈ group_names, datafeats)]) for _ in (nothing,))
+        for group_names in fields
+    )
 end
 
 function groupby(

@@ -20,8 +20,8 @@ Xts, yts = Artifacts.load(natopsloader)
 win = adaptivewindow(nwindows=3, overlap=0.2)
 features = (mean, maximum)
 
-rs_no_grp = DataTreatment(Xts, :reducesize; win)
-ag_no_grp = DataTreatment(Xts, :aggregate; win, features)
+rs_no_grp = DataTreatment(Xts, yts; aggrtype=:reducesize, win)
+ag_no_grp = DataTreatment(Xts, yts; aggrtype=:aggregate, win, features)
 
 # ---------------------------------------------------------------------------- #
 #                             DataFrame groupby                                #

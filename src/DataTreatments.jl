@@ -95,6 +95,8 @@ get_reducefunc(f::ReduceFeat) = f.reducefunc
 #                                  MetaData                                    #
 # # ---------------------------------------------------------------------------- #
 struct MetaData <: AbstractMetaData
+    norm::Union{NormSpec,Type{<:AbstractNormalization},Nothing}
+    groupmethod::Union{Symbol, Vector{Symbol}, Vector{Vector{Symbol}}}
     groups::Vector{Base.Generator}
     # method::Vector{Symbol}
 end
@@ -116,11 +118,9 @@ struct DataTreatment{T,S} <: AbstractDataTreatment
         groups::Union{Symbol, Vector{Symbol}, Vector{Vector{Symbol}}}=:vname,
         kwargs...
     ) where T
-        # se non è nothing, verifica la lunghezza di y
         isnothing(y) ? (y = Vector{Nothing}(nothing, size(X, 1))) : size(X, 1) != length(y) &&
             throw(DimensionMismatch("y length ($(length(y))) must match X rows ($(size(X, 1)))"))
 
-        # verifica il contenuto di vnames
         isnothing(vnames) && (vnames = [Symbol("V$i") for i in 1:size(X, 2)])
         vnames isa Vector{String} && (vnames = Symbol.(vnames))
 
@@ -142,7 +142,7 @@ struct DataTreatment{T,S} <: AbstractDataTreatment
             end
         end
 
-        metadata = MetaData(groupidxs isa Base.Generator ? [groupidxs] : groupidxs)
+        metadata = MetaData(norm, groups, groupidxs isa Base.Generator ? [groupidxs] : groupidxs)
 
         new{eltype(X),eltype(y)}(X, y, features, metadata)
     end
@@ -181,6 +181,70 @@ Base.getindex(dt::DataTreatment, i::Int, j::Int) = dt.dataset[i, j]
 Base.getindex(dt::DataTreatment, ::Colon, j::Int) = dt.dataset[:, j]
 Base.getindex(dt::DataTreatment, i::Int, ::Colon) = dt.dataset[i, :]
 Base.getindex(dt::DataTreatment, I...) = dt.dataset[I...]
+
+# ---------------------------------------------------------------------------- #
+#                              DataTreatment show                              #
+# ---------------------------------------------------------------------------- #
+function _show_datatreatment(io::IO, dt::DataTreatment{T,S}) where {T,S}
+    nrows, ncols = size(dt.X)
+
+    feat_kinds = map(dt.datafeature) do f
+        if f isa TabularFeat       "tabular"
+        elseif f isa AggregateFeat "aggregate"
+        elseif f isa ReduceFeat    "reduce"
+        else string(typeof(f))
+        end
+    end
+    feat_kind = length(unique(feat_kinds)) == 1 ? first(feat_kinds) : join(unique(feat_kinds), " + ")
+
+    supervised = !(S <: Nothing)
+    norm_str = isnothing(dt.metadata.norm) ? "none" : string(dt.metadata.norm)
+
+    gm = dt.metadata.groupmethod
+    gm_str = gm isa Symbol ? string(gm) :
+             gm isa Vector{Symbol} ? join(string.(gm), ", ") :
+             string(gm)
+
+    green  = "\e[32m"
+    yellow = "\e[33m"
+    white  = "\e[37m"
+    reset  = "\e[0m"
+
+    # align '::' by padding the left part to the same width
+    x_left = "X         $(nrows) × $(ncols)  "
+    y_left = supervised ? "y         supervised  " : "y         unsupervised  "
+    pad_width = max(length(x_left), length(y_left))
+    x_line = rpad(x_left, pad_width) * "::  $(T)"
+    y_line = supervised ? rpad(y_left, pad_width) * "::  $(S)" : rpad("y         unsupervised", pad_width)
+
+    lines = Tuple{String,String}[
+        (" ",  "$(yellow)DataTreatment$(reset)"),
+        ("  ", "$(white)$(x_line)$(reset)"),
+        ("  ", "$(white)$(y_line)$(reset)"),
+        ("  ", "$(white)feature   $(feat_kind)$(reset)"),
+        ("  ", "$(white)norm      $(norm_str)$(reset)"),
+        ("  ", "$(white)group     $(gm_str)$(reset)"),
+    ]
+
+    visible_length(s) = length(replace(s, r"\e\[[0-9;]*m" => ""))
+
+    full_lines = ["│$(prefix)$(content)" for (prefix, content) in lines]
+    seps  = Set([1, 3])
+    width = maximum(visible_length, full_lines) + 1
+
+    hline(left, right) = green * left * "─"^(width - 1) * right * reset
+
+    println(io, hline("┌", "┐"))
+    for (i, line) in enumerate(full_lines)
+        pad = width - visible_length(line)
+        println(io, green * "│" * reset * line[4:end] * " "^pad * green * "│" * reset)
+        i in seps && println(io, hline("├", "┤"))
+    end
+    print(io, hline("└", "┘"))
+end
+
+Base.show(io::IO, dt::DataTreatment) = _show_datatreatment(io, dt)
+Base.show(io::IO, ::MIME"text/plain", dt::DataTreatment) = _show_datatreatment(io, dt)
 
 export DataTreatment
 export get_id, get_type, get_vname, get_feat, get_nwin
