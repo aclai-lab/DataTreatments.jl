@@ -1,4 +1,14 @@
 # ---------------------------------------------------------------------------- #
+#                                   utils                                      #
+# ---------------------------------------------------------------------------- #
+@inline field_getter(field::Symbol) =
+    field == :type ? get_type :
+    field == :vname ? get_vname :
+    field == :nwin ? get_nwin :
+    field == :feat ? get_feat :
+    throw(ArgumentError("Unknown field: $field"))
+
+# ---------------------------------------------------------------------------- #
 #                                  groupby                                     #
 # ---------------------------------------------------------------------------- #
 """
@@ -110,12 +120,8 @@ end
 groupby(df::DataFrame, fields::Vector{Symbol}) = groupby(df, [fields])
 
 # ---------------------------------------------------------------------------- #
-#                 internal _groupby for DataTreatment struct                   #
+#                 internal groupby for DataTreatment struct                    #
 # ---------------------------------------------------------------------------- #
-function _groupby(::Matrix{T}, f::Vector{<:AbstractDataFeature}, args...) where T
-    _groupby(collect(1:length(f)), f, args...)
-end
-
 function _groupby(
     idxs::Vector{Int64},
     datafeats::Vector{<:AbstractDataFeature},
@@ -124,7 +130,7 @@ function _groupby(
     length(mask) == length(idxs) || throw(ArgumentError(
         "BitVector length ($(length(mask))) must match number of indices ($(length(idxs)))."))
 
-    groups     = [idxs[mask], idxs[.!mask]]
+    groups = [idxs[mask], idxs[.!mask]]
     feat_groups = [datafeats[mask], datafeats[.!mask]]
 
     return groups, feat_groups
@@ -150,15 +156,14 @@ function _groupby(
 
     for (i, group_names) in enumerate(fields)
         mask = findall(fid -> get_vname(fid) ∈ group_names, datafeats)
-        groups[i]      = idxs[mask]
+        groups[i] = idxs[mask]
         feat_groups[i] = datafeats[mask]
     end
 
     return groups, feat_groups
 end
 
-function _groupby(
-    idxs::Vector{Int64},
+function groupby(
     datafeats::Vector{<:AbstractDataFeature},
     fields::Vector{Symbol}
 )
@@ -167,58 +172,30 @@ function _groupby(
     # - datafeats: current groups of FeatureId metadata (aligned with idxs)
     # - fields: remaining fields to group by (e.g., [:feat, :vname, :nwin])
 
-    isempty(fields) && return [idxs], [datafeats]
-
     # split by the first field
-    sub_idxs, sub_datafeats = _groupby(idxs, datafeats, first(fields))
+    sub_idxs = groupby(datafeats, first(fields))
 
-    isempty(fields[2:end]) && return sub_idxs, sub_datafeats
+    isempty(fields[2:end]) && return sub_idxs
 
     # recursively group each sub-group by remaining fields
-    all_groups = Vector{Vector{Int}}()
-    all_feats = Vector{Vector{<:AbstractDataFeature}}()
+    all_groups = Vector{Base.Generator}()
 
-    for (sidx, sfeat) in zip(sub_idxs, sub_datafeats)
-        groups, feats = _groupby(sidx, sfeat, fields[2:end])
-        append!(all_groups, groups)
-        append!(all_feats, feats)
+    for i in sub_idxs
+        groups = groupby(datafeats[i], fields[2:end])
+        push!(all_groups, groups)
     end
 
-    return all_groups, all_feats
+    return all_groups
 end
 
-function _groupby(
-    idxs::Vector{Int64},
+function groupby(
     datafeats::Vector{<:AbstractDataFeature},
     field::Symbol
 )
-    field == :all && return [idxs], [datafeats]
+    field == :all && return (i for i in eachindex(datafeats))
 
-    FT = eltype(datafeats)
-    getter = _field_getter(field, FT)
-
-    seen = Dict{Any,Int}()
-    groups = Vector{Vector{Int}}()
-    feat_groups = Vector{Vector{FT}}()
-
-    @inbounds for (j, fid) in enumerate(datafeats)
-        v = getter(fid)
-        g = get!(seen, v, length(seen) + 1)
-
-        if g > length(groups)
-            push!(groups, Int[])
-            push!(feat_groups, FT[])
-        end
-        push!(groups[g], idxs[j])
-        push!(feat_groups[g], fid)
-    end
-
-    return groups, feat_groups
+    getter = field_getter(field)
+    vals = getter.(datafeats)
+    unique_vals = unique(vals)
+    return (findall(==(v), vals) for v in unique_vals)
 end
-
-@inline _field_getter(field::Symbol, ::Type{<:AbstractDataFeature}) =
-    field == :type ? get_type :
-    field == :vname ? get_vname :
-    field == :nwin ? get_nwin :
-    field == :feat ? get_feat :
-    throw(ArgumentError("Unknown field: $field"))

@@ -91,7 +91,7 @@ get_reducefunc(f::ReduceFeat) = f.reducefunc
 #                                  MetaData                                    #
 # # ---------------------------------------------------------------------------- #
 struct MetaData <: AbstractMetaData
-    groups::Vector{Vector{Int64}}
+    groups::Vector{Base.Generator}
     # method::Vector{Symbol}
 end
 
@@ -109,7 +109,7 @@ struct DataTreatment{T,S} <: AbstractDataTreatment
         y::Union{AbstractVector,Nothing}=nothing;
         vnames::Union{Vector{String},Vector{Symbol},Nothing}=nothing,
         norm::Union{NormSpec,Type{<:AbstractNormalization},Nothing}=nothing,
-        groups::Union{Symbol, Tuple{Vararg{Symbol}}, Vector{Vector{Symbol}}}=:vname,
+        groups::Union{Symbol, Vector{Symbol}, Vector{Vector{Symbol}}}=:vname,
         kwargs...
     ) where T
         # se non è nothing, verifica la lunghezza di y
@@ -128,21 +128,18 @@ struct DataTreatment{T,S} <: AbstractDataTreatment
         # gestire il caso in cui la normalizzazione debba essere:
         # - tutto il dataset :all
         # - speciale: bitvector, oppure scelta manuale colonne
-        fields = groups isa Symbol ? [groups] : collect(groups)
-        groupidxs, _ = _groupby(X, features, fields)
+        # fields = groups isa Symbol ? [groups] : collect(groups)
+        groupidxs = groupby(features, groups)
 
         if !isnothing(norm)
             norm isa Type{<:AbstractNormalization} && (norm = norm())
 
-            Threads.@threads for g in groupidxs
-                X[:, g] =
-                    normalize(X[:, g], norm)
+            for g in groupidxs
+                X[:, g] = normalize(X[:, g], norm)
             end
         end
 
-        # groupidxs=[[1,2,3],[4,5,6]]
-
-        metadata = MetaData(groupidxs)
+        metadata = MetaData(groupidxs isa Base.Generator ? [groupidxs] : groupidxs)
 
         new{eltype(X),eltype(y)}(X, y, features, metadata)
     end
@@ -183,7 +180,7 @@ Base.getindex(dt::DataTreatment, i::Int, ::Colon) = dt.dataset[i, :]
 Base.getindex(dt::DataTreatment, I...) = dt.dataset[I...]
 
 export DataTreatment
-export get_vname, get_feat, get_nwin
+export get_type, get_vname, get_feat, get_nwin
 export get_vnames, get_features, get_nwindows, get_reducefuncs
 export get_dataset, get_datafeature, get_reducefunc, get_aggrtype
 export get_groups, get_norm, get_normdims
