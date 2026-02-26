@@ -52,7 +52,7 @@ Tuple of:
 - **feat_groups**: Corresponding FeatureId groups for each group of indices
 """
 function groupby(df::DataTreatment, fields::Union{Symbol,Vector{Symbol},Vector{Vector{Symbol}}})
-    featureids = get_featureid(df)
+    featureids = get_datafeature(df)
     groupby(featureids, fields)
 end
 
@@ -100,6 +100,7 @@ function groupby(df::DataFrame, fields::Vector{Vector{Symbol}})
 end
 
 groupby(df::DataFrame, fields::Vector{Symbol}) = groupby(df, [fields])
+groupby(df::DataFrame, fields::Symbol) = groupby(df, [[fields]])
 
 # ---------------------------------------------------------------------------- #
 #                 internal groupby for DataTreatment struct                    #

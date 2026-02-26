@@ -151,6 +151,9 @@ struct DataTreatment{T,S} <: AbstractDataTreatment
         DataTreatment(reduce(hcat, vec.(eachcol(X))), args...; vnames=propertynames(X), kwargs...)
 end
 
+# ---------------------------------------------------------------------------- #
+#                            DataTreatment methods                             #
+# ---------------------------------------------------------------------------- #
 # value access methods
 Base.getproperty(dt::DataTreatment, s::Symbol) = getfield(dt, s)
 Base.propertynames(::DataTreatment) =
@@ -160,7 +163,9 @@ get_dataset(dt::DataTreatment) = dt.dataset
 get_datafeature(dt::DataTreatment) = dt.datafeature
 get_reducefunc(dt::DataTreatment) = dt.reducefunc
 get_aggrtype(dt::DataTreatment) = dt.aggrtype
-get_groups(dt::DataTreatment) = dt.groups
+
+# metadatas
+get_groups(dt::DataTreatment) = reduce(vcat, collect.(dt.metadata.groups))
 get_norm(dt::DataTreatment) = dt.norm
 
 # Convenience methods for common operations

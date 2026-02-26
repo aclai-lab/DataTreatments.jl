@@ -27,16 +27,23 @@ ag_no_grp = DataTreatment(Xts, yts; aggrtype=:aggregate, win, features)
 #                             DataFrame groupby                                #
 # ---------------------------------------------------------------------------- #
 @testset "groupby single column" begin
-    fields = [:sepal_length]
+    fields1 = [:sepal_length]
+    groups1 = DT.groupby(Xc, fields1)
 
-    groups = DT.groupby(Xc, fields)
-    @test length(groups) == 2
-    @test propertynames(groups[2]) == [:sepal_width, :petal_length, :petal_width]
+    @test length(groups1) == 2
+    @test propertynames(groups1[2]) == [:sepal_width, :petal_length, :petal_width]
+
+    fields2 = :sepal_length
+    groups2 = DT.groupby(Xc, fields2)
+
+    @test length(groups2) == 2
+    @test propertynames(groups2[2]) == [:sepal_width, :petal_length, :petal_width]
+
+    @test groups1 == groups2
 end
 
 @testset "groupby adds leftover columns" begin
     fields = [[:sepal_length, :petal_length], [:sepal_width]]
-
     groups = DT.groupby(Xc, fields)
     @test length(groups) == 3
     @test propertynames(groups[3]) == [:petal_width]
@@ -45,20 +52,20 @@ end
 # ---------------------------------------------------------------------------- #
 #                           DataTreatment groupby                              #
 # ---------------------------------------------------------------------------- #
-rs_grp = DataTreatment(Xts, :reducesize; win, groups=(:vname,))
-ag_grp = DataTreatment(Xts, :aggregate; win, features, groups=(:vname, :feat))
+rs_grp = DataTreatment(Xts; aggrtype=:reducesize, win, groups=:vname)
+ag_grp = DataTreatment(Xts; aggrtype=:aggregate, win, features, groups=[:vname, :feat])
 
 @testset "Manual groupby vs built-in groupby" begin
     # manual grouping for rs_no_grp by :vname
-    rs_featureids = get_featureid(rs_no_grp)
+    rs_featureids = get_datafeature(rs_no_grp)
     rs_vnames = unique(get_vname.(rs_featureids))
     rs_manual_groups = [findall(fid -> get_vname(fid) == vn, rs_featureids) for vn in rs_vnames]
     
     @test length(rs_manual_groups) == length(get_groups(rs_grp))
-    @test all(rs_manual_groups .== [gr.group for gr in get_groups(rs_grp)])
+    @test all(rs_manual_groups .== get_groups(rs_grp))
     
     # manual grouping for ag_no_grp by :vname then :feat
-    ag_featureids = get_featureid(ag_no_grp)
+    ag_featureids = get_datafeature(ag_no_grp)
     ag_vnames = unique(get_vname.(ag_featureids))
     
     # first level: group by vname
@@ -75,21 +82,21 @@ ag_grp = DataTreatment(Xts, :aggregate; win, features, groups=(:vname, :feat))
     end
     
     @test length(ag_manual_groups) == length(get_groups(ag_grp))
-    @test all(ag_manual_groups .== [gr.group for gr in get_groups(ag_grp)])
+    @test all(ag_manual_groups .== get_groups(ag_grp))
 end
 
 @testset "DataTreatments groupby vs built-in groupby" begin
     # test groupby function on rs_no_grp by :vname
-    rs_groupby_groups, _ = DT.groupby(rs_no_grp, :vname)
-    rs_builtin_groups = [gr.group for gr in get_groups(rs_grp)]
+    rs_groupby_groups = DT.groupby(rs_no_grp, :vname)
+    rs_builtin_groups = get_groups(rs_grp)
     
     @test length(rs_groupby_groups) == length(rs_builtin_groups)
     @test all(rs_groupby_groups .== rs_builtin_groups)
     
     # test groupby function on ag_no_grp by :vname then :feat
-    ag_groupby_groups, _ = DT.groupby(ag_no_grp, :vname, :feat)
-    ag_builtin_groups = [gr.group for gr in get_groups(ag_grp)]
+    ag_groupby_groups = DT.groupby(ag_no_grp, [:vname, :feat])
+    ag_builtin_groups = get_groups(ag_grp)
     
-    @test length(ag_groupby_groups) == length(ag_builtin_groups)
-    @test all(ag_groupby_groups .== ag_builtin_groups)
+    @test length(reduce(vcat, collect.(ag_groupby_groups))) == length(ag_builtin_groups)
+    @test all(reduce(vcat, collect.(ag_groupby_groups)) .== ag_builtin_groups)
 end
