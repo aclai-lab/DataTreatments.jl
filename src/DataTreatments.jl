@@ -61,24 +61,28 @@ include("normalize.jl")
 #                                DataFeature                                   #
 # ---------------------------------------------------------------------------- #
 struct TabularFeat{T} <: AbstractDataFeature
+    id::Int
     type::Type
     vname::Symbol
 end
 
 struct AggregateFeat{T} <: AbstractDataFeature
+    id::Int
     type::Type
     vname::Symbol
     feat::Base.Callable
-    nwin::Int64
+    nwin::Int
 end
 
 struct ReduceFeat{T} <: AbstractDataFeature
+    id::Int
     type::Type
     vname::Symbol
     reducefunc::Base.Callable
 end
 
 # getters
+get_id(f::AbstractDataFeature) = f.id
 get_type(f::AbstractDataFeature) = f.type
 get_vname(f::AbstractDataFeature) = f.vname
 
@@ -132,10 +136,9 @@ struct DataTreatment{T,S} <: AbstractDataTreatment
         groupidxs = groupby(features, groups)
 
         if !isnothing(norm)
-            norm isa Type{<:AbstractNormalization} && (norm = norm())
-
-            for g in groupidxs
-                X[:, g] = normalize(X[:, g], norm)
+            flat_groups = [reduce(vcat, g) for g in groupidxs]
+            Threads.@threads for g in flat_groups
+                normalize!(@view(X[:, g]), norm)
             end
         end
 
@@ -180,7 +183,7 @@ Base.getindex(dt::DataTreatment, i::Int, ::Colon) = dt.dataset[i, :]
 Base.getindex(dt::DataTreatment, I...) = dt.dataset[I...]
 
 export DataTreatment
-export get_type, get_vname, get_feat, get_nwin
+export get_id, get_type, get_vname, get_feat, get_nwin
 export get_vnames, get_features, get_nwindows, get_reducefuncs
 export get_dataset, get_datafeature, get_reducefunc, get_aggrtype
 export get_groups, get_norm, get_normdims

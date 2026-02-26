@@ -16,7 +16,7 @@ using SoleData: Artifacts
 natopsloader = Artifacts.NatopsLoader()
 Xts, yts = Artifacts.load(natopsloader)
 X = Xts[1:10, 1:5]
-a = DataTreatment(X, win=splitwindow(nwindows=2))
+a = DataTreatment(X, win=splitwindow(nwindows=2), groups=:all)
 AbstractDataFeature = DataTreatments.AbstractDataFeature
 datafeats = a.datafeature
 field = :vname
@@ -47,18 +47,17 @@ field = :vname
 
 function groupby(
     datafeats::Vector{<:AbstractDataFeature},
-    field::Symbol;
-    i::Base.Generator=(i for i in eachindex(datafeats))
+    field::Symbol
 )
     getter = field_getter(field)
     vals = getter.(datafeats)
     unique_vals = unique(vals)
     idxs = (findall(==(v), vals) for v in unique_vals)
-    return i[idxs]
+    return (get_id.(@view(datafeats[i])) for i in idxs)
 end
 
 @btime test = groupby(datafeats, :vname)
-# 765.261 ns (15 allocations: 848 bytes)
+# 1.034 μs (18 allocations: 1.06 KiB)
 
 test = groupby(datafeats, :vname)
 
@@ -93,14 +92,12 @@ function groupby(
     return all_groups
 end
 
-for i in test
-    @show i
-end
-
 @btime groupby(datafeats, [:vname, :nwin])
 # 3.682 μs (102 allocations: 5.03 KiB)
 
 groupidxs = groupby(datafeats, [:vname, :nwin])
+
+r = DataTreatments.groupby(datafeats, [:vname, :nwin])
 
 using Normalization
 
@@ -109,12 +106,25 @@ X = a.X
 groupidxs = a.metadata.groups
 norm = MinMax
 
-
-if !isnothing(norm)
-    # norm isa Type{<:AbstractNormalization} && (norm = norm())
-
-    for g in groupidxs
-        @show collect(g...)
-        X[:, g...] = normalize(X[:, g...], norm)
+@btime begin
+    if !isnothing($norm)
+        Threads.@threads for g in groupidxs
+            normalize!(@view(X[:, reduce(vcat, g)]), norm)
+        end
+        # flat_groups = [reduce(vcat, g) for g in groupidxs]
+        # Threads.@threads for g in flat_groups
+        #     normalize!(@view(X[:, g]), norm)
+        # end
     end
 end
+# 154.860 μs (1968 allocations: 475.88 KiB)
+# 41.894 μs (1984 allocations: 477.19 KiB)
+# 53.484 μs (2272 allocations: 289.50 KiB)
+# 46.363 μs (1912 allocations: 76.31 KiB)
+
+
+Threads.@threads for g in groupidxs
+    normalize!(@view(X[:, collect(g)]), norm)
+end
+
+foreach(g -> normalize!(@view(X[:, g...]), norm), groupidxs)

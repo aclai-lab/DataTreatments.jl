@@ -134,8 +134,9 @@ X = DataFrame([Symbol("col_$i") => rand(1000) for i in 1:2000]...)
 
 @btime DataTreatment(X)
 # 1.588 ms (74 allocations: 15.44 MiB)
-@btime DataTreatment(X, norm=MinMax)
+@btime DataTreatment(X, norm=MinMax);
 # 69.963 ms (4194469 allocations: 176.17 MiB)
 # 62.531 ms (4133659 allocations: 173.23 MiB)
 # 5.299 ms (115562 allocations: 50.23 MiB)
 # 5.276 ms (114152 allocations: 50.19 MiB)
+# 5.620 ms (98151 allocations: 19.84 MiB)

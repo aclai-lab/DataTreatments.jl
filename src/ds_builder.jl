@@ -39,7 +39,7 @@ function _build_dataset(
     # features = [TabularFeat{T}(v) for v in vnames]
 
     # per ora ritorno X pulito
-    return X, [TabularFeat{T}(T, v) for v in vnames]
+    return X, [TabularFeat{T}(i, T, vnames[i]) for i in eachindex(vnames)]
 end
 
 function _build_dataset(
@@ -67,17 +67,19 @@ function _build_dataset(
         (DataTreatments.aggregate(X, intervals; features, win, uniform),
         if nwindows == 1
             # single window: apply to whole time series
-            [AggregateFeat{T}(T, vnames[c], f, 1) for f in features, c in axes(X,2)] |> vec
+            vec([AggregateFeat{T}(i, T, vnames[c], f, 1)
+                for (i, (f, c)) in enumerate(Iterators.product(features, axes(X,2)))])
         else
             # multiple windows: apply to each interval
-            [AggregateFeat{T}(T, vnames[c], f, i) for i in 1:nwindows, f in features, c in axes(X,2)] |> vec
+            vec([AggregateFeat{T}(i, T, vnames[c], f, n)
+                for (i, (n, f, c)) in enumerate(Iterators.product(1:nwindows, features, axes(X,2)))])
         end
         )
     end
 
     elseif aggrtype == :reducesize begin
         (DataTreatments.reducesize(X, intervals; reducefunc, win, uniform),
-        [ReduceFeat{T}(T, vnames[c], reducefunc) for c in axes(X,2)]
+        [ReduceFeat{T}(i, T, vnames[c], reducefunc) for (i, c) in enumerate(axes(X,2))]
         )
     end
 

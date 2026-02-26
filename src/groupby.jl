@@ -164,7 +164,7 @@ function _groupby(
 end
 
 function groupby(
-    datafeats::Vector{<:AbstractDataFeature},
+    datafeats::AbstractVector{<:AbstractDataFeature},
     fields::Vector{Symbol}
 )
     # this function performs multi-level grouping (recursive).
@@ -181,7 +181,7 @@ function groupby(
     all_groups = Vector{Base.Generator}()
 
     for i in sub_idxs
-        groups = groupby(datafeats[i], fields[2:end])
+        groups = groupby(@view(datafeats[i]), fields[2:end])
         push!(all_groups, groups)
     end
 
@@ -189,7 +189,7 @@ function groupby(
 end
 
 function groupby(
-    datafeats::Vector{<:AbstractDataFeature},
+    datafeats::AbstractVector{<:AbstractDataFeature},
     field::Symbol
 )
     field == :all && return (i for i in eachindex(datafeats))
@@ -197,5 +197,6 @@ function groupby(
     getter = field_getter(field)
     vals = getter.(datafeats)
     unique_vals = unique(vals)
-    return (findall(==(v), vals) for v in unique_vals)
+    idxs = (findall(==(v), vals) for v in unique_vals)
+    return (get_id.(@view(datafeats[i])) for i in idxs)
 end
