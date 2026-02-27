@@ -21,7 +21,7 @@ abstract type AbstractMetaData end
 # ---------------------------------------------------------------------------- #
 #                                   types                                      #
 # ---------------------------------------------------------------------------- #
-const NameTypes = Union{Symbol, String}
+const Groups = Union{BitVector,Symbol,Vector{Symbol},Vector{Vector{Symbol}}}
 
 # ---------------------------------------------------------------------------- #
 #                                   files                                      #
@@ -86,8 +86,8 @@ get_id(f::AbstractDataFeature) = f.id
 get_type(f::AbstractDataFeature) = f.type
 get_vname(f::AbstractDataFeature) = f.vname
 
-get_feat(f::AggregateFeat)  = f.feat
-get_nwin(f::AggregateFeat)  = f.nwin
+get_feat(f::AggregateFeat) = f.feat
+get_nwin(f::AggregateFeat) = f.nwin
 
 get_reducefunc(f::ReduceFeat) = f.reducefunc
 
@@ -96,7 +96,7 @@ get_reducefunc(f::ReduceFeat) = f.reducefunc
 # # ---------------------------------------------------------------------------- #
 struct MetaData <: AbstractMetaData
     norm::Union{NormSpec,Type{<:AbstractNormalization},Nothing}
-    groupmethod::Union{Symbol, Vector{Symbol}, Vector{Vector{Symbol}}}
+    groupmethod::Groups
     groups::Vector{Base.Generator}
     # method::Vector{Symbol}
 end
@@ -115,7 +115,7 @@ struct DataTreatment{T,S} <: AbstractDataTreatment
         y::Union{AbstractVector,Nothing}=nothing;
         vnames::Union{Vector{String},Vector{Symbol},Nothing}=nothing,
         norm::Union{NormSpec,Type{<:AbstractNormalization},Nothing}=nothing,
-        groups::Union{Symbol, Vector{Symbol}, Vector{Vector{Symbol}}}=:vname,
+        groups::Groups=:vname,
         kwargs...
     ) where T
         isnothing(y) ? (y = Vector{Nothing}(nothing, size(X, 1))) : size(X, 1) != length(y) &&

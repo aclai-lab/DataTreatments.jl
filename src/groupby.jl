@@ -6,6 +6,7 @@
     field == :vname ? get_vname :
     field == :nwin ? get_nwin :
     field == :feat ? get_feat :
+    field == :reducefunc ? get_reducefunc :
     throw(ArgumentError("Unknown field: $field"))
 
 # ---------------------------------------------------------------------------- #
