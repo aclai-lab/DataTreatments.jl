@@ -50,7 +50,7 @@ function _build_dataset(
     features::Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
     reducefunc::Base.Callable=mean,
     kwargs...
-) where {T<:AbstractVector}
+) where {T<:AbstractArray}
     # uniform size check
     # if elements differ in size, only adaptivewindow or wholewindow are allowed
     # (computing the window per-element is a significant overhead otherwise)
