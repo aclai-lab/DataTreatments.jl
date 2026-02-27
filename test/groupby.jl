@@ -15,15 +15,6 @@ natopsloader = Artifacts.NatopsLoader()
 Xts, yts = Artifacts.load(natopsloader)
 
 # ---------------------------------------------------------------------------- #
-#                           windowing and treatment                            #
-# ---------------------------------------------------------------------------- #
-win = adaptivewindow(nwindows=3, overlap=0.2)
-features = (mean, maximum)
-
-rs_no_grp = DataTreatment(Xts, yts; aggrtype=:reducesize, win)
-ag_no_grp = DataTreatment(Xts, yts; aggrtype=:aggregate, win, features)
-
-# ---------------------------------------------------------------------------- #
 #                             DataFrame groupby                                #
 # ---------------------------------------------------------------------------- #
 @testset "groupby single column" begin
@@ -48,6 +39,18 @@ end
     @test length(groups) == 3
     @test propertynames(groups[3]) == [:petal_width]
 end
+
+# ---------------------------------------------------------------------------- #
+#                           windowing and treatment                            #
+# ---------------------------------------------------------------------------- #
+tab_no_grp = DataTreatment(Xc, yc)
+
+win = adaptivewindow(nwindows=3, overlap=0.2)
+features = (mean, maximum)
+rs_no_grp = DataTreatment(Xts, yts; aggrtype=:reducesize, win)
+ag_no_grp = DataTreatment(Xts, yts; aggrtype=:aggregate, win, features)
+
+mask = BitVector([1,0,0,1])
 
 # ---------------------------------------------------------------------------- #
 #                           DataTreatment groupby                              #

@@ -51,9 +51,9 @@ Tuple of:
 - **groups**: Vector of index groups mapping to original dataset positions
 - **feat_groups**: Corresponding FeatureId groups for each group of indices
 """
-function groupby(df::DataTreatment, fields::Union{Symbol,Vector{Symbol},Vector{Vector{Symbol}}})
+function groupby(df::DataTreatment, args...)
     featureids = get_datafeature(df)
-    groupby(featureids, fields)
+    groupby(featureids, args...)
 end
 
 """
@@ -103,21 +103,19 @@ groupby(df::DataFrame, fields::Vector{Symbol}) = groupby(df, [fields])
 groupby(df::DataFrame, fields::Symbol) = groupby(df, [[fields]])
 
 # ---------------------------------------------------------------------------- #
-#                 internal groupby for DataTreatment struct                    #
+#              internal groupby for AbstractDataFeature struct                 #
 # ---------------------------------------------------------------------------- #
 function groupby(
-    idxs::Vector{Int},
     datafeats::Vector{<:AbstractDataFeature},
     mask::BitVector
 )
-    length(mask) == length(idxs) || throw(ArgumentError(
-        "BitVector length ($(length(mask))) must match number of indices ($(length(idxs)))."))
+    length(mask) == length(datafeats) || throw(ArgumentError(
+        "BitVector length ($(length(mask))) must match number of datafeats ($(length(datafeats)))."))
 
-    return ((@view(idxs[findall(m)]) for i in findall(m)) for m in (mask, .!mask))
+    return ((@view(datafeats[findall(m)]) for _ in (nothing,)) for m in (mask, .!mask))
 end
 
 function groupby(
-    idxs::Vector{Int},
     datafeats::Vector{<:AbstractDataFeature},
     fields::Vector{Vector{Symbol}}
 )
@@ -132,11 +130,14 @@ function groupby(
     !isempty(left) && push!(fields, left)
 
     return (
-        (@view(idxs[findall(fid -> get_vname(fid) ∈ group_names, datafeats)]) for _ in (nothing,))
+        (@view(datafeats[findall(fid -> get_vname(fid) ∈ group_names, datafeats)]) for _ in (nothing,))
         for group_names in fields
     )
 end
 
+# ---------------------------------------------------------------------------- #
+#               for multidimensional datatreatments set only                   #
+# ---------------------------------------------------------------------------- #
 function groupby(
     datafeats::AbstractVector{<:AbstractDataFeature},
     fields::Vector{Symbol}
