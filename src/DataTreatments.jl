@@ -157,16 +157,17 @@ end
 # value access methods
 Base.getproperty(dt::DataTreatment, s::Symbol) = getfield(dt, s)
 Base.propertynames(::DataTreatment) =
-    (:dataset, :datafeature)
+    (:X, :y, :datafeature, :metadata)
 
-get_dataset(dt::DataTreatment) = dt.dataset
+get_X(dt::DataTreatment) = dt.X
+get_y(dt::DataTreatment) = dt.y
 get_datafeature(dt::DataTreatment) = dt.datafeature
-get_reducefunc(dt::DataTreatment) = dt.reducefunc
-get_aggrtype(dt::DataTreatment) = dt.aggrtype
+get_metadata(dt::DataTreatment) = dt.metadata
 
 # metadatas
 get_groups(dt::DataTreatment) = reduce(vcat, collect.(dt.metadata.groups))
-get_norm(dt::DataTreatment) = dt.norm
+get_groupmethod(dt::DataTreatment) = dt.metadata.groupmethod
+get_norm(dt::DataTreatment) = dt.metadata.norm
 
 # Convenience methods for common operations
 get_vnames(dt::DataTreatment) = unique(get_vname.(dt.datafeature))
@@ -253,9 +254,9 @@ Base.show(io::IO, ::MIME"text/plain", dt::DataTreatment) = _show_datatreatment(i
 
 export DataTreatment
 export get_id, get_type, get_vname, get_feat, get_nwin
+export get_X, get_y, get_datafeature, get_metadata
 export get_vnames, get_features, get_nwindows, get_reducefuncs
-export get_dataset, get_datafeature, get_reducefunc, get_aggrtype
-export get_groups, get_norm, get_normdims
+export get_groups, get_groupmethod, get_norm
 
 export groupby
 include("groupby.jl")

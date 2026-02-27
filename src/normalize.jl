@@ -3,9 +3,9 @@
 # ---------------------------------------------------------------------------- #
 struct NormSpec{T<:AbstractNormalization}
     type::Type{T}
-    dims::Union{Int64,Nothing}
+    dims::Union{Int,Nothing}
 
-    NormSpec(type::Type{T}, dims::Union{Int64,Nothing}) where {T<:AbstractNormalization} =
+    NormSpec(type::Type{T}, dims::Union{Int,Nothing}) where {T<:AbstractNormalization} =
         new{T}(type, dims)
 end
 
@@ -36,7 +36,7 @@ scale(s) = Base.Fix2(/, s)
 # ---------------------------------------------------------------------------- #
 #                                    callers                                   #
 # ---------------------------------------------------------------------------- #
-checkdims(dims::Union{Int64,Nothing}=nothing) =
+checkdims(dims::Union{Int,Nothing}=nothing) =
     (isnothing(dims) || dims == 1 || dims == 2) ||
         error("dims must be nothing, 1 (column-wise), or 2 (row-wise)")
 
@@ -46,48 +46,48 @@ checkmethod(method::Symbol, methods::Tuple{Vararg{Symbol}}) =
 checkp(p::Real) =
     (p == 1 || p == 2 || p == Inf) || error("p must be 1, 2, or Inf")
 
-function (::Type{T})(; dims::Union{Int64,Nothing}=nothing, method::Symbol=:std) where {T<:ZScore}
+function (::Type{T})(; dims::Union{Int,Nothing}=nothing, method::Symbol=:std) where {T<:ZScore}
     checkdims(dims)
     checkmethod(method, (:std, :robust, :half))
     S = method == :robust ? ZScoreRobust : method == :half ? HalfZScore : T
     return NormSpec(S, dims)
 end
 
-function (::Type{T})(; dims::Union{Int64,Nothing}=nothing) where {T<:MinMax}
+function (::Type{T})(; dims::Union{Int,Nothing}=nothing) where {T<:MinMax}
     checkdims(dims)
     return NormSpec(T, dims)
 end
 
-function (::Type{T})(; dims::Union{Int64,Nothing}=nothing, method::Symbol=:std) where {T<:Scale}
+function (::Type{T})(; dims::Union{Int,Nothing}=nothing, method::Symbol=:std) where {T<:Scale}
     checkdims(dims)
     checkmethod(method, (:std, :mad, :first, :iqr))
     S = method == :mad ? ScaleMad : method == :first ? ScaleFirst : method == :iqr ? ScaleIqr : T
     return NormSpec(S, dims)
 end
 
-function (::Type{T})(; dims::Union{Int64,Nothing}=nothing) where {T<:Sigmoid}
+function (::Type{T})(; dims::Union{Int,Nothing}=nothing) where {T<:Sigmoid}
     checkdims(dims)
     return NormSpec(T, dims)
 end
 
-function (::Type{T})(; dims::Union{Int64,Nothing}=nothing, method::Symbol=:mean) where {T<:Center}
+function (::Type{T})(; dims::Union{Int,Nothing}=nothing, method::Symbol=:mean) where {T<:Center}
     checkdims(dims)
     checkmethod(method, (:mean, :median))
     S = method == :median ? CenterMedian : T
     return NormSpec(S, dims)
 end
 
-function (::Type{T})(; dims::Union{Int64,Nothing}=nothing) where {T<:UnitEnergy}
+function (::Type{T})(; dims::Union{Int,Nothing}=nothing) where {T<:UnitEnergy}
     checkdims(dims)
     return NormSpec(T, dims)
 end
 
-function (::Type{T})(; dims::Union{Int64,Nothing}=nothing) where {T<:UnitPower}
+function (::Type{T})(; dims::Union{Int,Nothing}=nothing) where {T<:UnitPower}
     checkdims(dims)
     return NormSpec(T, dims)
 end
 
-function (::Type{T})(; dims::Union{Int64,Nothing}=nothing, p::Real=2.0) where {T<:PNorm}
+function (::Type{T})(; dims::Union{Int,Nothing}=nothing, p::Real=2.0) where {T<:PNorm}
     checkdims(dims)
     checkp(p)
     S = p == 1 ? PNorm1 : p == Inf ? PNormInf : T

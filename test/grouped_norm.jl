@@ -38,14 +38,14 @@ end
 # ---------------------------------------------------------------------------- #
 @test_nowarn DataTreatment(
     Xts,
-    :aggregate,
+    aggrtype=:aggregate,
     win=splitwindow(nwindows=2),
     features=(mean, maximum)
 )
 
 @test_nowarn DataTreatment(
     Xts,
-    :aggregate,
+    aggrtype=:aggregate,
     win=splitwindow(nwindows=2),
     features=(mean, maximum),
     norm=ZScore
@@ -53,7 +53,7 @@ end
 
 @test_nowarn DataTreatment(
     Xts,
-    :reducesize,
+    aggrtype=:reducesize,
     win=splitwindow(nwindows=2),
     features=(mean, maximum),
     norm=MinMax
@@ -61,19 +61,19 @@ end
 
 @test_nowarn DataTreatment(
     Xts,
-    :aggregate,
+    aggrtype=:aggregate,
     win=splitwindow(nwindows=2),
     features=(mean, maximum),
-    groups=(:vname, :feat),
+    groups=[:vname, :feat],
     norm=PNorm
 )
 
 @test_nowarn DataTreatment(
     Xts,
-    :reducesize,
+    aggrtype=:reducesize,
     win=splitwindow(nwindows=2),
     features=(mean, maximum),
-    groups=(:vname,),
+    groups=:vname,
     norm=Scale
 )
 
@@ -89,10 +89,10 @@ M = reshape([m1, m2, m3, m4], 2, 2) # 2x2 matrix of matrices
 
 test1 = DataTreatment(
     M,
-    :reducesize;
+    aggrtype=:reducesize;
     win=splitwindow(nwindows=3), #should actually not change the dataset
     features=(mean, maximum),
-    groups=(:vname,),
+    groups=:vname,
     norm=MinMax
 )
 
@@ -104,20 +104,21 @@ test1 = DataTreatment(
         n = fit(MinMax, merged, dims=nothing)
         test_norm = Normalization.normalize(merged, n)
 
-        res_merged = vcat(get_dataset(test1)[:,i]...)
+        res_merged = vcat(get_X(test1)[:,i]...)
         @test isapprox(res_merged, test_norm)
     end
 
-    @test DT.get_group.(get_groups(test1)) isa Vector{Vector{Int64}}
-    @test DT.get_method.(get_groups(test1)) isa Vector{Vector{Symbol}}
+    @test DT.get_groups(test1) isa Vector{Vector{Int64}}
+    @test DT.get_groupmethod(test1) isa Symbol
+    @test DT.get_norm(test1) == MinMax
 end
 
 test2 = DataTreatment(
     M,
-    :aggregate;
+    aggrtype=:aggregate;
     win=splitwindow(nwindows=3), #should actually not change the dataset
     features=(mean,),
-    groups=(:vname,),
+    groups=:vname,
     norm=MinMax
 )
 
@@ -131,7 +132,7 @@ test2 = DataTreatment(
 
         i == 1 && (i = 1:9)
         i == 2 && (i = 10:18)
-        res_merged = vcat(get_dataset(test2)[:,i]'...)
+        res_merged = vcat(get_X(test2)[:,i]'...)
         @test isapprox(res_merged, vcat(test_norm'...))
     end
 end
@@ -140,36 +141,36 @@ end
 
 norm_type = DataTreatment(
     Xts,
-    :aggregate,
+    aggrtype=:aggregate,
     win=splitwindow(nwindows=2),
     features=(mean, maximum),
     norm=MinMax
 )
-@test DT._nt(get_norm(norm_type)) == (type=MinMax, dims=nothing)
+@test get_norm(norm_type) == MinMax
 
 norm_type = DataTreatment(
     Xts,
-    :aggregate,
+    aggrtype=:aggregate,
     win=splitwindow(nwindows=2),
     features=(mean, maximum),
-    norm=Scale()
+    norm=Scale
 )
-@test DT._nt(get_norm(norm_type)) == (type=Scale, dims=nothing)
+@test get_norm(norm_type) == Scale
 
 norm_type = DataTreatment(
     Xts,
-    :aggregate,
+    aggrtype=:aggregate,
     win=splitwindow(nwindows=2),
     features=(mean, maximum),
-    norm=ZScore(dims=1)
+    norm=ZScore
 )
-@test DT._nt(get_norm(norm_type)) == (type=ZScore, dims=1)
+@test get_norm(norm_type) == ZScore
 
 norm_type = DataTreatment(
     Xts,
-    :aggregate,
+    aggrtype=:aggregate,
     win=splitwindow(nwindows=2),
     features=(mean, maximum),
-    norm=PNorm(p=Inf)
+    norm=PNorm
 )
-@test DT._nt(get_norm(norm_type)) == (type=DT.PNormInf, dims=nothing)
+@test get_norm(norm_type) == PNorm

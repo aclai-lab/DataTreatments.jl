@@ -54,8 +54,8 @@ intervals = (UnitRange{Int}[1:50, 51:100, 101:150, 151:200],
 nvals(intervals) # 16
 ```
 """
-@inline nvals(intervals::Tuple{Vararg{<:AbstractVector}})::Int64 = prod(length.(intervals))
-@inline nvals(intervals::AbstractVector)::Int64 = length(intervals)
+@inline nvals(intervals::Tuple{Vararg{<:AbstractVector}})::Int = prod(length.(intervals))
+@inline nvals(intervals::AbstractVector)::Int = length(intervals)
 
 """
     convert(X::AbstractArray{<:AbstractArray{T}}; type::Type=Float64) where {T<:Real}
@@ -143,14 +143,14 @@ end
 
 # # Arguments
 # - `X::AbstractArray`: Input array where each element is an array to be size-reduced
-# - `intervals::Tuple{Vararg{Vector{UnitRange{Int64}}}}`: Window definitions for aggregation
+# - `intervals::Tuple{Vararg{Vector{UnitRange{Int}}}}`: Window definitions for aggregation
 # - `reducefunc::Base.Callable=mean`: Function to apply to each window (default: `mean`)
 
 # # Returns
 # - `AbstractArray`: Array with same outer dimensions as `X`, each element containing size-reduced results
 function reducesize(
     X          :: AbstractArray{T},
-    intervals  :: Tuple{Vararg{Vector{UnitRange{Int64}}}};
+    intervals  :: Tuple{Vararg{Vector{UnitRange{Int}}}};
     reducefunc :: Base.Callable=mean,
     win        :: Union{Base.Callable, Tuple{Vararg{Base.Callable}}},
     uniform    :: Bool
@@ -194,7 +194,7 @@ end
 
 # # Arguments
 # - `X::AbstractArray`: Input array where each element is an array (e.g., `Matrix{Matrix{Float64}}`)
-# - `intervals::Tuple{Vararg{Vector{UnitRange{Int64}}}}`: Window definitions for aggregation
+# - `intervals::Tuple{Vararg{Vector{UnitRange{Int}}}}`: Window definitions for aggregation
 # - `features::Tuple{Vararg{Base.Callable}}=(mean,)`: Tuple of functions to compute on each window
 
 # # Returns
@@ -206,7 +206,7 @@ end
 # with results concatenated in the order: `[col1_feat1_win1, col1_feat1_win2, col1_feat2_win1, ...]`
 function aggregate(
     X         :: AbstractArray{T},
-    intervals :: Tuple{Vararg{Vector{UnitRange{Int64}}}};
+    intervals :: Tuple{Vararg{Vector{UnitRange{Int}}}};
     features  :: Tuple{Vararg{Base.Callable}}=(mean,),
     win       :: Union{Base.Callable, Tuple{Vararg{Base.Callable}}},
     uniform   :: Bool

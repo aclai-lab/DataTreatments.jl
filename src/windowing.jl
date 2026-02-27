@@ -5,10 +5,10 @@ function _slidingwindow(
     npoints :: T;
     winsize :: T,
     winstep :: T
-)::Vector{UnitRange{Int64}} where {T<:Int64}
+)::Vector{UnitRange{Int}} where {T<:Int}
     winstep == 0 && (winstep = winsize)
     starts  = collect(range(1, npoints, step=winstep))
-    indices = Vector{UnitRange{Int64}}(undef, length(starts))
+    indices = Vector{UnitRange{Int}}(undef, length(starts))
 
     @inbounds @simd for i in eachindex(starts)
         r = starts[i]
@@ -23,10 +23,10 @@ function _fixedwindow(
     npoints  :: T;
     nwindows :: T,
     overlap  :: Float64=0.0
-)::Vector{UnitRange{Int64}} where {T<:Int64}
-    r_overlap = round(Int64, npoints / nwindows * overlap)
-    starts = round.(Int64, collect(range(1, npoints+1, step=npoints/nwindows)))
-    indices = Vector{UnitRange{Int64}}(undef, nwindows)
+)::Vector{UnitRange{Int}} where {T<:Int}
+    r_overlap = round(Int, npoints / nwindows * overlap)
+    starts = round.(Int, collect(range(1, npoints+1, step=npoints/nwindows)))
+    indices = Vector{UnitRange{Int}}(undef, nwindows)
 
     @inbounds @simd for i in 1:nwindows
         if i == 1
@@ -49,16 +49,16 @@ end
 # They can also be used standalone, but only on vectors.
 # For windowing on multidimensional data, it is recommended to use @evalwindow.
 """
-    movingwindow(; winsize::Int64[, winstep::Int64]) -> Function
+    movingwindow(; winsize::Int[, winstep::Int]) -> Function
 
 Creates a moving (sliding) window function with fixed window size and step.
 
 # Keyword Arguments
-- `winsize::Int64`: Size of each window
-- `winstep::Int64`: Step between consecutive windows (defaults to `winsize` if 0)
+- `winsize::Int`: Size of each window
+- `winstep::Int`: Step between consecutive windows (defaults to `winsize` if 0)
 
 # Returns
-- `Function`: A function that takes `npoints::Int64` and returns `Vector{UnitRange{Int64}}`
+- `Function`: A function that takes `npoints::Int` and returns `Vector{UnitRange{Int}}`
 
 # Example
 ```julia
@@ -72,7 +72,7 @@ A = rand(200)
 windows = @evalwindow A movingwindow(winsize=10, winstep=5)
 ```
 """
-movingwindow(;winsize::Int64, winstep::Int64=0)::Function = 
+movingwindow(;winsize::Int, winstep::Int=0)::Function = 
     npoints -> _slidingwindow(npoints; winsize, winstep)
 
 """
@@ -81,7 +81,7 @@ movingwindow(;winsize::Int64, winstep::Int64=0)::Function =
 Creates a window function that returns a single window covering the entire sequence.
 
 # Returns
-- `Function`: A function that takes `npoints::Int64` and returns a single window `[1:npoints]`
+- `Function`: A function that takes `npoints::Int` and returns a single window `[1:npoints]`
 
 # Example
 ```julia
@@ -99,15 +99,15 @@ wholewindow()::Function =
     npoints -> _slidingwindow(npoints; winsize=npoints, winstep=npoints)
 
 """
-    splitwindow(; nwindows::Int64) -> Function
+    splitwindow(; nwindows::Int) -> Function
 
 Creates a window function that splits the sequence into a fixed number of non-overlapping windows.
 
 # Keyword Arguments
-- `nwindows::Int64`: Number of windows to create
+- `nwindows::Int`: Number of windows to create
 
 # Returns
-- `Function`: A function that takes `npoints::Int64` and returns `Vector{UnitRange{Int64}}`
+- `Function`: A function that takes `npoints::Int` and returns `Vector{UnitRange{Int}}`
 
 # Example
 ```julia
@@ -121,20 +121,20 @@ A = rand(200)
 windows = @evalwindow A splitwindow(nwindows=5)
 ```
 """
-splitwindow(;nwindows::Int64)::Function =
+splitwindow(;nwindows::Int)::Function =
     npoints -> _fixedwindow(npoints; nwindows)
 
 """
-    adaptivewindow(; nwindows::Int64[, overlap::Float64=0.0]) -> Function
+    adaptivewindow(; nwindows::Int[, overlap::Float64=0.0]) -> Function
 
 Creates a window function that adaptively divides the sequence into windows with optional overlap.
 
 # Keyword Arguments
-- `nwindows::Int64`: Number of windows to create
+- `nwindows::Int`: Number of windows to create
 - `overlap::Float64`: Relative overlap between windows (0.0 to 1.0), defaults 0.0.
 
 # Returns
-- `Function`: A function that takes `npoints::Int64` and returns `Vector{UnitRange{Int64}}`
+- `Function`: A function that takes `npoints::Int` and returns `Vector{UnitRange{Int}}`
 
 # Example
 ```julia
@@ -148,14 +148,14 @@ A = rand(200)
 windows = @evalwindow A adaptivewindow(nwindows=5, overlap=0.2)
 ```
 """
-adaptivewindow(;nwindows::Int64, overlap::Float64=0.0)::Function =
+adaptivewindow(;nwindows::Int, overlap::Float64=0.0)::Function =
     npoints -> _fixedwindow(npoints; nwindows, overlap)
 
 # ---------------------------------------------------------------------------- #
 #                       multi-dimensional windowing macro                      #
 # ---------------------------------------------------------------------------- #
 """
-    @evalwindow(X, winfuncs...) -> Tuple{Vararg{Vector{UnitRange{Int64}}}}
+    @evalwindow(X, winfuncs...) -> Tuple{Vararg{Vector{UnitRange{Int}}}}
 
 Apply window functions to each dimension of an array.
 
@@ -168,7 +168,7 @@ functions are provided than dimensions, the last function is reused for remainin
 - `winfuncs...`: One or more window functions (e.g., `movingwindow()`, `splitwindow()`, `adaptivewindow()`)
 
 # Returns
-- `Tuple{Vararg{Vector{UnitRange{Int64}}}}`: Tuple of vectors containing window ranges for each dimension
+- `Tuple{Vararg{Vector{UnitRange{Int}}}}`: Tuple of vectors containing window ranges for each dimension
 
 # Behavior
 - Each window function is applied to the corresponding dimension size
