@@ -2,6 +2,7 @@
 - Load datasets from csv (quite common)
 - Handle NaN in normalization (see Normalization.jl)
 - Introduce type (Float32/Float64)
+- error when windowing can't handle tiny datas
 
 ## [Unreleased]
 

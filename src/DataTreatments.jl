@@ -176,17 +176,17 @@ get_nwindows(dt::DataTreatment) = maximum(get_nwin.(dt.datafeature))
 get_reducefuncs(dt::DataTreatment) = unique(get_reducefunc.(dt.datafeature))
 
 # Size and iteration methods
-Base.size(dt::DataTreatment) = size(dt.dataset)
-Base.size(dt::DataTreatment, dim::Int) = size(dt.dataset, dim)
+Base.size(dt::DataTreatment) = size(dt.X)
+Base.size(dt::DataTreatment, dim::Int) = size(dt.X, dim)
 Base.length(dt::DataTreatment) = length(dt.datafeature)
-Base.eltype(dt::DataTreatment) = eltype(dt.dataset)
+Base.eltype(dt::DataTreatment) = eltype(dt.X)
 
 # Indexing methods
-Base.getindex(dt::DataTreatment, i::Int) = dt.dataset[:, i]
-Base.getindex(dt::DataTreatment, i::Int, j::Int) = dt.dataset[i, j]
-Base.getindex(dt::DataTreatment, ::Colon, j::Int) = dt.dataset[:, j]
-Base.getindex(dt::DataTreatment, i::Int, ::Colon) = dt.dataset[i, :]
-Base.getindex(dt::DataTreatment, I...) = dt.dataset[I...]
+Base.getindex(dt::DataTreatment, i::Int) = dt.X[:, i]
+Base.getindex(dt::DataTreatment, i::Int, j::Int) = dt.X[i, j]
+Base.getindex(dt::DataTreatment, ::Colon, j::Int) = dt.X[:, j]
+Base.getindex(dt::DataTreatment, i::Int, ::Colon) = dt.X[i, :]
+Base.getindex(dt::DataTreatment, I...) = dt.X[I...]
 
 # ---------------------------------------------------------------------------- #
 #                              DataTreatment show                              #
@@ -253,7 +253,7 @@ Base.show(io::IO, dt::DataTreatment) = _show_datatreatment(io, dt)
 Base.show(io::IO, ::MIME"text/plain", dt::DataTreatment) = _show_datatreatment(io, dt)
 
 export DataTreatment
-export get_id, get_type, get_vname, get_feat, get_nwin
+export get_id, get_type, get_vname, get_feat, get_nwin, get_reducefunc
 export get_X, get_y, get_datafeature, get_metadata
 export get_vnames, get_features, get_nwindows, get_reducefuncs
 export get_groups, get_groupmethod, get_norm
