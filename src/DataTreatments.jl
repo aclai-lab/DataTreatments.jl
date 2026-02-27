@@ -1,7 +1,5 @@
 module DataTreatments
 
-using Reexport
-
 using DataFrames
 using Catch22
 
@@ -46,6 +44,7 @@ include("treatment.jl")
 import Normalization: @_Normalization
 export ZScore, MinMax, Center, Sigmoid, UnitEnergy, UnitPower
 export Scale, ScaleMad, ScaleFirst, PNorm1, PNorm, PNormInf
+export Robust
 include("normalize.jl")
 
 include("ds_builder.jl")

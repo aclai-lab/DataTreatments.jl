@@ -129,13 +129,13 @@ end
 
 foreach(g -> normalize!(@view(X[:, g...]), norm), groupidxs)
 
-using Normalization
 
-normalize(X, ZScore)
 
-normalize(X, Robust{Scale})
+DataTreatment(X, norm=Robust{ZScore})
 
-normalize(X, DataTreatments.PNorm1)
+DataTreatment(X, norm=Robust{Scale})
+
+DataTreatment(X, norm=PNorm1)
 
 DataTreatment(X, norm=ScaleMad)
 
