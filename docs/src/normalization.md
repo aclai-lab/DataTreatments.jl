@@ -12,7 +12,6 @@ In practice:
 - core normalization algorithms are provided by `Normalization.jl`;
 - `DataTreatments.jl` re-exports the main normalization API (`fit`, `fit!`, `normalize`, `normalize!`);
 - `DataTreatments.jl` adds integration for nested/multidimensional dataset elements via its extension layer (`ext/NormalizationExt.jl`);
-- `NormSpec` is the local convenience wrapper used to configure normalization type + `dims`.
 
 ## Notes on `dims`
 

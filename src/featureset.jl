@@ -66,7 +66,7 @@ A minimal feature set containing only basic statistical measures for time series
 - `mean`   : Arithmetic mean of the time series
 - `std`    : Standard deviation of the time series
 """
-base_set = (maximum, minimum, Statistics.mean, Statistics.std)
+base_set = (maximum, minimum, mean, std)
 
 """
     catch9
@@ -87,7 +87,7 @@ The Catch22 features are based on the CAnonical Time-series CHaracteristics from
 - Article:    https://doi.org/10.1007/s10618-019-00647-x
 - Author: Carl H. Lubba et al
 """
-catch9 = (maximum, minimum, Statistics.mean, Statistics.median, Statistics.std,
+catch9 = (maximum, minimum, mean, median, std,
           stretch_high, stretch_decreasing, entropy_pairs, transition_variance)
 
 """
@@ -161,8 +161,8 @@ analysis, and the full Catch22 suite.
 - **Other**:
   `embedding_dist`
 """
-complete_set = (maximum, minimum, Statistics.mean, Statistics.median, Statistics.std,
-                Statistics.cov, mode_5, mode_10, embedding_dist, acf_timescale,
+complete_set = (maximum, minimum, mean, median, std,
+                cov, mode_5, mode_10, embedding_dist, acf_timescale,
                 acf_first_min, ami2, trev, outlier_timing_pos, outlier_timing_neg,
                 whiten_timescale, forecast_error, ami_timescale, high_fluctuation,
                 stretch_decreasing, stretch_high, entropy_pairs, rs_range, dfa,

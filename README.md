@@ -129,7 +129,6 @@ intervals = @evalwindow X splitwindow(nwindows=4) movingwindow(winsize=40, winst
 - Core normalization algorithms are provided by `Normalization.jl`.
 - `DataTreatments.jl` re-exports `fit`, `fit!`, `normalize`, and `normalize!`.
 - `DataTreatments.jl` adds integration for nested/multidimensional dataset elements in `ext/NormalizationExt.jl`.
-- `NormSpec` provides a package-local convenience interface for selecting normalization type and `dims`.
 
 We thank the maintainers and contributors of **Normalization.jl** for their work and for making this integration possible.
 

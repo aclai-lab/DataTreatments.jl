@@ -128,3 +128,15 @@ Threads.@threads for g in groupidxs
 end
 
 foreach(g -> normalize!(@view(X[:, g...]), norm), groupidxs)
+
+using Normalization
+
+normalize(X, ZScore)
+
+normalize(X, Robust{Scale})
+
+normalize(X, DataTreatments.PNorm1)
+
+DataTreatment(X, norm=ScaleMad)
+
+

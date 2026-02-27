@@ -2,14 +2,14 @@ module DataTreatments
 
 using Reexport
 
-using Statistics
-using StatsBase
-using LinearAlgebra
 using DataFrames
 using Catch22
 
+using Statistics: mean, median, std, cov
+using StatsBase: mad
+using LinearAlgebra: norm
+
 using Normalization
-@reexport using Normalization: AbstractNormalization, fit!, fit, normalize!, normalize
 
 # ---------------------------------------------------------------------------- #
 #                               abstract types                                 #
@@ -43,19 +43,12 @@ export is_multidim_dataset, nvals, convert
 export has_uniform_element_size
 include("treatment.jl")
 
-include("ds_builder.jl")
-
-# using Normalization: HalfZScore, MinMax, halfstd, zscore, center
-using Normalization: dimparams, negdims, forward, estimators, normalization
-import Normalization: @_Normalization, ZScore, Center
-import Normalization: fit!, fit, normalize!, normalize, __mapdims!
-
-using Statistics: mean, median, std
-using StatsBase: mad, iqr
-using LinearAlgebra: norm
-
-export ZScore, MinMax, Scale, Center, Sigmoid, UnitEnergy, UnitPower, PNorm
+import Normalization: @_Normalization
+export ZScore, MinMax, Center, Sigmoid, UnitEnergy, UnitPower
+export Scale, ScaleMad, ScaleFirst, PNorm1, PNorm, PNormInf
 include("normalize.jl")
+
+include("ds_builder.jl")
 
 # ---------------------------------------------------------------------------- #
 #                                DataFeature                                   #
@@ -95,10 +88,9 @@ get_reducefunc(f::ReduceFeat) = f.reducefunc
 #                                  MetaData                                    #
 # # ---------------------------------------------------------------------------- #
 struct MetaData <: AbstractMetaData
-    norm::Union{NormSpec,Type{<:AbstractNormalization},Nothing}
+    norm::Union{Type{<:AbstractNormalization},Nothing}
     groupmethod::Groups
     groups::Vector{Base.Generator}
-    # method::Vector{Symbol}
 end
 
 # ---------------------------------------------------------------------------- #
@@ -114,7 +106,7 @@ struct DataTreatment{T,S} <: AbstractDataTreatment
         X::Matrix{T},
         y::Union{AbstractVector,Nothing}=nothing;
         vnames::Union{Vector{String},Vector{Symbol},Nothing}=nothing,
-        norm::Union{NormSpec,Type{<:AbstractNormalization},Nothing}=nothing,
+        norm::Union{Type{<:AbstractNormalization},Nothing}=nothing,
         groups::Groups=:vname,
         kwargs...
     ) where T
@@ -126,13 +118,6 @@ struct DataTreatment{T,S} <: AbstractDataTreatment
 
         X, features = build_dataset(X; vnames, kwargs...)
 
-        # se non è specificato un raggruppamento, allora verrà utilizzato di default
-        # il raggruppamento per nome
-        # che in caso tabulare, significa che la normalizzazione avverrà columnwise
-        # gestire il caso in cui la normalizzazione debba essere:
-        # - tutto il dataset :all
-        # - speciale: bitvector, oppure scelta manuale colonne
-        # fields = groups isa Symbol ? [groups] : collect(groups)
         groupidxs = groupby(features, groups)
 
         if !isnothing(norm)
@@ -164,7 +149,7 @@ get_y(dt::DataTreatment) = dt.y
 get_datafeature(dt::DataTreatment) = dt.datafeature
 get_metadata(dt::DataTreatment) = dt.metadata
 
-# metadatas
+# metadata
 get_groups(dt::DataTreatment) = reduce(vcat, collect.(dt.metadata.groups))
 get_groupmethod(dt::DataTreatment) = dt.metadata.groupmethod
 get_norm(dt::DataTreatment) = dt.metadata.norm

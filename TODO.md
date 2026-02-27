@@ -10,7 +10,6 @@
 - Normalization responsibilities are now delegated to **Normalization.jl**.
 - `DataTreatments.jl` re-exports normalization API (`fit`, `fit!`, `normalize`, `normalize!`) from `Normalization.jl`.
 - Internal normalization integration for nested/multidimensional elements is provided through `ext/NormalizationExt.jl`.
-- `NormSpec` remains the `DataTreatments.jl` convenience interface to select normalization type and `dims`.
 
 ### Documentation
 - Updated normalization docs to clarify delegation to `Normalization.jl`.

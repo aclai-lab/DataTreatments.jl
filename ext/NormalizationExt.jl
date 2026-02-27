@@ -6,8 +6,6 @@ using DataTreatments
 import Normalization: __mapdims!, fit!, fit, normalize
 import Normalization: dimparams, negdims, estimators, dims!, params!
 
-using DataTreatments: NormSpec
-
 # ---------------------------------------------------------------------------- #
 #                 extend fit & normalize to multidim elements                  #
 # ---------------------------------------------------------------------------- #
@@ -69,7 +67,5 @@ function normalize(X::AbstractArray{<:AbstractArray}, T::AbstractNormalization; 
     normalize!(Y, T; kwargs...)
     return Y
 end
-
-normalize(X, n::NormSpec) = normalize(X, n.type; dims=n.dims)
 
 end
