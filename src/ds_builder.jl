@@ -7,6 +7,7 @@ function build_dataset(
     kwargs...
 ) where T
     if T == Any
+        @show "PASO"
         # caso speciale: non è uniforme.
         # costruire un vettore dei tipi colonna?
         # costruire i groupby?
