@@ -1,32 +1,71 @@
 # ---------------------------------------------------------------------------- #
+#                           nan/missing handle utils                           #
+# ---------------------------------------------------------------------------- #
+function base_eltype(col::AbstractVector)
+    valtype, hasmissing, hasnan = nothing, false, false
+    for val in col
+        if ismissing(val)
+            hasmissing = true
+        elseif val isa AbstractFloat
+            isnan(val) && (hasnan = true)
+            isnothing(valtype) && (valtype = Float64)
+        elseif val isa AbstractVector{<:AbstractFloat}
+            if any(isnan, val)
+                hasnan = true
+            end
+            isnothing(valtype) && (valtype = typeof(val))
+        else
+            isnothing(valtype) && (valtype = typeof(val))
+        end
+        !isnothing(valtype) && hasmissing && hasnan && break
+    end
+    return valtype, hasmissing, hasnan
+end
+
+function check_integrity(X::Matrix{T}) where T
+    results = Vector{Tuple{Type,Bool,Bool}}(undef, size(X, 2))
+    Threads.@threads for i in axes(X, 2)
+        results[i] = base_eltype(@view(X[:, i]))
+    end
+    return results
+end
+
+# ---------------------------------------------------------------------------- #
 #                               dataset builder                                #
 # ---------------------------------------------------------------------------- #
 function build_dataset(
-    X::Matrix{T};
+    X::Matrix;
     aggrtype::Symbol=:aggregate,
+    vnames::Union{Vector{Symbol},Nothing}=[Symbol("V$i") for i in 1:size(X, 2)],
     kwargs...
-) where T
-    if T == Any
-        @show "PASO"
+)
+    pinfo = check_integrity(X)
+    # if T == Any
         # caso speciale: non è uniforme.
         # costruire un vettore dei tipi colonna?
         # costruire i groupby?
         # aggregare o ridurre solo le colonne multidim,
         # se presenti
-    end
+    # end
 
     # caso normale: è uniforme
     # ma dobbiamo splittare se multidimensionale
-    X, features = _build_dataset(X; aggrtype, kwargs...)
+    # X, features = _build_dataset(X; aggrtype, vnames, kwargs...)
+    results = map(axes(X, 2)) do i
+        _build_dataset(pinfo[i]..., @view(X[:, i]); aggrtype, vname=vnames[i], kwargs...)
+    end
 
-
+    return reduce(hcat, first.(results)), last.(results)
 end
 
 function _build_dataset(
-    X::Matrix{T};
-    vnames::Vector{Symbol},
+    T::Type,
+    hasmissing::Bool,
+    hasnan::Bool,
+    x::AbstractVector;
+    vname::Symbol,
     kwargs...
-) where T
+)
     # l'output sarà X e vnames
     # vnames non viene alterato
     # X necessita di normalizzazione?
@@ -40,22 +79,25 @@ function _build_dataset(
     # features = [TabularFeat{T}(v) for v in vnames]
 
     # per ora ritorno X pulito
-    return X, [TabularFeat{T}(i, T, vnames[i]) for i in eachindex(vnames)]
+    return x, TabularFeat{T}(0, T, vname, hasmissing, hasnan)
 end
 
 function _build_dataset(
-    X::Matrix{T};
-    vnames::Vector{Symbol},
+    T::AbstractArray,
+    hasmissing::Bool,
+    hasnan::Bool,
+    x::AbstractVector;
+    vnames::Symbol,
     aggrtype::Symbol=:aggregate,
     win::Union{Base.Callable,Tuple{Vararg{Base.Callable}}}=wholewindow(),
     features::Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
     reducefunc::Base.Callable=mean,
     kwargs...
-) where {T<:AbstractArray}
+)
     # uniform size check
     # if elements differ in size, only adaptivewindow or wholewindow are allowed
     # (computing the window per-element is a significant overhead otherwise)
-    uniform = has_uniform_element_size(X)
+    uniform = has_uniform_element_size(x)
 
     # convert to float
     T isa AbstractFloat || (X = DataTreatments.convert(X))

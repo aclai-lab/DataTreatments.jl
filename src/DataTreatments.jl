@@ -52,31 +52,47 @@ include("ds_builder.jl")
 # ---------------------------------------------------------------------------- #
 #                                DataFeature                                   #
 # ---------------------------------------------------------------------------- #
-struct TabularFeat{T} <: AbstractDataFeature
+# struct TabularFeat{T} <: AbstractDataFeature
+mutable struct TabularFeat{T} <: AbstractDataFeature
+    # X::AbstractArray{T}
     id::Int
     type::Type
     vname::Symbol
+    hasmissing::Bool
+    hasnan::Bool
 end
 
-struct AggregateFeat{T} <: AbstractDataFeature
+# struct AggregateFeat{T} <: AbstractDataFeature
+mutable struct AggregateFeat{T} <: AbstractDataFeature
+    # X::AbstractArray{T}
     id::Int
     type::Type
     vname::Symbol
     feat::Base.Callable
     nwin::Int
+    hasmissing::Bool
+    hasnan::Bool
 end
 
-struct ReduceFeat{T} <: AbstractDataFeature
+# struct ReduceFeat{T} <: AbstractDataFeature
+mutable struct ReduceFeat{T} <: AbstractDataFeature
+    # X::AbstractArray{T}
     id::Int
     type::Type
     vname::Symbol
     reducefunc::Base.Callable
+    hasmissing::Bool
+    hasnan::Bool
 end
 
 # getters
+# get_X(f::AbstractDataFeature) = f.X
 get_id(f::AbstractDataFeature) = f.id
 get_type(f::AbstractDataFeature) = f.type
 get_vname(f::AbstractDataFeature) = f.vname
+get_hasmissing(f::AbstractDataFeature) = f.has_missing
+get_hasnan(f::AbstractDataFeature) = f.has_nan
+
 
 get_feat(f::AggregateFeat) = f.feat
 get_nwin(f::AggregateFeat) = f.nwin
@@ -103,19 +119,24 @@ struct DataTreatment{T,S} <: AbstractDataTreatment
 
     function DataTreatment(
         X::Matrix{T},
+        # X::AbstractDataFrame,
         y::Union{AbstractVector,Nothing}=nothing;
-        vnames::Union{Vector{String},Vector{Symbol},Nothing}=nothing,
+        # vnames::Union{Vector{Symbol},Nothing}=[Symbol("V$i") for i in 1:size(X, 2)],
+        # types::Union{Tuple,Nothing}=(T,),
         norm::Union{Type{<:AbstractNormalization},Nothing}=nothing,
         groups::Groups=:vname,
         kwargs...
     ) where T
+    # )
         isnothing(y) ? (y = Vector{Nothing}(nothing, size(X, 1))) : size(X, 1) != length(y) &&
             throw(DimensionMismatch("y length ($(length(y))) must match X rows ($(size(X, 1)))"))
 
-        isnothing(vnames) && (vnames = [Symbol("V$i") for i in 1:size(X, 2)])
-        vnames isa Vector{String} && (vnames = Symbol.(vnames))
+        # isnothing(vnames) && (vnames = [Symbol("V$i") for i in 1:size(X, 2)])
+        # vnames isa Vector{String} && (vnames = Symbol.(vnames))
 
-        X, features = build_dataset(X; vnames, kwargs...)
+        # isnothing(types) && (types = (T))
+
+        X, features = build_dataset(X; kwargs...)
 
         groupidxs = groupby(features, groups)
 
@@ -133,6 +154,11 @@ struct DataTreatment{T,S} <: AbstractDataTreatment
 
     DataTreatment(X::AbstractDataFrame, args...; kwargs...) =
         DataTreatment(reduce(hcat, vec.(eachcol(X))), args...; vnames=propertynames(X), kwargs...)
+    # function DataTreatment(X::AbstractDataFrame, args...; kwargs...)
+    #     Xmatrix = reduce(hcat, vec.(eachcol(X)))
+    #     vnames = propertynames(X)
+    #     DataTreatment(Xmatrix, args...; vnames, kwargs...)
+    # end
 end
 
 # ---------------------------------------------------------------------------- #
