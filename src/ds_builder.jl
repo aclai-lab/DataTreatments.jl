@@ -23,11 +23,14 @@ function base_eltype(col::AbstractVector)
 end
 
 function check_integrity(X::Matrix{T}) where T
-    results = Vector{Tuple{Type,Bool,Bool}}(undef, size(X, 2))
+    valtype = Vector{Type}(undef, size(X, 2))
+    hasmissing = Vector{Bool}(undef, size(X, 2))
+    hasnan = Vector{Bool}(undef, size(X, 2))
+
     Threads.@threads for i in axes(X, 2)
-        results[i] = base_eltype(@view(X[:, i]))
+        valtype[i], hasmissing[i], hasnan[i] = base_eltype(@view(X[:, i]))
     end
-    return results
+    return valtype, hasmissing, hasnan
 end
 
 # ---------------------------------------------------------------------------- #
@@ -37,19 +40,24 @@ function build_dataset(
     X::Matrix;
     aggrtype::Symbol=:aggregate,
     vnames::Union{Vector{Symbol},Nothing}=[Symbol("V$i") for i in 1:size(X, 2)],
+    win::Union{Base.Callable,Tuple{Vararg{Base.Callable}}}=wholewindow(),
+    # features::Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
     kwargs...
 )
-    pinfo = check_integrity(X)
-    # if T == Any
-        # caso speciale: non è uniforme.
-        # costruire un vettore dei tipi colonna?
-        # costruire i groupby?
-        # aggregare o ridurre solo le colonne multidim,
-        # se presenti
-    # end
+    valtype, hasmissing, hasnan = check_integrity(X)
 
-    # caso normale: è uniforme
-    # ma dobbiamo splittare se multidimensionale
+    td_cols = findall(T -> !isnothing(T) && !(T <: AbstractFloat) && !(T <: AbstractArray), valtype)
+    tc_cols = findall(T -> !isnothing(T) && T <: AbstractFloat, valtype)
+    md_cols = findall(T -> !isnothing(T) && T <: AbstractArray, valtype)
+
+    if !isempty(md_cols)
+        Xmd = @view X[:, md_cols]
+        uniform = has_uniform_element_size(Xmd)
+        win isa Base.Callable && (win = (win,))
+        intervals = @evalwindow first(Xmd) win...
+        nwindows = prod(length.(intervals))
+    end
+
     # X, features = _build_dataset(X; aggrtype, vnames, kwargs...)
     results = map(axes(X, 2)) do i
         _build_dataset(pinfo[i]..., @view(X[:, i]); aggrtype, vname=vnames[i], kwargs...)
@@ -66,19 +74,6 @@ function _build_dataset(
     vname::Symbol,
     kwargs...
 )
-    # l'output sarà X e vnames
-    # vnames non viene alterato
-    # X necessita di normalizzazione?
-    # X ha missing?
-
-    # if !isnothing(norm)
-    #     norm isa Type{<:AbstractNormalization} && (norm = norm())
-    #     X = normalize(X, norm)
-    # end
-
-    # features = [TabularFeat{T}(v) for v in vnames]
-
-    # per ora ritorno X pulito
     return x, TabularFeat{T}(0, T, vname, hasmissing, hasnan)
 end
 
