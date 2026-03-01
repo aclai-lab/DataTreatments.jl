@@ -36,57 +36,92 @@ end
 # ---------------------------------------------------------------------------- #
 #                               dataset builder                                #
 # ---------------------------------------------------------------------------- #
-function build_dataset(
+function build_datasets(
     X::Matrix;
     aggrtype::Symbol=:aggregate,
     vnames::Union{Vector{Symbol},Nothing}=[Symbol("V$i") for i in 1:size(X, 2)],
     win::Union{Base.Callable,Tuple{Vararg{Base.Callable}}}=wholewindow(),
-    # features::Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
+    features::Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
+    float_type::DataType=Float64,
     kwargs...
 )
+    Xtd = Xtc = Xmd = td_feats = tc_feats = md_feats = nothing
     valtype, hasmissing, hasnan = check_integrity(X)
 
     td_cols = findall(T -> !isnothing(T) && !(T <: AbstractFloat) && !(T <: AbstractArray), valtype)
     tc_cols = findall(T -> !isnothing(T) && T <: AbstractFloat, valtype)
     md_cols = findall(T -> !isnothing(T) && T <: AbstractArray, valtype)
 
+    if !isempty(td_cols)
+        n_td_cols = length(td_cols)
+        Xtd = Matrix{<:Discrete}(undef, (size(X,1), n_td_cols))
+    end
+
+    if !isempty(tc_cols)
+        vnames_tc = @views vnames[tc_cols]
+        miss_tc, nan_tc = hasmissing[tc_cols], hasnan[tc_cols]
+
+        Xtc = @views float_type.(X[:, tc_cols])
+        tc_feats = [ScalarFeat{float_type}(i, float_type, vnames[i], miss_tc[i], nan_tc[i]) for i in eachindex(vnames_tc)]
+    end
+
     if !isempty(md_cols)
-        Xmd = @view X[:, md_cols]
-        uniform = has_uniform_element_size(Xmd)
+        vnames_md = @views vnames[md_cols]
+        miss_md, nan_md = hasmissing[md_cols], hasnan[md_cols]
+
+        _X = @view X[:, md_cols]
+        uniform = has_uniform_element_size(_X)
         win isa Base.Callable && (win = (win,))
-        intervals = @evalwindow first(Xmd) win...
+        intervals = @evalwindow first(_X) win...
         nwindows = prod(length.(intervals))
+
+        if aggrtype == :aggregate
+            Xmd = DataTreatments.aggregate(_X, intervals; features, win, uniform, float_type)
+
+            md_feats = if nwindows == 1
+                # single window: apply to whole time series
+                vec([AggregateFeat{float_type}(i, float_type, vnames_md[c], f, 1, miss_md[c], nan_md[c])
+                    for (i, (f, c)) in enumerate(Iterators.product(features, axes(_X,2)))])
+            else
+                # multiple windows: apply to each interval
+                vec([AggregateFeat{float_type}(i, float_type, vnames_md[c], f, n, miss_md[c], nan_md[c])
+                    for (i, (n, f, c)) in enumerate(Iterators.product(1:nwindows, features, axes(_X,2)))])
+            end
+
+        elseif aggrtype == :reducesize
+            Xmd = DataTreatments.reducesize(X, intervals; reducefunc, win, uniform)
+            md_feats = [ReduceFeat{AbstractArray{float_type}}(i, T, vnames_md[c], reducefunc, miss_md[c], nan_md[c])
+                for (i, c) in enumerate(axes(X,2))]
+
+        else
+            error("Unknown treatment type: $treat")
+        end
     end
 
-    # X, features = _build_dataset(X; aggrtype, vnames, kwargs...)
-    results = map(axes(X, 2)) do i
-        _build_dataset(pinfo[i]..., @view(X[:, i]); aggrtype, vname=vnames[i], kwargs...)
-    end
-
-    return reduce(hcat, first.(results)), last.(results)
+    return Xtd, Xtc, Xmd, td_feats, tc_feats, md_feats
 end
 
 function _build_dataset(
     T::Type,
-    hasmissing::Bool,
-    hasnan::Bool,
     x::AbstractVector;
     vname::Symbol,
+    hasmissing::Bool,
+    hasnan::Bool,
     kwargs...
 )
-    return x, TabularFeat{T}(0, T, vname, hasmissing, hasnan)
+    return x, ScalarFeat{T}(0, T, vname, hasmissing, hasnan)
 end
 
 function _build_dataset(
     T::AbstractArray,
-    hasmissing::Bool,
-    hasnan::Bool,
     x::AbstractVector;
     vnames::Symbol,
     aggrtype::Symbol=:aggregate,
     win::Union{Base.Callable,Tuple{Vararg{Base.Callable}}}=wholewindow(),
     features::Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
     reducefunc::Base.Callable=mean,
+    hasmissing::Bool,
+    hasnan::Bool,
     kwargs...
 )
     # uniform size check

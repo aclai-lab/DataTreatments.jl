@@ -7,6 +7,7 @@ using Statistics: mean, median, std, cov
 using StatsBase: mad
 using LinearAlgebra: norm
 
+using CategoricalArrays
 using Normalization
 
 # ---------------------------------------------------------------------------- #
@@ -15,11 +16,6 @@ using Normalization
 abstract type AbstractDataTreatment end
 abstract type AbstractDataFeature end
 abstract type AbstractMetaData end
-
-# ---------------------------------------------------------------------------- #
-#                                   types                                      #
-# ---------------------------------------------------------------------------- #
-const Groups = Union{BitVector,Symbol,Vector{Symbol},Vector{Vector{Symbol}}}
 
 # ---------------------------------------------------------------------------- #
 #                                   files                                      #
@@ -52,8 +48,18 @@ include("ds_builder.jl")
 # ---------------------------------------------------------------------------- #
 #                                DataFeature                                   #
 # ---------------------------------------------------------------------------- #
-# struct TabularFeat{T} <: AbstractDataFeature
-mutable struct TabularFeat{T} <: AbstractDataFeature
+# struct DiscreteFeat{T} <: AbstractDataFeature
+mutable struct DiscreteFeat{T} <: AbstractDataFeature
+    # X::AbstractArray{T}
+    id::Int
+    type::Type
+    vname::Symbol
+    hasmissing::Bool
+    hasnan::Bool
+end
+
+struct ScalarFeat{T} <: AbstractDataFeature
+# mutable struct ScalarFeat{T} <: AbstractDataFeature
     # X::AbstractArray{T}
     id::Int
     type::Type
@@ -93,72 +99,102 @@ get_vname(f::AbstractDataFeature) = f.vname
 get_hasmissing(f::AbstractDataFeature) = f.has_missing
 get_hasnan(f::AbstractDataFeature) = f.has_nan
 
-
 get_feat(f::AggregateFeat) = f.feat
 get_nwin(f::AggregateFeat) = f.nwin
 
 get_reducefunc(f::ReduceFeat) = f.reducefunc
 
 # ---------------------------------------------------------------------------- #
+#                                   types                                      #
+# ---------------------------------------------------------------------------- #
+const MultiDimFeats = Union{AggregateFeat, ReduceFeat}
+const Discrete = Union{AbstractString, Symbol, CategoricalValue, UInt32, Int}
+const Groups = Union{BitVector,Symbol,Vector{Symbol},Vector{Vector{Symbol}}}
+
+# ---------------------------------------------------------------------------- #
 #                                  MetaData                                    #
 # # ---------------------------------------------------------------------------- #
 struct MetaData <: AbstractMetaData
-    norm::Union{Type{<:AbstractNormalization},Nothing}
-    groupmethod::Groups
-    groups::Vector{Base.Generator}
+    norm_tc::Union{Nothing,Type{<:AbstractNormalization}}
+    norm_md::Union{Nothing,Type{<:AbstractNormalization}}
+    group_td::Groups
+    group_tc::Groups
+    group_md::Groups
+    groupidxs_td::Union{Nothing,Vector{Base.Generator}}
+    groupidxs_tc::Union{Nothing,Vector{Base.Generator}}
+    groupidxs_md::Union{Nothing,Vector{Base.Generator}}
 end
 
 # ---------------------------------------------------------------------------- #
 #                                DataTreatment                                 #
 # ---------------------------------------------------------------------------- #
 struct DataTreatment{T,S} <: AbstractDataTreatment
-    X::Matrix{T}
+    Xtd::Union{Nothing, Matrix}
+    Xtc::Union{Nothing, Matrix}
+    Xmd::Union{Nothing, Matrix}
+    td_feats::Union{Nothing, Vector{<:DiscreteFeat}}
+    tc_feats::Union{Nothing, Vector{<:ScalarFeat}}
+    md_feats::Union{Nothing, Vector{<:AbstractDataFeature}}
     y::Vector{S}
-    datafeature::Vector{<:AbstractDataFeature}
     metadata::MetaData
 
     function DataTreatment(
         X::Matrix{T},
-        # X::AbstractDataFrame,
         y::Union{AbstractVector,Nothing}=nothing;
-        # vnames::Union{Vector{Symbol},Nothing}=[Symbol("V$i") for i in 1:size(X, 2)],
-        # types::Union{Tuple,Nothing}=(T,),
-        norm::Union{Type{<:AbstractNormalization},Nothing}=nothing,
-        groups::Groups=:vname,
+        norm_tc::Union{Type{<:AbstractNormalization},Nothing}=nothing,
+        norm_md::Union{Type{<:AbstractNormalization},Nothing}=nothing,
+        group_td::Groups=:vname,
+        group_tc::Groups=:vname,
+        group_md::Groups=:vname,
         kwargs...
     ) where T
-    # )
         isnothing(y) ? (y = Vector{Nothing}(nothing, size(X, 1))) : size(X, 1) != length(y) &&
             throw(DimensionMismatch("y length ($(length(y))) must match X rows ($(size(X, 1)))"))
 
-        # isnothing(vnames) && (vnames = [Symbol("V$i") for i in 1:size(X, 2)])
-        # vnames isa Vector{String} && (vnames = Symbol.(vnames))
+        Xtd, Xtc, Xmd, td_feats, tc_feats, md_feats = build_datasets(X; kwargs...)
 
-        # isnothing(types) && (types = (T))
+        groupidxs_td = groupidxs_tc = groupidxs_md = nothing
 
-        X, features = build_dataset(X; kwargs...)
+        !isnothing(td_feats) && begin
+            groupidxs_td = groupby(td_feats, group_td)
+        end
 
-        groupidxs = groupby(features, groups)
-
-        if !isnothing(norm)
-            flat_groups = [reduce(vcat, g) for g in groupidxs]
-            Threads.@threads for g in flat_groups
-                normalize!(@view(X[:, g]), norm)
+        !isnothing(tc_feats) && begin
+            groupidxs_tc = groupby(tc_feats, group_tc)
+            if !isnothing(norm_tc)
+                flat_groups = [reduce(vcat, g) for g in groupidxs_tc]
+                Threads.@threads for g in flat_groups
+                    normalize!(@view(Xtc[:, g]), norm_tc)
+                end
             end
         end
 
-        metadata = MetaData(norm, groups, groupidxs isa Base.Generator ? [groupidxs] : groupidxs)
+        !isnothing(md_feats) && begin
+            groupidxs_md = groupby(md_feats, group_md)
+            if !isnothing(norm_md)
+                flat_groups = [reduce(vcat, g) for g in groupidxs_md]
+                Threads.@threads for g in flat_groups
+                    normalize!(@view(Xmd[:, g]), norm_md)
+                end
+            end
+        end
 
-        new{eltype(X),eltype(y)}(X, y, features, metadata)
+        metadata = MetaData(
+            norm_tc,
+            norm_md,
+            group_td,
+            group_tc,
+            group_md,
+            groupidxs_td isa Base.Generator ? [groupidxs_td] : groupidxs_td,
+            groupidxs_tc isa Base.Generator ? [groupidxs_tc] : groupidxs_tc,
+            groupidxs_md isa Base.Generator ? [groupidxs_md] : groupidxs_md
+        )
+
+        new{eltype(Xtc),eltype(y)}(Xtd, Xtc, Xmd, td_feats, tc_feats, md_feats, y, metadata)
     end
 
     DataTreatment(X::AbstractDataFrame, args...; kwargs...) =
         DataTreatment(reduce(hcat, vec.(eachcol(X))), args...; vnames=propertynames(X), kwargs...)
-    # function DataTreatment(X::AbstractDataFrame, args...; kwargs...)
-    #     Xmatrix = reduce(hcat, vec.(eachcol(X)))
-    #     vnames = propertynames(X)
-    #     DataTreatment(Xmatrix, args...; vnames, kwargs...)
-    # end
 end
 
 # ---------------------------------------------------------------------------- #
@@ -167,7 +203,7 @@ end
 # value access methods
 Base.getproperty(dt::DataTreatment, s::Symbol) = getfield(dt, s)
 Base.propertynames(::DataTreatment) =
-    (:X, :y, :datafeature, :metadata)
+    (:Xtd, :Xtc, :Xmd, :td_feats, :tc_feats, :md_feats, :y, :metadata)
 
 get_X(dt::DataTreatment) = dt.X
 get_y(dt::DataTreatment) = dt.y
@@ -202,50 +238,48 @@ Base.getindex(dt::DataTreatment, I...) = dt.X[I...]
 #                              DataTreatment show                              #
 # ---------------------------------------------------------------------------- #
 function _show_datatreatment(io::IO, dt::DataTreatment{T,S}) where {T,S}
-    nrows, ncols = size(dt.X)
-
-    feat_kinds = map(dt.datafeature) do f
-        if f isa TabularFeat       "tabular"
-        elseif f isa AggregateFeat "aggregate"
-        elseif f isa ReduceFeat    "reduce"
-        else string(typeof(f))
-        end
-    end
-    feat_kind = length(unique(feat_kinds)) == 1 ? first(feat_kinds) : join(unique(feat_kinds), " + ")
-
-    supervised = !(S <: Nothing)
-    norm_str = isnothing(dt.metadata.norm) ? "none" : string(dt.metadata.norm)
-
-    gm = dt.metadata.groupmethod
-    gm_str = gm isa Symbol ? string(gm) :
-             gm isa Vector{Symbol} ? join(string.(gm), ", ") :
-             string(gm)
-
     green  = "\e[32m"
     yellow = "\e[33m"
     white  = "\e[37m"
     reset  = "\e[0m"
 
-    # align '::' by padding the left part to the same width
-    x_left = "X         $(nrows) × $(ncols)  "
-    y_left = supervised ? "y         supervised  " : "y         unsupervised  "
-    pad_width = max(length(x_left), length(y_left))
-    x_line = rpad(x_left, pad_width) * "::  $(T)"
-    y_line = supervised ? rpad(y_left, pad_width) * "::  $(S)" : rpad("y         unsupervised", pad_width)
+    supervised = !(S <: Nothing)
+
+    # build dataset info strings
+    td_str = isnothing(dt.Xtd) ? nothing : "$(size(dt.Xtd, 1)) × $(size(dt.Xtd, 2))  ::  $(eltype(dt.Xtd))"
+    tc_str = isnothing(dt.Xtc) ? nothing : "$(size(dt.Xtc, 1)) × $(size(dt.Xtc, 2))  ::  $(T)"
+    md_str = isnothing(dt.Xmd) ? nothing : "$(size(dt.Xmd, 1)) × $(size(dt.Xmd, 2))  ::  $(eltype(dt.Xmd))"
+
+    norm_tc_str = isnothing(dt.metadata.norm_tc) ? "none" : string(dt.metadata.norm_tc)
+    norm_md_str = isnothing(dt.metadata.norm_md) ? "none" : string(dt.metadata.norm_md)
+
+    gm_str(gm) = gm isa Symbol ? string(gm) :
+                 gm isa Vector{Symbol} ? join(string.(gm), ", ") :
+                 string(gm)
 
     lines = Tuple{String,String}[
         (" ",  "$(yellow)DataTreatment$(reset)"),
-        ("  ", "$(white)$(x_line)$(reset)"),
-        ("  ", "$(white)$(y_line)$(reset)"),
-        ("  ", "$(white)feature   $(feat_kind)$(reset)"),
-        ("  ", "$(white)norm      $(norm_str)$(reset)"),
-        ("  ", "$(white)group     $(gm_str)$(reset)"),
+        ("  ", "$(white)y    $(supervised ? "supervised  ::  $S" : "unsupervised")$(reset)"),
     ]
+
+    !isnothing(td_str) && push!(lines, ("  ", "$(white)Xtd  $(td_str)$(reset)"))
+    !isnothing(tc_str) && push!(lines, ("  ", "$(white)Xtc  $(tc_str)$(reset)"))
+    !isnothing(md_str) && push!(lines, ("  ", "$(white)Xmd  $(md_str)$(reset)"))
+
+    push!(lines, ("  ", "$(white)norm_tc   $(norm_tc_str)$(reset)"))
+    push!(lines, ("  ", "$(white)norm_md   $(norm_md_str)$(reset)"))
+
+    !isnothing(dt.metadata.group_td) && push!(lines,
+        ("  ", "$(white)group_td  $(gm_str(dt.metadata.group_td))$(reset)"))
+    !isnothing(dt.metadata.group_tc) && push!(lines,
+        ("  ", "$(white)group_tc  $(gm_str(dt.metadata.group_tc))$(reset)"))
+    !isnothing(dt.metadata.group_md) && push!(lines,
+        ("  ", "$(white)group_md  $(gm_str(dt.metadata.group_md))$(reset)"))
 
     visible_length(s) = length(replace(s, r"\e\[[0-9;]*m" => ""))
 
     full_lines = ["│$(prefix)$(content)" for (prefix, content) in lines]
-    seps  = Set([1, 3])
+    seps  = Set([1, 2])
     width = maximum(visible_length, full_lines) + 1
 
     hline(left, right) = green * left * "─"^(width - 1) * right * reset

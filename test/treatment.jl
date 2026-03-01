@@ -52,11 +52,11 @@ end
 # ---------------------------------------------------------------------------- #
 #                               DataFeature types                              #
 # ---------------------------------------------------------------------------- #
-@testset "TabularFeat" begin
+@testset "ScalarFeat" begin
     dt = DataTreatment(Xc, yc)
     feats = get_datafeature(dt)
 
-    @test all(f -> f isa DT.TabularFeat, feats)
+    @test all(f -> f isa DT.ScalarFeat, feats)
     @test length(feats) == 4
     @test get_vname.(feats) == [:sepal_length, :sepal_width, :petal_length, :petal_width]
     @test all(f -> get_type(f) == Float64, feats)

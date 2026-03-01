@@ -10,11 +10,18 @@ using DataTreatments
 #     ve2_col  = [rand(Float64, 5), rand(Float64, 5), rand(Float64, 5), rand(Float64, 5), rand(Float64, 5)]
 # )
 
+# X = DataFrame(
+#     v1  = [rand(Float64, 5), NaN, rand(Float64, 5), rand(Float64, 5), missing],
+#     v2  = [rand(Float64, 5), rand(Float64, 5), rand(Float64, 5), missing, rand(Float64, 5)],
+#     v3  = [rand(Float64, 5), rand(Float64, 5), rand(Float64, 5), rand(Float64, 5), rand(Float64, 5)],
+#     v4  = [rand(Float64, 5), rand(Float64, 5), NaN, rand(Float64, 5), rand(Float64, 5)],
+# )
+
 X = DataFrame(
     v1  = [rand(Float64, 5), NaN, rand(Float64, 5), rand(Float64, 5), missing],
     v2  = [rand(Float64, 5), rand(Float64, 5), rand(Float64, 5), missing, rand(Float64, 5)],
-    v3  = [rand(Float64, 5), rand(Float64, 5), rand(Float64, 5), rand(Float64, 5), rand(Float64, 5)],
-    v4  = [rand(Float64, 5), rand(Float64, 5), NaN, rand(Float64, 5), rand(Float64, 5)],
+    v3  = [1.1, 2.2, 3.3, 4.4, 5.5],
+    v4  = [1.1, 2.2, 3.3, 4.4, NaN]
 )
 
 test = DataTreatment(X, aggrtype=:aggregate)

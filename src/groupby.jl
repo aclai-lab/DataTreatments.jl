@@ -147,7 +147,7 @@ Features whose `vname` belongs to `fields[i]` are collected into the i-th group.
 Any `vname` not listed in `fields` is appended as a final leftover group.
 
 ## Arguments
-- `datafeats`: Vector of `AbstractDataFeature` elements (typically `TabularFeat`).
+- `datafeats`: Vector of `AbstractDataFeature` elements (typically `ScalarFeat`).
 - `fields`: Vector of symbol vectors, each defining one group by variable name.
 
 ## Returns

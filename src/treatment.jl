@@ -205,21 +205,22 @@ end
 # The output columns are organized as: for each column in `X`, all features are computed for all windows,
 # with results concatenated in the order: `[col1_feat1_win1, col1_feat1_win2, col1_feat2_win1, ...]`
 function aggregate(
-    X         :: AbstractArray{T},
-    intervals :: Tuple{Vararg{Vector{UnitRange{Int}}}};
-    features  :: Tuple{Vararg{Base.Callable}}=(mean,),
-    win       :: Union{Base.Callable, Tuple{Vararg{Base.Callable}}},
-    uniform   :: Bool
-) where {T<:AbstractArray{<:Real}}
+    X::AbstractArray,
+    intervals::Tuple{Vararg{Vector{UnitRange{Int}}}};
+    features::Tuple{Vararg{Base.Callable}}=(mean,),
+    win::Union{Base.Callable,Tuple{Vararg{Base.Callable}}},
+    uniform::Bool,
+    float_type::DataType
+)
     nwindows = prod(length.(intervals))
-    nfeats   = nwindows * length(features)
-    Xresult  = Array{core_eltype(X)}(undef, size(X, 1), size(X, 2) * nfeats)
-    
-    for colidx in axes(X, 2)
+    nfeats = nwindows * length(features)
+    Xresult = Array{float_type}(undef, size(X, 1), size(X, 2) * nfeats)
+
+    Threads.@threads for colidx in axes(X, 2)
         for rowidx in axes(X, 1)
             out_idx = (colidx - 1) * nfeats + 1
             uniform || (intervals = @evalwindow X[rowidx, colidx] win...)
-            
+
             for feat in features
                 for cart_idx in CartesianIndices(length.(intervals))
                     ranges = get_window_ranges(intervals, cart_idx)
@@ -230,7 +231,7 @@ function aggregate(
             end
         end
     end
-    
+
     return Xresult
 end
 
