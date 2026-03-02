@@ -93,8 +93,8 @@ end
 get_id(f::AbstractDataFeature) = f.id
 get_type(f::AbstractDataFeature) = f.type
 get_vname(f::AbstractDataFeature) = f.vname
-get_hasmissing(f::AbstractDataFeature) = f.has_missing
-get_hasnan(f::AbstractDataFeature) = f.has_nan
+get_hasmissing(f::AbstractDataFeature) = f.hasmissing
+# get_hasnan(f::AbstractDataFeature) = f.has_nan
 
 get_feat(f::AggregateFeat) = f.feat
 get_nwin(f::AggregateFeat) = f.nwin
@@ -231,6 +231,13 @@ Base.getindex(dt::DataTreatment, ::Colon, j::Int) = dt.X[:, j]
 Base.getindex(dt::DataTreatment, i::Int, ::Colon) = dt.X[i, :]
 Base.getindex(dt::DataTreatment, I...) = dt.X[I...]
 
+export DataTreatment
+export get_id, get_type, get_vname, get_feat, get_nwin, get_reducefunc
+export get_hasmissing, get_hasnan
+export get_X, get_y, get_datafeature, get_metadata
+export get_vnames, get_features, get_nwindows, get_reducefuncs
+export get_groups, get_groupmethod, get_norm
+
 # ---------------------------------------------------------------------------- #
 #                              DataTreatment show                              #
 # ---------------------------------------------------------------------------- #
@@ -294,12 +301,6 @@ end
 
 Base.show(io::IO, dt::DataTreatment) = _show_datatreatment(io, dt)
 Base.show(io::IO, ::MIME"text/plain", dt::DataTreatment) = _show_datatreatment(io, dt)
-
-export DataTreatment
-export get_id, get_type, get_vname, get_feat, get_nwin, get_reducefunc
-export get_X, get_y, get_datafeature, get_metadata
-export get_vnames, get_features, get_nwindows, get_reducefuncs
-export get_groups, get_groupmethod, get_norm
 
 export groupby
 include("groupby.jl")

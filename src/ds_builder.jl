@@ -115,10 +115,8 @@ function build_datasets(
     if !isempty(td_cols)
         vnames_td = @views vnames[td_cols]
         miss_td = hasmissing[td_cols]
-
         codes, levels = discrete_encode(X[:, td_cols])
 
-        # Xtd = @views any(miss_td) ? categorical(X[:, td_cols]) : categorical(X[:, td_cols])
         Xtd = stack(codes)
         td_feats = [DiscreteFeat(i, vnames_td[i], levels[i], miss_td[i]) for i in eachindex(vnames_td)]
     end
