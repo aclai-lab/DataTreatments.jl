@@ -42,6 +42,7 @@ function build_datasets(
     vnames::Union{Vector{Symbol},Nothing}=[Symbol("V$i") for i in 1:size(X, 2)],
     win::Union{Base.Callable,Tuple{Vararg{Base.Callable}}}=wholewindow(),
     features::Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
+    reducefunc::Base.Callable=mean,
     float_type::DataType=Float64,
     kwargs...
 )
@@ -89,8 +90,9 @@ function build_datasets(
             end
 
         elseif aggrtype == :reducesize
-            Xmd = DataTreatments.reducesize(X, intervals; reducefunc, win, uniform)
-            md_feats = [ReduceFeat{AbstractArray{float_type}}(i, T, vnames_md[c], reducefunc, miss_md[c], nan_md[c])
+            Xmd = DataTreatments.reducesize(X, intervals; reducefunc, win, uniform, float_type)
+
+            md_feats = [ReduceFeat{AbstractArray{float_type}}(i, float_type, vnames_md[c], reducefunc, miss_md[c], nan_md[c])
                 for (i, c) in enumerate(axes(X,2))]
 
         else

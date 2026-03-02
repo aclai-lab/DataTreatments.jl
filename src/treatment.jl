@@ -158,50 +158,6 @@ end
 safe_feat(v, f) = f(x for x in skipmissing(v) if !(x isa AbstractFloat && isnan(x)))
 
 # ---------------------------------------------------------------------------- #
-#                             reducesize functions                              #
-# ---------------------------------------------------------------------------- #
-# Apply window-based size-reduction to each element of an array.
-
-# This function is designed for arrays where each element is itself an array (e.g., `Matrix{Matrix{Float64}}`).
-
-# # Arguments
-# - `X::AbstractArray`: Input array where each element is an array to be size-reduced
-# - `intervals::Tuple{Vararg{Vector{UnitRange{Int}}}}`: Window definitions for aggregation
-# - `reducefunc::Base.Callable=mean`: Function to apply to each window (default: `mean`)
-
-# # Returns
-# - `AbstractArray`: Array with same outer dimensions as `X`, each element containing size-reduced results
-function reducesize(
-    X          :: AbstractArray{T},
-    intervals  :: Tuple{Vararg{Vector{UnitRange{Int}}}};
-    reducefunc :: Base.Callable=mean,
-    win        :: Union{Base.Callable, Tuple{Vararg{Base.Callable}}},
-    uniform    :: Bool
-) where {T<:AbstractArray{<:Real}}
-    output_dims  = length.(intervals)
-    Xresult      = similar(X)
-    cart_indices = CartesianIndices(output_dims)
-    
-    @inbounds for i in 1:length(X)
-        element = X[i]
-        uniform || begin
-            intervals = @evalwindow X[i] win...
-            output_dims  = length.(intervals)
-        end
-        reduced = similar(element, output_dims...)
-        
-        for cart_idx in cart_indices
-            ranges = get_window_ranges(intervals, cart_idx)
-            reduced[cart_idx] = reducefunc(reshape(@views(element[ranges...]), :))
-        end
-        
-        Xresult[i] = reduced
-    end
-
-    return Xresult
-end
-
-# ---------------------------------------------------------------------------- #
 #                             aggregate functions                              #
 # ---------------------------------------------------------------------------- #
 # Flatten nested arrays by applying multiple feature functions to windowed regions.
@@ -258,6 +214,55 @@ function aggregate(
                 end
             end
         end
+    end
+
+    return Xresult
+end
+
+# ---------------------------------------------------------------------------- #
+#                             reducesize functions                              #
+# ---------------------------------------------------------------------------- #
+# Apply window-based size-reduction to each element of an array.
+
+# This function is designed for arrays where each element is itself an array (e.g., `Matrix{Matrix{Float64}}`).
+
+# # Arguments
+# - `X::AbstractArray`: Input array where each element is an array to be size-reduced
+# - `intervals::Tuple{Vararg{Vector{UnitRange{Int}}}}`: Window definitions for aggregation
+# - `reducefunc::Base.Callable=mean`: Function to apply to each window (default: `mean`)
+
+# # Returns
+# - `AbstractArray`: Array with same outer dimensions as `X`, each element containing size-reduced results
+function reducesize(
+    X::AbstractArray,
+    intervals::Tuple{Vararg{Vector{UnitRange{Int}}}};
+    reducefunc::Base.Callable=mean,
+    win::Union{Base.Callable,Tuple{Vararg{Base.Callable}}},
+    uniform::Bool,
+    float_type::DataType
+)
+    output_dims = length.(intervals)
+    Xresult = Array{Union{Missing,float_type,Array{float_type}}}(undef, size(X))
+    cart_indices = CartesianIndices(output_dims)
+
+    @inbounds for i in eachindex(X)
+        x = X[i]
+        uniform || !(x isa AbstractArray) || begin
+            intervals = @evalwindow X[i] win...
+            output_dims  = length.(intervals)
+        end
+
+        x isa AbstractArray ? begin
+            reduced = Array{float_type}(undef, output_dims...)
+            
+            for cart_idx in cart_indices
+                ranges = get_window_ranges(intervals, cart_idx)
+                reduced[cart_idx] = safe_feat(reshape(@views(x[ranges...]), :), reducefunc)
+            end
+            
+            Xresult[i] = reduced
+        end :
+            Xresult[i] = ismissing(x) ? x : float_type(x)
     end
 
     return Xresult

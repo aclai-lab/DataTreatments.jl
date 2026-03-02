@@ -1,5 +1,15 @@
-using DataFrames
 using DataTreatments
+using MLJ, DataFrames
+using SoleData: Artifacts
+
+# ---------------------------------------------------------------------------- #
+#                                load dataset                                  #
+# ---------------------------------------------------------------------------- #
+Xc, yc = @load_iris
+Xc = DataFrame(Xc)
+
+natopsloader = Artifacts.NatopsLoader()
+Xts, yts = Artifacts.load(natopsloader)
 
 # X = DataFrame(
 #     vec_col  = [rand(Float64, 5), NaN, rand(Float64, 5), rand(Float64, 5), missing],
@@ -10,12 +20,12 @@ using DataTreatments
 #     ve2_col  = [rand(Float64, 5), rand(Float64, 5), rand(Float64, 5), rand(Float64, 5), rand(Float64, 5)]
 # )
 
-# X = DataFrame(
-#     v1  = [rand(Float64, 5), NaN, rand(Float64, 5), rand(Float64, 5), missing],
-#     v2  = [rand(Float64, 5), rand(Float64, 5), rand(Float64, 5), missing, rand(Float64, 5)],
-#     v3  = [rand(Float64, 5), rand(Float64, 5), rand(Float64, 5), rand(Float64, 5), rand(Float64, 5)],
-#     v4  = [rand(Float64, 5), rand(Float64, 5), NaN, rand(Float64, 5), rand(Float64, 5)],
-# )
+X = DataFrame(
+    v1  = [rand(Float64, 5), NaN, rand(Float64, 5), rand(Float64, 5), missing],
+    v2  = [rand(Float64, 5), rand(Float64, 5), rand(Float64, 5), missing, rand(Float64, 5)],
+    v3  = [rand(Float64, 5), rand(Float64, 5), rand(Float64, 5), rand(Float64, 5), rand(Float64, 5)],
+    v4  = [rand(Float64, 5), rand(Float64, 5), NaN, rand(Float64, 5), rand(Float64, 5)],
+)
 
 X = DataFrame(
     v1  = [rand(Float64, 5), NaN, rand(Float64, 5), rand(Float64, 5), missing],
@@ -44,6 +54,7 @@ X = DataFrame(
 )
 
 test = DataTreatment(X, aggrtype=:aggregate)
+test = DataTreatment(X, aggrtype=:reducesize)
 
 
 allequal(eltype.(eachcol(X)))
