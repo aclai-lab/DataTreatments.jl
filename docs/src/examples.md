@@ -1,9 +1,10 @@
-using Test
+```@example
 using DataTreatments
-
 using DataFrames
 using CategoricalArrays
+```
 
+```@example
 # ---------------------------------------------------------------------------- #
 #                     dataset with only discrete features                      #
 # ---------------------------------------------------------------------------- #
@@ -14,25 +15,6 @@ df = DataFrame(
     uint_col = UInt32[1, 2, 3, 4, 5],                                          # UInt32
     int_col  = Int[10, 20, 30, 40, 50]                                         # Int
 )
+```
 
-dt = DataTreatment(df)
-
-
-X = Matrix(df)
-
-@btime codes = [levelcode.(categorical(string.(col))) for col in eachcol(X)]
-# 10.564 μs (208 allocations: 10.69 KiB)
-
-@btime begin
-codes, lvls = map(eachcol(X)) do col
-    cat = categorical(string.(col))
-    levelcode.(cat), levels(cat)
-end
-end
-# 10.788 μs (225 allocations: 11.27 KiB)
-
-function discrete_encode(X::Matrix)
-    cats  = [categorical(string.(col)) for col in eachcol(X)]
-    return [levelcode.(cat) for cat in cats], levels.(cats)
-end
-
+```@example

@@ -48,12 +48,10 @@ include("ds_builder.jl")
 # ---------------------------------------------------------------------------- #
 #                                DataFeature                                   #
 # ---------------------------------------------------------------------------- #
-# struct DiscreteFeat{T} <: AbstractDataFeature
-mutable struct DiscreteFeat{T} <: AbstractDataFeature
-    # X::AbstractArray{T}
+struct DiscreteFeat{T<:Int} <: AbstractDataFeature
     id::Int
-    type::Type
     vname::Symbol
+    values::Vector{String}
     hasmissing::Bool
     hasnan::Bool
 end
@@ -194,7 +192,7 @@ struct DataTreatment{T,S} <: AbstractDataTreatment
     end
 
     DataTreatment(X::AbstractDataFrame, args...; kwargs...) =
-        DataTreatment(reduce(hcat, vec.(eachcol(X))), args...; vnames=propertynames(X), kwargs...)
+        DataTreatment(stack(vec.(eachcol(X))), args...; vnames=propertynames(X), kwargs...)
 end
 
 # ---------------------------------------------------------------------------- #
@@ -241,17 +239,18 @@ function _show_datatreatment(io::IO, dt::DataTreatment{T,S}) where {T,S}
     green  = "\e[32m"
     yellow = "\e[33m"
     white  = "\e[37m"
+    cyan   = "\e[36m"
     reset  = "\e[0m"
 
     supervised = !(S <: Nothing)
 
     # build dataset info strings
-    td_str = isnothing(dt.Xtd) ? nothing : "$(size(dt.Xtd, 1)) × $(size(dt.Xtd, 2))  ::  $(eltype(dt.Xtd))"
-    tc_str = isnothing(dt.Xtc) ? nothing : "$(size(dt.Xtc, 1)) × $(size(dt.Xtc, 2))  ::  $(T)"
-    md_str = isnothing(dt.Xmd) ? nothing : "$(size(dt.Xmd, 1)) × $(size(dt.Xmd, 2))  ::  $(eltype(dt.Xmd))"
+    td_str = isnothing(dt.Xtd) ? nothing : "$(size(dt.Xtd, 1))×$(size(dt.Xtd, 2))  discrete"
+    tc_str = isnothing(dt.Xtc) ? nothing : "$(size(dt.Xtc, 1))×$(size(dt.Xtc, 2))  scalar"
+    md_str = isnothing(dt.Xmd) ? nothing : "$(size(dt.Xmd, 1))×$(size(dt.Xmd, 2))  multivariate"
 
-    norm_tc_str = isnothing(dt.metadata.norm_tc) ? "none" : string(dt.metadata.norm_tc)
-    norm_md_str = isnothing(dt.metadata.norm_md) ? "none" : string(dt.metadata.norm_md)
+    norm_tc_str = isnothing(dt.metadata.norm_tc) ? nothing : string(dt.metadata.norm_tc)
+    norm_md_str = isnothing(dt.metadata.norm_md) ? nothing : string(dt.metadata.norm_md)
 
     gm_str(gm) = gm isa Symbol ? string(gm) :
                  gm isa Vector{Symbol} ? join(string.(gm), ", ") :
@@ -259,15 +258,16 @@ function _show_datatreatment(io::IO, dt::DataTreatment{T,S}) where {T,S}
 
     lines = Tuple{String,String}[
         (" ",  "$(yellow)DataTreatment$(reset)"),
-        ("  ", "$(white)y    $(supervised ? "supervised  ::  $S" : "unsupervised")$(reset)"),
     ]
 
-    !isnothing(td_str) && push!(lines, ("  ", "$(white)Xtd  $(td_str)$(reset)"))
-    !isnothing(tc_str) && push!(lines, ("  ", "$(white)Xtc  $(tc_str)$(reset)"))
-    !isnothing(md_str) && push!(lines, ("  ", "$(white)Xmd  $(md_str)$(reset)"))
+    !isnothing(td_str) && push!(lines, ("  ", "$(cyan)Xtd  $(reset)$(white)$(td_str)$(reset)"))
+    !isnothing(tc_str) && push!(lines, ("  ", "$(cyan)Xtc  $(reset)$(white)$(tc_str)$(reset)"))
+    !isnothing(md_str) && push!(lines, ("  ", "$(cyan)Xmd  $(reset)$(white)$(md_str)$(reset)"))
 
-    push!(lines, ("  ", "$(white)norm_tc   $(norm_tc_str)$(reset)"))
-    push!(lines, ("  ", "$(white)norm_md   $(norm_md_str)$(reset)"))
+    push!(lines, ("  ", "$(white)y    $(supervised ? "supervised  ::  $S" : "unsupervised")$(reset)"))
+
+    !isnothing(norm_tc_str) && push!(lines, ("  ", "$(white)norm_tc   $(norm_tc_str)$(reset)"))
+    !isnothing(norm_md_str) && push!(lines, ("  ", "$(white)norm_md   $(norm_md_str)$(reset)"))
 
     !isnothing(dt.metadata.group_td) && push!(lines,
         ("  ", "$(white)group_td  $(gm_str(dt.metadata.group_td))$(reset)"))
@@ -279,7 +279,7 @@ function _show_datatreatment(io::IO, dt::DataTreatment{T,S}) where {T,S}
     visible_length(s) = length(replace(s, r"\e\[[0-9;]*m" => ""))
 
     full_lines = ["│$(prefix)$(content)" for (prefix, content) in lines]
-    seps  = Set([1, 2])
+    seps  = Set([1])
     width = maximum(visible_length, full_lines) + 1
 
     hline(left, right) = green * left * "─"^(width - 1) * right * reset

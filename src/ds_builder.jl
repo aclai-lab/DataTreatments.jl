@@ -1,6 +1,23 @@
 # ---------------------------------------------------------------------------- #
 #                           nan/missing handle utils                           #
 # ---------------------------------------------------------------------------- #
+"""
+    base_eltype(col::AbstractVector) -> (valtype, hasmissing, hasnan)
+
+Inspect a column vector and infer its base element type along with the presence
+of `missing` and `NaN` values.
+
+# Arguments
+- `col::AbstractVector`: a column vector of any element type.
+
+# Returns
+- `valtype::Union{Type, Nothing}`: the inferred base type of the non-missing elements.
+  Returns `Float64` for scalar floats, the concrete type for array-valued elements,
+  or the concrete type for any other value. Returns `nothing` if the column is empty
+  or contains only `missing` values.
+- `hasmissing::Bool`: `true` if any element is `missing`.
+- `hasnan::Bool`: `true` if any element is `NaN` (scalar or inside a vector).
+"""
 function base_eltype(col::AbstractVector)
     valtype, hasmissing, hasnan = nothing, false, false
     for val in col
@@ -22,7 +39,21 @@ function base_eltype(col::AbstractVector)
     return valtype, hasmissing, hasnan
 end
 
-function check_integrity(X::Matrix{T}) where T
+"""
+    check_integrity(X::Matrix) -> (valtype, hasmissing, hasnan)
+
+Check the integrity of each column of a matrix, inferring element types and
+detecting `missing` and `NaN` values.
+
+# Arguments
+- `X::Matrix`: input matrix of any element type.
+
+# Returns
+- `valtype::Vector{Type}`: inferred base type for each column (see [`base_eltype`](@ref)).
+- `hasmissing::Vector{Bool}`: `true` for each column that contains `missing` values.
+- `hasnan::Vector{Bool}`: `true` for each column that contains `NaN` values.
+"""
+function check_integrity(X::Matrix)
     valtype = Vector{Type}(undef, size(X, 2))
     hasmissing = Vector{Bool}(undef, size(X, 2))
     hasnan = Vector{Bool}(undef, size(X, 2))
@@ -31,6 +62,30 @@ function check_integrity(X::Matrix{T}) where T
         valtype[i], hasmissing[i], hasnan[i] = base_eltype(@view(X[:, i]))
     end
     return valtype, hasmissing, hasnan
+end
+
+# ---------------------------------------------------------------------------- #
+#                               discrete utils                                 #
+# ---------------------------------------------------------------------------- #
+"""
+    discrete_encode(X::Matrix) -> (codes, levels)
+
+Encode each column of `X` as a categorical variable.
+
+# Arguments
+- `X::Matrix`: a matrix whose columns contain discrete values of any type.
+
+# Returns
+- `codes`: a vector of `Vector{Int}`, where `codes[i]` contains the integer level
+  codes for column `i`. Each unique value is mapped to an integer index.
+- `levels`: a vector of `Vector{String}`, where `levels[i]` contains the sorted unique
+  string labels for column `i`, such that `levels[i][codes[i][j]]` reconstructs the
+  original value of `X[j, i]`.
+```
+"""
+function discrete_encode(X::Matrix)
+    cats  = [categorical(string.(col)) for col in eachcol(X)]
+    return [levelcode.(cat) for cat in cats], levels.(cats)
 end
 
 # ---------------------------------------------------------------------------- #
@@ -54,16 +109,22 @@ function build_datasets(
     md_cols = findall(T -> !isnothing(T) && T <: AbstractArray, valtype)
 
     if !isempty(td_cols)
-        n_td_cols = length(td_cols)
-        Xtd = Matrix{<:Discrete}(undef, (size(X,1), n_td_cols))
+        vnames_td = @views vnames[td_cols]
+        miss_td, nan_td = hasmissing[td_cols], hasnan[td_cols]
+
+        codes, levels = discrete_encode(X[:, td_cols])
+
+        # Xtd = @views any(miss_td) ? categorical(X[:, td_cols]) : categorical(X[:, td_cols])
+        Xtd = stack(codes)
+        td_feats = [DiscreteFeat{eltype(Xtd)}(i, vnames_td[i], levels[i], miss_td[i], nan_td[i]) for i in eachindex(vnames_td)]
     end
 
     if !isempty(tc_cols)
         vnames_tc = @views vnames[tc_cols]
         miss_tc, nan_tc = hasmissing[tc_cols], hasnan[tc_cols]
 
-        Xtc = @views float_type.(X[:, tc_cols])
-        tc_feats = [ScalarFeat{float_type}(i, float_type, vnames[i], miss_tc[i], nan_tc[i]) for i in eachindex(vnames_tc)]
+        Xtc = @views any(miss_tc) ? Union{Missing,float_type}.(X[:, tc_cols]) : float_type.(X[:, tc_cols])
+        tc_feats = [ScalarFeat{float_type}(i, float_type, vnames_tc[i], miss_tc[i], nan_tc[i]) for i in eachindex(vnames_tc)]
     end
 
     if !isempty(md_cols)
@@ -101,84 +162,4 @@ function build_datasets(
     end
 
     return Xtd, Xtc, Xmd, td_feats, tc_feats, md_feats
-end
-
-function _build_dataset(
-    T::Type,
-    x::AbstractVector;
-    vname::Symbol,
-    hasmissing::Bool,
-    hasnan::Bool,
-    kwargs...
-)
-    return x, ScalarFeat{T}(0, T, vname, hasmissing, hasnan)
-end
-
-function _build_dataset(
-    T::AbstractArray,
-    x::AbstractVector;
-    vnames::Symbol,
-    aggrtype::Symbol=:aggregate,
-    win::Union{Base.Callable,Tuple{Vararg{Base.Callable}}}=wholewindow(),
-    features::Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
-    reducefunc::Base.Callable=mean,
-    hasmissing::Bool,
-    hasnan::Bool,
-    kwargs...
-)
-    # uniform size check
-    # if elements differ in size, only adaptivewindow or wholewindow are allowed
-    # (computing the window per-element is a significant overhead otherwise)
-    uniform = has_uniform_element_size(x)
-
-    # convert to float
-    T isa AbstractFloat || (X = DataTreatments.convert(X))
-
-    win isa Base.Callable && (win = (win,))
-    intervals = @evalwindow first(X) win...
-    nwindows = prod(length.(intervals))
-
-    return if aggrtype == :aggregate begin
-        (DataTreatments.aggregate(X, intervals; features, win, uniform),
-        if nwindows == 1
-            # single window: apply to whole time series
-            vec([AggregateFeat{T}(i, T, vnames[c], f, 1)
-                for (i, (f, c)) in enumerate(Iterators.product(features, axes(X,2)))])
-        else
-            # multiple windows: apply to each interval
-            vec([AggregateFeat{T}(i, T, vnames[c], f, n)
-                for (i, (n, f, c)) in enumerate(Iterators.product(1:nwindows, features, axes(X,2)))])
-        end
-        )
-    end
-
-    elseif aggrtype == :reducesize begin
-        (DataTreatments.reducesize(X, intervals; reducefunc, win, uniform),
-        [ReduceFeat{T}(i, T, vnames[c], reducefunc) for (i, c) in enumerate(axes(X,2))]
-        )
-    end
-
-    else
-        error("Unknown treatment type: $treat")
-    end
-
-    # grp_result = if !isnothing(groups)
-    #     fields = collect(groups)
-    #     groupidxs, _ = _groupby(Xresult, Xinfo, fields)
-    #     [GroupResult(groupidx, fields) for groupidx in groupidxs]
-    # else
-    #     nothing
-    # end
-
-    # if !isnothing(norm)
-    #     norm isa Type{<:AbstractNormalization} && (norm = norm())
-    #     if isnothing(grp_result)
-    #         Xresult = normalize(Xresult, norm)
-    #     else
-    #         Threads.@threads for g in grp_result
-    #             Xresult[:, get_group(g)] =
-    #                 normalize(Xresult[:, get_group(g)], norm)
-    #         end
-    #     end
-    # end
 end
