@@ -33,8 +33,7 @@ export movingwindow, wholewindow, splitwindow, adaptivewindow
 export @evalwindow
 include("windowing.jl")
 
-export is_multidim_dataset, nvals, convert
-export has_uniform_element_size
+export is_multidim_dataset, has_uniform_element_size, safe_feat
 include("treatment.jl")
 
 import Normalization: @_Normalization
@@ -62,11 +61,8 @@ struct ScalarFeat{T} <: AbstractDataFeature
     hasnan::Bool
 end
 
-# struct AggregateFeat{T} <: AbstractDataFeature
-mutable struct AggregateFeat{T} <: AbstractDataFeature
-    # X::AbstractArray{T}
+struct AggregateFeat{T} <: AbstractDataFeature
     id::Int
-    type::Type
     vname::Symbol
     feat::Base.Callable
     nwin::Int
@@ -74,11 +70,8 @@ mutable struct AggregateFeat{T} <: AbstractDataFeature
     hasnan::Bool
 end
 
-# struct ReduceFeat{T} <: AbstractDataFeature
-mutable struct ReduceFeat{T} <: AbstractDataFeature
-    # X::AbstractArray{T}
+struct ReduceFeat{T} <: AbstractDataFeature
     id::Int
-    type::Type
     vname::Symbol
     reducefunc::Base.Callable
     hasmissing::Bool
@@ -91,7 +84,8 @@ get_id(f::AbstractDataFeature) = f.id
 get_type(f::AbstractDataFeature) = f.type
 get_vname(f::AbstractDataFeature) = f.vname
 get_hasmissing(f::AbstractDataFeature) = f.hasmissing
-# get_hasnan(f::AbstractDataFeature) = f.has_nan
+
+get_hasnan(f::Union{<:ScalarFeat,AggregateFeat,ReduceFeat}) = f.hasnan
 
 get_feat(f::AggregateFeat) = f.feat
 get_nwin(f::AggregateFeat) = f.nwin
@@ -117,6 +111,24 @@ struct MetaData <: AbstractMetaData
     groupidxs_td::Union{Nothing,Vector{Base.Generator}}
     groupidxs_tc::Union{Nothing,Vector{Base.Generator}}
     groupidxs_md::Union{Nothing,Vector{Base.Generator}}
+end
+
+# ---------------------------------------------------------------------------- #
+#                                   utils                                      #
+# ---------------------------------------------------------------------------- #
+function _normalize_groups!(
+    X::Matrix,
+    feats::Vector,
+    norm::Union{Type{<:AbstractNormalization},Nothing},
+    group::Groups
+)
+    if !isnothing(norm)
+        groupidxs = groupby(feats, group)
+        flat_groups = [reduce(vcat, g) for g in groupidxs]
+        Threads.@threads for g in flat_groups
+            normalize!(@view(X[:, g]), norm)
+        end
+    end
 end
 
 # ---------------------------------------------------------------------------- #
@@ -155,22 +167,12 @@ struct DataTreatment{T,S} <: AbstractDataTreatment
 
         !isnothing(tc_feats) && begin
             groupidxs_tc = groupby(tc_feats, group_tc)
-            if !isnothing(norm_tc)
-                flat_groups = [reduce(vcat, g) for g in groupidxs_tc]
-                Threads.@threads for g in flat_groups
-                    normalize!(@view(Xtc[:, g]), norm_tc)
-                end
-            end
+            _normalize_groups!(Xtc, tc_feats, norm_tc, group_tc)
         end
 
         !isnothing(md_feats) && begin
             groupidxs_md = groupby(md_feats, group_md)
-            if !isnothing(norm_md)
-                flat_groups = [reduce(vcat, g) for g in groupidxs_md]
-                Threads.@threads for g in flat_groups
-                    normalize!(@view(Xmd[:, g]), norm_md)
-                end
-            end
+            _normalize_groups!(Xmd, md_feats, norm_md, group_md)
         end
 
         metadata = MetaData(

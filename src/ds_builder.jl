@@ -18,6 +18,26 @@ of `missing` and `NaN` values.
 - `hasmissing::Bool`: `true` if any element is `missing`.
 - `hasnan::Bool`: `true` if any element is `NaN` (scalar or inside a vector).
 """
+# function base_eltype(col::AbstractVector)
+#     valtype, hasmissing, hasnan = nothing, false, false
+#     for val in col
+#         if ismissing(val)
+#             hasmissing = true
+#         elseif val isa AbstractFloat
+#             isnan(val) && (hasnan = true)
+#             isnothing(valtype) && (valtype = Float64)
+#         elseif val isa AbstractVector{<:AbstractFloat}
+#             if any(isnan, val)
+#                 hasnan = true
+#             end
+#             isnothing(valtype) && (valtype = typeof(val))
+#         else
+#             isnothing(valtype) && (valtype = typeof(val))
+#         end
+#         !isnothing(valtype) && hasmissing && hasnan && break
+#     end
+#     return valtype, hasmissing, hasnan
+# end
 function base_eltype(col::AbstractVector)
     valtype, hasmissing, hasnan = nothing, false, false
     for val in col
@@ -30,7 +50,8 @@ function base_eltype(col::AbstractVector)
             if any(isnan, val)
                 hasnan = true
             end
-            isnothing(valtype) && (valtype = typeof(val))
+            # Override scalar Float64 with actual array type
+            valtype = typeof(val)
         else
             isnothing(valtype) && (valtype = typeof(val))
         end
@@ -102,7 +123,7 @@ function build_datasets(
     win::Union{Base.Callable,Tuple{Vararg{Base.Callable}}}=wholewindow(),
     features::Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
     reducefunc::Base.Callable=mean,
-    float_type::DataType=Float64,
+    float_type::Type=Float64,
     kwargs...
 )
     Xtd = Xtc = Xmd = td_feats = tc_feats = md_feats = nothing
@@ -127,10 +148,11 @@ function build_datasets(
         vnames_tc = @views vnames[tc_cols]
         miss_tc, nan_tc = hasmissing[tc_cols], hasnan[tc_cols]
 
-        Xtc = @views X[:, tc_cols]
+        Xtc = reduce(hcat, [map(x -> ismissing(x) ? missing : float_type(x), @view X[:, col]) for col in tc_cols])
         tc_feats = [ScalarFeat{float_type}(i, vnames_tc[i], miss_tc[i], nan_tc[i]) for i in eachindex(vnames_tc)]
     end
 
+    # multivariate
     if !isempty(md_cols)
         vnames_md = @views vnames[md_cols]
         miss_md, nan_md = hasmissing[md_cols], hasnan[md_cols]
@@ -146,18 +168,18 @@ function build_datasets(
 
             md_feats = if nwindows == 1
                 # single window: apply to whole time series
-                vec([AggregateFeat{float_type}(i, float_type, vnames_md[c], f, 1, miss_md[c], nan_md[c])
+                vec([AggregateFeat{float_type}(i, vnames_md[c], f, 1, miss_md[c], nan_md[c])
                     for (i, (f, c)) in enumerate(Iterators.product(features, axes(_X,2)))])
             else
                 # multiple windows: apply to each interval
-                vec([AggregateFeat{float_type}(i, float_type, vnames_md[c], f, n, miss_md[c], nan_md[c])
+                vec([AggregateFeat{float_type}(i, vnames_md[c], f, n, miss_md[c], nan_md[c])
                     for (i, (n, f, c)) in enumerate(Iterators.product(1:nwindows, features, axes(_X,2)))])
             end
 
         elseif aggrtype == :reducesize
             Xmd = DataTreatments.reducesize(_X, intervals; reducefunc, win, uniform, float_type)
 
-            md_feats = [ReduceFeat{AbstractArray{float_type}}(i, float_type, vnames_md[c], reducefunc, miss_md[c], nan_md[c])
+            md_feats = [ReduceFeat{AbstractArray{float_type}}(i, vnames_md[c], reducefunc, miss_md[c], nan_md[c])
                 for (i, c) in enumerate(axes(_X,2))]
 
         else
