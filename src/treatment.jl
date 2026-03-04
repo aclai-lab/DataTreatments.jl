@@ -2,8 +2,8 @@
 #                                    utils                                     #
 # ---------------------------------------------------------------------------- #
 # extract window ranges from intervals and cartesian index
-@inline function get_window_ranges(intervals::Tuple, cart_idx::CartesianIndex)
-    ntuple(i -> intervals[i][cart_idx[i]], length(intervals))
+@inline function get_window_ranges(intervals::Tuple, cartidx::CartesianIndex)
+    ntuple(i -> intervals[i][cartidx[i]], length(intervals))
 end
 
 """
@@ -132,31 +132,36 @@ function aggregate(
 )
     colwin = [[n > length(win) ? last(win) : win[n] for n in 1:ndims(X[first(idx[i]), i])] for i in axes(X, 2)]
     nwindows = [prod(hasfield(typeof(w), :nwindows) ? w.nwindows : 1 for w in c) for c in colwin]
+    nfeats = length(features)
 
-    Xa = Matrix{Union{Missing,float_type}}(undef, size(X, 1), sum(nwindows) * length(features))
-    outidx = 1
+    Xa = Matrix{Union{Missing,float_type}}(undef, size(X, 1), sum(nwindows) * nfeats)
+    outtmp = 1
 
     @inbounds for colidx in axes(X, 2)
+        outidx = outtmp
+
         for rowidx in axes(X, 1)
             x = X[rowidx, colidx]
-            outidx = (colidx - 1) * nwindows[colidx] + 1
+            outidx = outtmp
 
             if rowidx in idx[colidx]
                 intervals = @evalwindow X[rowidx, colidx] colwin[colidx]...
                 for feat in features
-                    for cart_idx in CartesianIndices(length.(intervals))
-                        ranges = get_window_ranges(intervals, cart_idx)
+                    for cartidx in CartesianIndices(length.(intervals))
+                        ranges = get_window_ranges(intervals, cartidx)
                         window_view = @views x[ranges...]
                         Xa[rowidx, outidx] = safe_feat(reshape(window_view, :), feat)
                         outidx += 1
                     end
                 end
             else
-                intervals = nwindows[colidx] * length(features)
-                Xa[rowidx, outidx:outidx+intervals-1] .= x
+                intervals = nwindows[colidx] * nfeats
+                Xa[rowidx, outidx:outidx+intervals-1] .= ismissing(x) ? x : float_type(x)
                 outidx += intervals
             end
         end
+
+        outtmp = outidx
     end
 
     return Xa, nwindows
@@ -178,35 +183,34 @@ end
 # - `AbstractArray`: Array with same outer dimensions as `X`, each element containing size-reduced results
 function reducesize(
     X::AbstractArray,
-    intervals::Tuple{Vararg{Vector{UnitRange{Int}}}};
-    reducefunc::Base.Callable=mean,
-    win::Union{Base.Callable,Tuple{Vararg{Base.Callable}}},
+    win::Tuple{Vararg{Base.Callable}},
+    reducefunc::Base.Callable,
+    idx::AbstractVector{Vector{Int}},
     float_type::DataType
 )
-    output_dims = length.(intervals)
-    Xresult = Array{Union{Missing,float_type,Array{float_type}}}(undef, size(X))
-    cart_indices = CartesianIndices(output_dims)
+    Xr = Array{Union{Missing,float_type,Array{float_type}}}(undef, size(X))
 
-    @inbounds for i in eachindex(X)
-        x = X[i]
-        !(x isa AbstractArray) || begin
-            intervals = @evalwindow x win...
-            output_dims  = length.(intervals)
-            cart_indices = CartesianIndices(output_dims)
-        end
+    @inbounds for colidx in axes(X, 2)
+        for rowidx in axes(X, 1)
+            x = X[rowidx, colidx]
 
-        x isa AbstractArray ? begin
-            reduced = Array{float_type}(undef, output_dims...)
-            
-            for cart_idx in cart_indices
-                ranges = get_window_ranges(intervals, cart_idx)
-                reduced[cart_idx] = safe_feat(reshape(@views(x[ranges...]), :), reducefunc)
+            if rowidx in idx[colidx]
+                intervals = @evalwindow x win...
+                output_dims  = length.(intervals)
+                cart_indices = CartesianIndices(output_dims)
+                reduced = Array{float_type}(undef, output_dims...)
+
+                for cartidx in cart_indices
+                    ranges = get_window_ranges(intervals, cartidx)
+                    reduced[cartidx] = safe_feat(reshape(@views(x[ranges...]), :), reducefunc)
+                end
+
+                Xr[rowidx, colidx] = reduced
+            else
+                Xr[rowidx, colidx] = ismissing(x) ? x : float_type(x)
             end
-            
-            Xresult[i] = reduced
-        end :
-            Xresult[i] = ismissing(x) ? x : float_type(x)
+        end
     end
 
-    return Xresult
+    return Xr
 end

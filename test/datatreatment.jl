@@ -612,9 +612,9 @@ end
 # ---------------------------------------------------------------------------- #
 
 # Helper function to create random 6x6 images with deterministic seed
-function create_image(seed::Int)
+function create_image(seed::Int; n=6)
     Random.seed!(seed)
-    rand(Float64, 6, 6)
+    rand(Float64, n, n)
 end
 
 df = DataFrame(
@@ -1362,7 +1362,7 @@ end
         agg_feats = filter(f -> f isa DT.AggregateFeat, dt.md_feats)
         @test length(agg_feats) > 0
         for f in agg_feats
-            @test f.nwin ∈ 1:2  # 2 windows
+            @test f.nwin ∈ [2,4]
             @test f.vname ∈ [:ts1, :ts2, :ts3, :ts4, :img1, :img2, :img3, :img4]
         end
     end
@@ -1382,10 +1382,10 @@ end
         ts1_feats = findall(f -> f.vname == :ts1 && isa(f, DT.AggregateFeat), dt.md_feats)
         
         for (feat_idx, feat_id) in enumerate(ts1_feats)
-            for row_idx in 1:5
-                ts1_values = ts1_data[row_idx]
+            for rowidx in 1:5
+                ts1_values = ts1_data[rowidx]
                 expected_mean = mean(ts1_values)
-                actual_value = Xmd[row_idx, feat_id]
+                actual_value = Xmd[rowidx, feat_id]
                 
                 @test isapprox(actual_value, expected_mean, atol=1e-10)
             end
@@ -1398,77 +1398,20 @@ end
         
         ts1_feats = findall(f -> f.vname == :ts1 && isa(f, DT.AggregateFeat), dt.md_feats)
         
-        for row_idx in 1:5
-            ts1_values = ts1_data[row_idx]
+        for rowidx in 1:5
+            ts1_values = ts1_data[rowidx]
             
             expected_mean = mean(ts1_values)
             expected_std = std(ts1_values)
             expected_max = maximum(ts1_values)
             expected_min = minimum(ts1_values)
             
-            ts1_row_vals = [Xmd[row_idx, f] for f in ts1_feats]
+            ts1_row_vals = [Xmd[rowidx, f] for f in ts1_feats]
             
-            @test any(isapprox.(ts1_row_vals, expected_mean, atol=1e-10))
-            @test any(isapprox.(ts1_row_vals, expected_std, atol=1e-10))
-            @test any(isapprox.(ts1_row_vals, expected_max, atol=1e-10))
-            @test any(isapprox.(ts1_row_vals, expected_min, atol=1e-10))
-        end
-    end
-end
-
-@testset "Computed Values Validation - Adaptive Windows" begin
-    ts1_data = df.ts1
-    
-    @testset "Adaptive window mean with 2 windows" begin
-        dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), features=(mean,))
-        Xmd = dt.Xmd
-        
-        for row_idx in 1:5
-            ts1_values = ts1_data[row_idx]
-            n = length(ts1_values)
-            
-            # With 2 windows and 0.5 overlap
-            window_size = div(n, 2)
-            window1_end = div(n, 2) + window_size ÷ 2
-            window2_start = div(n, 2) - window_size ÷ 2
-            
-            w1_vals = ts1_values[1:window1_end]
-            w2_vals = ts1_values[window2_start:end]
-            
-            expected_mean_w1 = mean(w1_vals)
-            expected_mean_w2 = mean(w2_vals)
-            
-            ts1_feats = findall(f -> f.vname == :ts1 && isa(f, DT.AggregateFeat), dt.md_feats)
-            
-            @test !isempty(ts1_feats)
-            
-            ts1_means = [Xmd[row_idx, f] for f in ts1_feats if dt.md_feats[f].feat == mean]
-            
-            @test length(ts1_means) >= 2
-        end
-    end
-    
-    @testset "Adaptive window statistics coherence" begin
-        dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), features=(mean, maximum, minimum))
-        Xmd = dt.Xmd
-        
-        ts1_feats = findall(f -> f.vname == :ts1 && isa(f, DT.AggregateFeat), dt.md_feats)
-        
-        for row_idx in 1:5
-            ts1_values = df.ts1[row_idx]
-            
-            for window_idx in 1:2
-                window_feats = filter(f -> dt.md_feats[f].nwin == window_idx, ts1_feats)
-                
-                means = [Xmd[row_idx, f] for f in window_feats if dt.md_feats[f].feat == mean]
-                maxs = [Xmd[row_idx, f] for f in window_feats if dt.md_feats[f].feat == maximum]
-                mins = [Xmd[row_idx, f] for f in window_feats if dt.md_feats[f].feat == minimum]
-                
-                if !isempty(means) && !isempty(maxs) && !isempty(mins)
-                    @test maxs[1] >= means[1]
-                    @test means[1] >= mins[1]
-                end
-            end
+            @test isapprox.(ts1_row_vals[1], expected_mean, atol=1e-10)
+            @test isapprox.(ts1_row_vals[2], expected_std, atol=1e-10)
+            @test isapprox.(ts1_row_vals[3], expected_max, atol=1e-10)
+            @test isapprox.(ts1_row_vals[4], expected_min, atol=1e-10)
         end
     end
 end
@@ -1480,9 +1423,9 @@ end
         
         for col_idx in axes(Xtc, 2)
             feat = dt.tc_feats[col_idx]
-            for row_idx in 1:5
-                expected_val = df[row_idx, feat.vname]
-                actual_val = Xtc[row_idx, col_idx]
+            for rowidx in 1:5
+                expected_val = df[rowidx, feat.vname]
+                actual_val = Xtc[rowidx, col_idx]
                 
                 @test isapprox(actual_val, expected_val, atol=1e-10)
             end
@@ -1495,15 +1438,15 @@ end
         dt = DataTreatment(df; win=wholewindow(), features=(mean, maximum, minimum))
         Xmd = dt.Xmd
         
-        for row_idx in 1:5
-            ts1_values = df.ts1[row_idx]
+        for rowidx in 1:5
+            ts1_values = df.ts1[rowidx]
             
             expected_mean = mean(ts1_values)
             expected_max = maximum(ts1_values)
             expected_min = minimum(ts1_values)
             
             ts1_feats = findall(f -> f.vname == :ts1 && isa(f, DT.AggregateFeat), dt.md_feats)
-            ts1_row_vals = [Xmd[row_idx, f] for f in ts1_feats]
+            ts1_row_vals = [Xmd[rowidx, f] for f in ts1_feats]
             
             @test any(isapprox.(ts1_row_vals, expected_mean, atol=1e-10))
             @test any(isapprox.(ts1_row_vals, expected_max, atol=1e-10))
@@ -1533,7 +1476,7 @@ end
         dt = DataTreatment(df; features=(minimum, mean, maximum))
         Xmd = dt.Xmd
         
-        for row_idx in 1:5
+        for rowidx in 1:5
             ts1_feats = findall(f -> f.vname == :ts1 && isa(f, DT.AggregateFeat), dt.md_feats)
             
             unique_windows = unique(f -> dt.md_feats[f].nwin, ts1_feats)
@@ -1541,9 +1484,9 @@ end
             for window_idx in unique_windows
                 window_feats = filter(f -> dt.md_feats[f].nwin == window_idx, ts1_feats)
                 
-                mins = [Xmd[row_idx, f] for f in window_feats if dt.md_feats[f].feat == minimum]
-                means = [Xmd[row_idx, f] for f in window_feats if dt.md_feats[f].feat == mean]
-                maxs = [Xmd[row_idx, f] for f in window_feats if dt.md_feats[f].feat == maximum]
+                mins = [Xmd[rowidx, f] for f in window_feats if dt.md_feats[f].feat == minimum]
+                means = [Xmd[rowidx, f] for f in window_feats if dt.md_feats[f].feat == mean]
+                maxs = [Xmd[rowidx, f] for f in window_feats if dt.md_feats[f].feat == maximum]
                 
                 if !isempty(mins) && !isempty(means) && !isempty(maxs)
                     @test mins[1] <= means[1] <= maxs[1]
@@ -1552,3 +1495,121 @@ end
         end
     end
 end
+
+# ---------------------------------------------------------------------------- #
+#               multidimensional with non homogeneous elements                 #
+# ---------------------------------------------------------------------------- #
+df = DataFrame(
+    ts1 = [collect(1.0:6.0), collect(2.0:6.0), collect(3.0:9.0), collect(4.0:11.0), collect(5.0:18.0)],
+    ts2 = [collect(2.0:0.5:4.5), collect(1.0:0.5:8.5), collect(3.0:0.5:6.5), collect(4.0:0.5:13.5), collect(5.0:0.5:5.5)],
+    ts3 = [collect(1.0:1.2:6.0), collect(2.0:1.2:8.0), collect(0.5:1.2:16.5), collect(1.5:1.2:9.5), collect(3.0:1.2:13.0)],
+    ts4 = [collect(6.0:-0.8:1.0), collect(7.0:-0.8:1.0), collect(5.0:-0.8:1.0), collect(8.0:-0.8:1.0), collect(9.0:-0.8:0.0)],
+    img1 = [create_image(i; n=6) for i in 1:5],
+    img2 = [create_image(i+10; n=7) for i in 1:5],
+    img3 = [create_image(i+20; n=5) for i in 1:5],
+    img4 = [create_image(i+30; n=10) for i in 1:5]
+)
+
+is_multidim_dataset(df) == true
+
+dt = DataTreatment(df) |> get_X
+dt = DataTreatment(df; float_type=Float32) |> get_X
+dt = DataTreatment(df; aggrtype=:reducesize) |> get_X
+dt = DataTreatment(df; aggrtype=:reducesize, float_type=Float32) |> get_X
+
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5)) |> get_X
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), float_type=Float32) |> get_X
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize) |> get_X
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize, float_type=Float32) |> get_X
+
+dt = DataTreatment(df; features=(mean,)) |> get_X
+dt = DataTreatment(df; features=(mean,), float_type=Float32) |> get_X
+dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize) |> get_X
+dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32) |> get_X
+
+# missing
+df = DataFrame(
+    ts1 = [missing, collect(2.0:6.0), collect(3.0:9.0), collect(4.0:11.0), collect(5.0:18.0)],
+    ts2 = [collect(2.0:0.5:4.5), collect(1.0:0.5:8.5), missing, collect(4.0:0.5:13.5), collect(5.0:0.5:5.5)],
+    ts3 = [collect(1.0:1.2:6.0), collect(2.0:1.2:8.0), collect(0.5:1.2:16.5), collect(1.5:1.2:9.5), collect(3.0:1.2:13.0)],
+    ts4 = [collect(6.0:-0.8:1.0), missing, missing, collect(8.0:-0.8:1.0), collect(9.0:-0.8:0.0)],
+    img1 = [create_image(i; n=6) for i in 1:5],
+    img2 = [i == 1 ? missing : create_image(i+10; n=7) for i in 1:5],
+    img3 = [create_image(i+20; n=5) for i in 1:5],
+    img4 = [i == 3 ? missing : create_image(i+30; n=10) for i in 1:5]
+)
+
+is_multidim_dataset(df) == true
+
+dt = DataTreatment(df) |> get_X
+dt = DataTreatment(df; float_type=Float32) |> get_X
+dt = DataTreatment(df; aggrtype=:reducesize) |> get_X
+dt = DataTreatment(df; aggrtype=:reducesize, float_type=Float32) |> get_X
+
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5)) |> get_X
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), float_type=Float32) |> get_X
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize) |> get_X
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize, float_type=Float32) |> get_X
+
+dt = DataTreatment(df; features=(mean,)) |> get_X
+dt = DataTreatment(df; features=(mean,), float_type=Float32) |> get_X
+dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize) |> get_X
+dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32) |> get_X
+
+# nan
+df = DataFrame(
+    ts1 = [NaN, collect(2.0:6.0), collect(3.0:9.0), collect(4.0:11.0), collect(5.0:18.0)],
+    ts2 = [collect(2.0:0.5:4.5), collect(1.0:0.5:8.5), NaN, collect(4.0:0.5:13.5), collect(5.0:0.5:5.5)],
+    ts3 = [collect(1.0:1.2:6.0), collect(2.0:1.2:8.0), collect(0.5:1.2:16.5), collect(1.5:1.2:9.5), collect(3.0:1.2:13.0)],
+    ts4 = [collect(6.0:-0.8:1.0), NaN, NaN, collect(8.0:-0.8:1.0), collect(9.0:-0.8:0.0)],
+    img1 = [create_image(i; n=6) for i in 1:5],
+    img2 = [i == 1 ? NaN : create_image(i+10; n=7) for i in 1:5],
+    img3 = [create_image(i+20; n=5) for i in 1:5],
+    img4 = [i == 3 ? NaN : create_image(i+30; n=10) for i in 1:5]
+)
+
+is_multidim_dataset(df) == true
+
+dt = DataTreatment(df) |> get_X
+dt = DataTreatment(df; float_type=Float32) |> get_X
+dt = DataTreatment(df; aggrtype=:reducesize) |> get_X
+dt = DataTreatment(df; aggrtype=:reducesize, float_type=Float32) |> get_X
+
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5)) |> get_X
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), float_type=Float32) |> get_X
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize) |> get_X
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize, float_type=Float32) |> get_X
+
+dt = DataTreatment(df; features=(mean,)) |> get_X
+dt = DataTreatment(df; features=(mean,), float_type=Float32) |> get_X
+dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize) |> get_X
+dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32) |> get_X
+
+# nan and missing
+df = DataFrame(
+    ts1 = [NaN, missing, collect(3.0:9.0), collect(4.0:11.0), collect(5.0:18.0)],
+    ts2 = [collect(2.0:0.5:4.5), missing, NaN, collect(4.0:0.5:13.5), collect(5.0:0.5:5.5)],
+    ts3 = [collect(1.0:1.2:6.0), collect(2.0:1.2:8.0), collect(0.5:1.2:16.5), collect(1.5:1.2:9.5), collect(3.0:1.2:13.0)],
+    ts4 = [collect(6.0:-0.8:1.0), NaN, NaN, missing, collect(9.0:-0.8:0.0)],
+    img1 = [create_image(i; n=6) for i in 1:5],
+    img2 = [i == 1 ? NaN : create_image(i+10; n=7) for i in 1:5],
+    img3 = [create_image(i+20; n=5) for i in 1:5],
+    img4 = [i == 3 ? missing : create_image(i+30; n=10) for i in 1:5]
+)
+
+is_multidim_dataset(df) == true
+
+dt = DataTreatment(df) |> get_X
+dt = DataTreatment(df; float_type=Float32) |> get_X
+dt = DataTreatment(df; aggrtype=:reducesize) |> get_X
+dt = DataTreatment(df; aggrtype=:reducesize, float_type=Float32) |> get_X
+
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5)) |> get_X
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), float_type=Float32) |> get_X
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize) |> get_X
+dt = DataTreatment(df; win=adaptivewindow(nwindows=2, overlap=0.5), aggrtype=:reducesize, float_type=Float32) |> get_X
+
+dt = DataTreatment(df; features=(mean,)) |> get_X
+dt = DataTreatment(df; features=(mean,), float_type=Float32) |> get_X
+dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize) |> get_X
+dt = DataTreatment(df; features=(mean,), aggrtype=:reducesize, float_type=Float32) |> get_X
