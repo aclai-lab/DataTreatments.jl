@@ -33,6 +33,7 @@ abstract type AbstractDataFeature end
 function aggregate end
 function reducesize end
 
+include("../src/errors.jl")
 include("../src/structs/dataset_structure.jl")
 
 # ---------------------------------------------------------------------------- #
@@ -116,6 +117,7 @@ end
 
 function get_column_structure(col::AbstractVector)
     datatype = Any
+    dims = 0
     valididxs = Int[]
     missingidxs = Int[]
     nanidxs = Int[]
@@ -132,6 +134,7 @@ function get_column_structure(col::AbstractVector)
             any(ismissing, val) && push!(hasmissing, i)
             any(isnan, val) && push!(hasnans, i)
             datatype = typeof(val)
+            dims = ndims(val)
             push!(valididxs, i)
         elseif !(val isa AbstractFloat) || !isnan(val)
             if datatype == Any || !(datatype <: AbstractVector)
@@ -141,13 +144,14 @@ function get_column_structure(col::AbstractVector)
         end
     end
 
-    return datatype, valididxs, missingidxs, nanidxs, hasmissing, hasnans
+    return datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans
 end
 
 function get_dataset_structure(dataset::Matrix)
     ncols = size(dataset, 2)
 
     datatype = Vector{Type}(undef, ncols)
+    dims = Vector{Int}(undef, ncols)
     valididxs = Vector{Vector{Int}}(undef, ncols)
     missingidxs = Vector{Vector{Int}}(undef, ncols)
     nanidxs = Vector{Vector{Int}}(undef, ncols)
@@ -155,10 +159,11 @@ function get_dataset_structure(dataset::Matrix)
     hasnans = Vector{Vector{Int}}(undef, ncols)
 
     Threads.@threads for i in axes(dataset, 2)
-        datatype[i], valididxs[i], missingidxs[i], nanidxs[i], hasmissing[i], hasnans[i] = get_column_structure(@view(dataset[:, i]))
+        datatype[i], dims[i], valididxs[i], missingidxs[i], nanidxs[i], hasmissing[i], hasnans[i] =
+            get_column_structure(@view(dataset[:, i]))
     end
 
-    return DatasetStructure(datatype, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
+    return DatasetStructure(datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
 end
 
 get_dataset_structure(df::DataFrame; kwargs...) = get_dataset_structure(Matrix(df))
@@ -182,6 +187,6 @@ test(df)
 DataTreatment(df)
 
 ds = get_dataset_structure(df)
-structure = get_structure(ds)
+# structure = get_structure(ds)
 
 

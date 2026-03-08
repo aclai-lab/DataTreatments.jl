@@ -26,8 +26,10 @@ include("errors.jl")
 #                                  structs                                     #
 # ---------------------------------------------------------------------------- #
 export DatasetStructure
-export get_datatype, get_valididxs, get_missingidxs, get_nanidxs
-export get_hasmissing, get_hasnans, get_structure
+export get_datatype, get_dims
+export get_valididxs, get_missingidxs, get_nanidxs
+export get_hasmissing, get_hasnans
+export get_structure
 include("structs/dataset_structure.jl")
 
 # ---------------------------------------------------------------------------- #

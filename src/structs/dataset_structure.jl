@@ -3,6 +3,7 @@
 # ---------------------------------------------------------------------------- #
 struct DatasetStructure
     datatype::Vector{<:Type}
+    dims::Vector{Int}
     valididxs::Vector{Vector{Int}}
     missingidxs::Vector{Vector{Int}}
     nanidxs::Vector{Vector{Int}}
@@ -11,6 +12,7 @@ struct DatasetStructure
 
     function DatasetStructure(
         datatype::Vector{<:Type},
+        dims::Vector{Int},
         valididxs::Vector{Vector{Int}},
         missingidxs::Vector{Vector{Int}},
         nanidxs::Vector{Vector{Int}},
@@ -19,6 +21,7 @@ struct DatasetStructure
     )
         validate_vector_lengths(
             datatype,
+            dims,
             valididxs,
             missingidxs,
             nanidxs,
@@ -26,7 +29,7 @@ struct DatasetStructure
             hasnans
         )
 
-        new(datatype, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
+        new(datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
     end
 end
 
@@ -41,6 +44,7 @@ Base.eachindex(ds::DatasetStructure) = eachindex(ds.datatype)
 
 # Getter methods for DatasetStructure
 get_datatype(ds::DatasetStructure) = ds.datatype
+get_dims(ds::DatasetStructure) = ds.dims
 get_valididxs(ds::DatasetStructure) = ds.valididxs
 get_missingidxs(ds::DatasetStructure) = ds.missingidxs
 get_nanidxs(ds::DatasetStructure) = ds.nanidxs
@@ -49,6 +53,7 @@ get_hasnans(ds::DatasetStructure) = ds.hasnans
 
 # Get field by column index
 get_datatype(ds::DatasetStructure, i::Int) = ds.datatype[i]
+get_dims(ds::DatasetStructure, i::Int) = ds.dims[i]
 get_valididxs(ds::DatasetStructure, i::Int) = ds.valididxs[i]
 get_missingidxs(ds::DatasetStructure, i::Int) = ds.missingidxs[i]
 get_nanidxs(ds::DatasetStructure, i::Int) = ds.nanidxs[i]
