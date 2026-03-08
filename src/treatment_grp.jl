@@ -34,7 +34,7 @@ function aggregate end
 function reducesize end
 
 include("../src/errors.jl")
-include("../src/treatment.jl")
+using DataTreatments: aggregate, reducesize
 include("../src/structs/dataset_structure.jl")
 
 function discrete_encode(X::Matrix)
@@ -64,12 +64,22 @@ struct DiscreteFeat{T} <: AbstractDataFeature
     end
 end
 
-struct ScalarFeat{T} <: AbstractDataFeature
+struct ContinuousFeat{T} <: AbstractDataFeature
     id::Int
     vname::Symbol
     valididxs::Vector{Int}
     missingidxs::Vector{Int}
     nanidxs::Vector{Int}
+
+    function ContinuousFeat{T}(
+        id::Int,
+        vname::Union{String,Symbol},
+        valididxs::Vector{Int},
+        missingidxs::Vector{Int},
+        nanidxs::Vector{Int}
+    ) where T
+        new{T}(id, Symbol(vname), valididxs, missingidxs, nanidxs)
+    end
 end
 
 struct AggregateFeat{T} <: AbstractDataFeature
@@ -152,7 +162,12 @@ get_dataset_structure(df::DataFrame; kwargs...) = get_dataset_structure(Matrix(d
 
 ######################################################################
 
-function build_datasets(dataset::Matrix, ds_struct::DatasetStructure, vnames::Vector{String})
+function build_datasets(
+    dataset::Matrix,
+    ds_struct::DatasetStructure,
+    vnames::Vector{String},
+    float_type::Type
+)
     dstd, dstc, dsmd = nothing, nothing, nothing
     valtype = get_datatype(ds_struct)
 
@@ -173,15 +188,20 @@ function build_datasets(dataset::Matrix, ds_struct::DatasetStructure, vnames::Ve
             for i in eachindex(vnames_td)]
     end
 
-    # scalar
+    # continue
     if !isempty(tc_cols)
         vnames_tc = @views vnames[tc_cols]
+        valid_td = get_valididxs(ds_struct, td_cols)
         miss_tc = get_missingidxs(ds_struct, tc_cols)
         nan_tc = get_nanidxs(ds_struct, tc_cols)
 
-        dstc = reduce(hcat, [map(x -> ismissing(x) ? missing : float_type(x), @view X[:, col]) for col in tc_cols])
-        tc_feats = [ScalarFeat{float_type}(i, vnames_tc[i], miss_tc[i], nan_tc[i]) for i in eachindex(vnames_tc)]
+        dstc = reduce(hcat, [map(x -> ismissing(x) ? missing : float_type(x), @view dataset[:, col])
+            for col in tc_cols])
+        tc_feats = [ContinuousFeat{float_type}(i, vnames_tc[i], valid_td[i], miss_tc[i], nan_tc[i])
+            for i in eachindex(vnames_tc)]
     end
+
+    @show tc_feats
 
     # multidimensional
     if !isempty(md_cols)
@@ -213,10 +233,10 @@ function DataTreatment(
     dataset::Matrix,
     vnames::Vector{String},
     treatments::Base.Callable...;
-    kwargs...
+    float_type::Type=Float64
 )
     ds_struct = get_dataset_structure(dataset)
-    build_datasets(dataset, ds_struct, vnames)
+    build_datasets(dataset, ds_struct, vnames, float_type)
 
     for treat in treatments
         treat(vnames)
