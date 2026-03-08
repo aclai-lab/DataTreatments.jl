@@ -196,39 +196,6 @@ end
 # ---------------------------------------------------------------------------- #
 #                            DataTreatment methods                             #
 # ---------------------------------------------------------------------------- #
-# # value access methods
-# Base.getproperty(dt::DataTreatment, s::Symbol) = getfield(dt, s)
-# Base.propertynames(::DataTreatment) =
-#     (:Xtd, :Xtc, :Xmd, :td_feats, :tc_feats, :md_feats, :y, :metadata)
-
-# get_X(dt::DataTreatment) = dt.X
-# get_y(dt::DataTreatment) = dt.y
-# get_datafeature(dt::DataTreatment) = dt.datafeature
-# get_metadata(dt::DataTreatment) = dt.metadata
-
-# # metadata
-# get_groups(dt::DataTreatment) = reduce(vcat, collect.(dt.metadata.groups))
-# get_groupmethod(dt::DataTreatment) = dt.metadata.groupmethod
-# get_norm(dt::DataTreatment) = dt.metadata.norm
-
-# # Convenience methods for common operations
-# get_vnames(dt::DataTreatment) = unique(get_vname.(dt.datafeature))
-# get_features(dt::DataTreatment) = unique(get_feat.(dt.datafeature))
-# get_nwindows(dt::DataTreatment) = maximum(get_nwin.(dt.datafeature))
-# get_reducefuncs(dt::DataTreatment) = unique(get_reducefunc.(dt.datafeature))
-
-# # Size and iteration methods
-# Base.size(dt::DataTreatment) = size(dt.X)
-# Base.size(dt::DataTreatment, dim::Int) = size(dt.X, dim)
-# Base.length(dt::DataTreatment) = length(dt.datafeature)
-# Base.eltype(dt::DataTreatment) = eltype(dt.X)
-
-# # Indexing methods
-# Base.getindex(dt::DataTreatment, i::Int) = dt.X[:, i]
-# Base.getindex(dt::DataTreatment, i::Int, j::Int) = dt.X[i, j]
-# Base.getindex(dt::DataTreatment, ::Colon, j::Int) = dt.X[:, j]
-# Base.getindex(dt::DataTreatment, i::Int, ::Colon) = dt.X[i, :]
-# Base.getindex(dt::DataTreatment, I...) = dt.X[I...]
 
 # value access methods
 Base.getproperty(dt::DataTreatment, s::Symbol) = getfield(dt, s)

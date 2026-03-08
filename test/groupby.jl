@@ -101,7 +101,7 @@ end
 #                       DataTreatment internal groupby                         #
 # ---------------------------------------------------------------------------- #
 @testset "internal groupby on tabular DataTreatment" begin
-    tab_mask   = DataTreatment(Xc, yc; groups=BitVector([1, 0, 0, 1]))
+    tab_mask   = DataTreatment(Xc, yc; group_tc=BitVector([1, 0, 0, 1]))
     tab_single = DataTreatment(Xc, yc; groups=[[:sepal_length]])
     tab_multi  = DataTreatment(Xc, yc; groups=[[:sepal_length, :petal_length], [:petal_width]])
 

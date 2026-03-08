@@ -94,6 +94,8 @@ operations on windowed data.
 - If all values are missing/NaN, `f` receives an empty iterator
 """
 @inline function safe_feat(v, f)
+    # warning
+    # indica riga e colonna
     f(collect(x for x in skipmissing(v) if !(x isa AbstractFloat && isnan(x))))
 end
 
@@ -142,7 +144,7 @@ function aggregate(
     colwin = [[n > length(win) ? last(win) : win[n] for n in 1:ndims(X[first(idx[i]), i])] for i in axes(X, 2)]
     nwindows = [prod(hasfield(typeof(w), :nwindows) ? w.nwindows : 1 for w in c) for c in colwin]
     nfeats = length(features)
-
+# vettore di indici
     Xa = Matrix{Union{Missing,float_type}}(undef, size(X, 1), sum(nwindows) * nfeats)
     outtmp = 1
 
