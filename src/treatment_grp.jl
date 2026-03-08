@@ -121,29 +121,17 @@ function get_structure(ds::DatasetStructure)
     
     # Group columns by datatype
     type_to_cols = Dict{Type, Vector{Int}}()
-    for i in 1:ncols
+    foreach(i -> begin
         dtype = ds.datatype[i]
-        if !haskey(type_to_cols, dtype)
-            type_to_cols[dtype] = Int[]
-        end
+        haskey(type_to_cols, dtype) || (type_to_cols[dtype] = Int[])
         push!(type_to_cols[dtype], i)
-    end
+    end, 1:ncols)
     
     # Find columns with missing values
-    cols_with_missing = Int[]
-    for i in 1:ncols
-        if !isempty(ds.missingidxs[i]) || !isempty(ds.hasmissing[i])
-            push!(cols_with_missing, i)
-        end
-    end
+    cols_with_missing = filter(i -> !isempty(ds.missingidxs[i]) || !isempty(ds.hasmissing[i]), 1:ncols)
     
     # Find columns with NaN values
-    cols_with_nans = Int[]
-    for i in 1:ncols
-        if !isempty(ds.nanidxs[i]) || !isempty(ds.hasnans[i])
-            push!(cols_with_nans, i)
-        end
-    end
+    cols_with_nans = filter(i -> !isempty(ds.nanidxs[i]) || !isempty(ds.hasnans[i]), 1:ncols)
     
     return (
         ncols = ncols,
@@ -155,38 +143,24 @@ end
 
 # Custom show method for DatasetStructure
 function Base.show(io::IO, ds::DatasetStructure)
-    ncols = length(ds.datatype)
+    structure = get_structure(ds)
     
-    # Find columns with missing or NaN values
-    cols_with_nans_missing = Int[]
-    for i in 1:ncols
-        if !isempty(ds.missingidxs[i]) || !isempty(ds.nanidxs[i])
-            push!(cols_with_nans_missing, i)
-        end
-    end
-    
-    # Group columns by datatype
-    type_to_cols = Dict{Type, Vector{Int}}()
-    for i in 1:ncols
-        dtype = ds.datatype[i]
-        if !haskey(type_to_cols, dtype)
-            type_to_cols[dtype] = Int[]
-        end
-        push!(type_to_cols[dtype], i)
-    end
-    
-    println(io, "DatasetStructure($ncols columns)")
+    println(io, "DatasetStructure($(structure.ncols) columns)")
     println(io, "├─ datatypes by columns:")
     
-    type_list = collect(type_to_cols)
+    type_list = collect(structure.type_to_cols)
     for (idx, (dtype, cols)) in enumerate(type_list)
         is_last_type = (idx == length(type_list))
         prefix = is_last_type ? "│  └─" : "│  ├─"
         println(io, "$prefix $dtype: $(cols)")
     end
     
-    if !isempty(cols_with_nans_missing)
-        println(io, "├─ nan/missing at: columns $cols_with_nans_missing")
+    if !isempty(structure.cols_with_missing)
+        println(io, "├─ missing at: columns $(structure.cols_with_missing)")
+    end
+    
+    if !isempty(structure.cols_with_nans)
+        println(io, "└─ NaN at: columns $(structure.cols_with_nans)")
     end
 end
 
