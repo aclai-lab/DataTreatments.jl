@@ -102,67 +102,86 @@ Base.eachindex(ds::DatasetStructure) = eachindex(ds.datatype)
 """
     get_datatype(ds::DatasetStructure)
     get_datatype(ds::DatasetStructure, i::Int)
+    get_datatype(ds::DatasetStructure, idxs::Vector{Int})
 
 Returns the data types. If an index `i` is provided, returns the type of column `i`.
+If a vector of indices is provided, returns a view of the types for those columns.
 """
 get_datatype(ds::DatasetStructure) = ds.datatype
 get_datatype(ds::DatasetStructure, i::Int) = ds.datatype[i]
+get_datatype(ds::DatasetStructure, idxs::Vector{Int}) = @views ds.datatype[idxs]
 
 """
     get_dims(ds::DatasetStructure)
     get_dims(ds::DatasetStructure, i::Int)
+    get_dims(ds::DatasetStructure, idxs::Vector{Int})
 
 Returns the dimensionalities. If an index `i` is provided, returns the dimensionality of column `i`.
+If a vector of indices is provided, returns a view of the dimensionalities for those columns.
 """
 get_dims(ds::DatasetStructure) = ds.dims
 get_dims(ds::DatasetStructure, i::Int) = ds.dims[i]
+get_dims(ds::DatasetStructure, idxs::Vector{Int}) = @views ds.dims[idxs]
 
 """
     get_valididxs(ds::DatasetStructure)
     get_valididxs(ds::DatasetStructure, i::Int)
+    get_valididxs(ds::DatasetStructure, idxs::Vector{Int})
 
 Returns the indices of valid values. If an index `i` is provided, returns the valid indices of column `i`.
+If a vector of indices is provided, returns a view of the valid indices for those columns.
 """
 get_valididxs(ds::DatasetStructure) = ds.valididxs
 get_valididxs(ds::DatasetStructure, i::Int) = ds.valididxs[i]
+get_valididxs(ds::DatasetStructure, idxs::Vector{Int}) = @views ds.valididxs[idxs]
 
 """
     get_missingidxs(ds::DatasetStructure)
     get_missingidxs(ds::DatasetStructure, i::Int)
+    get_missingidxs(ds::DatasetStructure, idxs::Vector{Int})
 
 Returns the indices of `missing` values. If an index `i` is provided, returns the `missing` indices of column `i`.
+If a vector of indices is provided, returns a view of the missing indices for those columns.
 """
 get_missingidxs(ds::DatasetStructure) = ds.missingidxs
 get_missingidxs(ds::DatasetStructure, i::Int) = ds.missingidxs[i]
+get_missingidxs(ds::DatasetStructure, idxs::Vector{Int}) = @views ds.missingidxs[idxs]
 
 """
     get_nanidxs(ds::DatasetStructure)
     get_nanidxs(ds::DatasetStructure, i::Int)
+    get_nanidxs(ds::DatasetStructure, idxs::Vector{Int})
 
 Returns the indices of `NaN` values. If an index `i` is provided, returns the `NaN` indices of column `i`.
+If a vector of indices is provided, returns a view of the NaN indices for those columns.
 """
 get_nanidxs(ds::DatasetStructure) = ds.nanidxs
 get_nanidxs(ds::DatasetStructure, i::Int) = ds.nanidxs[i]
+get_nanidxs(ds::DatasetStructure, idxs::Vector{Int}) = @views ds.nanidxs[idxs]
 
 """
     get_hasmissing(ds::DatasetStructure)
     get_hasmissing(ds::DatasetStructure, i::Int)
+    get_hasmissing(ds::DatasetStructure, idxs::Vector{Int})
 
 Returns the indices of elements containing `missing` values internally. If an index `i` is provided, 
-returns the indices for column `i`.
+returns the indices for column `i`. If a vector of indices is provided, returns a view of the indices for those columns.
 """
 get_hasmissing(ds::DatasetStructure) = ds.hasmissing
 get_hasmissing(ds::DatasetStructure, i::Int) = ds.hasmissing[i]
+get_hasmissing(ds::DatasetStructure, idxs::Vector{Int}) = @views ds.hasmissing[idxs]
 
 """
     get_hasnans(ds::DatasetStructure)
     get_hasnans(ds::DatasetStructure, i::Int)
+    get_hasnans(ds::DatasetStructure, idxs::Vector{Int})
 
 Returns the indices of elements containing `NaN` values internally. If an index `i` is provided, 
-returns the indices for column `i`.
+returns the indices for column `i`. If a vector of indices is provided, returns a view of the indices for those columns.
 """
 get_hasnans(ds::DatasetStructure) = ds.hasnans
 get_hasnans(ds::DatasetStructure, i::Int) = ds.hasnans[i]
+get_hasnans(ds::DatasetStructure, idxs::Vector{Int}) = @views ds.hasnans[idxs]
 
 # ---------------------------------------------------------------------------- #
 #                               summary method                                 #
