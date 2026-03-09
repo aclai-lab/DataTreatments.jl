@@ -34,7 +34,7 @@ function aggregate end
 function reducesize end
 
 include("../src/errors.jl")
-using DataTreatments: aggregate, reducesize
+using DataTreatments: aggregate, reducesize, wholewindow
 include("../src/structs/dataset_structure.jl")
 
 function discrete_encode(X::Matrix)
@@ -107,58 +107,39 @@ end
 
 ####################################################################
 
-function get_column_structure(col::AbstractVector)
-    datatype = Any
-    dims = 0
-    valididxs = Int[]
-    missingidxs = Int[]
-    nanidxs = Int[]
-    hasmissing = Int[]
-    hasnans = Int[]
+# function get_column_structure(col::AbstractVector)
+#     datatype = Any
+#     dims = 0
+#     valididxs = Int[]
+#     missingidxs = Int[]
+#     nanidxs = Int[]
+#     hasmissing = Int[]
+#     hasnans = Int[]
 
-    for i in eachindex(col)
-        val = col[i]
-        if ismissing(val)
-            push!(missingidxs, i)
-        elseif val isa AbstractFloat && isnan(val)
-            push!(nanidxs, i)
-        elseif val isa AbstractVector{<:AbstractFloat} || val isa AbstractArray{<:AbstractFloat}
-            any(ismissing, val) && push!(hasmissing, i)
-            any(isnan, val) && push!(hasnans, i)
-            datatype = typeof(val)
-            dims = ndims(val)
-            push!(valididxs, i)
-        elseif !(val isa AbstractFloat) || !isnan(val)
-            if datatype == Any || !(datatype <: AbstractVector)
-                datatype = typeof(val)
-                push!(valididxs, i)
-            end
-        end
-    end
+#     for i in eachindex(col)
+#         val = col[i]
+#         if ismissing(val)
+#             push!(missingidxs, i)
+#         elseif val isa AbstractFloat && isnan(val)
+#             push!(nanidxs, i)
+#         elseif val isa AbstractVector{<:AbstractFloat} || val isa AbstractArray{<:AbstractFloat}
+#             any(ismissing, val) && push!(hasmissing, i)
+#             any(isnan, val) && push!(hasnans, i)
+#             datatype = typeof(val)
+#             dims = ndims(val)
+#             push!(valididxs, i)
+#         elseif !(val isa AbstractFloat) || !isnan(val)
+#             if datatype == Any || !(datatype <: AbstractVector)
+#                 datatype = typeof(val)
+#                 push!(valididxs, i)
+#             end
+#         end
+#     end
 
-    return datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans
-end
+#     return datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans
+# end
 
-function get_dataset_structure(dataset::Matrix)
-    ncols = size(dataset, 2)
 
-    datatype = Vector{Type}(undef, ncols)
-    dims = Vector{Int}(undef, ncols)
-    valididxs = Vector{Vector{Int}}(undef, ncols)
-    missingidxs = Vector{Vector{Int}}(undef, ncols)
-    nanidxs = Vector{Vector{Int}}(undef, ncols)
-    hasmissing = Vector{Vector{Int}}(undef, ncols)
-    hasnans = Vector{Vector{Int}}(undef, ncols)
-
-    Threads.@threads for i in axes(dataset, 2)
-        datatype[i], dims[i], valididxs[i], missingidxs[i], nanidxs[i], hasmissing[i], hasnans[i] =
-            get_column_structure(@view(dataset[:, i]))
-    end
-
-    return DatasetStructure(datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
-end
-
-get_dataset_structure(df::DataFrame; kwargs...) = get_dataset_structure(Matrix(df))
 
 ######################################################################
 
@@ -227,27 +208,6 @@ function build_datasets(
     end
 end
 
-######################################################################
-
-function DataTreatment(
-    dataset::Matrix,
-    vnames::Vector{String},
-    treatments::Base.Callable...;
-    float_type::Type=Float64
-)
-    ds_struct = get_dataset_structure(dataset)
-    build_datasets(dataset, ds_struct, vnames, float_type)
-
-    for treat in treatments
-        treat(vnames)
-    end
-end
-
-DataTreatment(df::DataFrame, args...; kwargs...) =
-    DataTreatment(Matrix(df), names(df), args...; kwargs...)
-
-########################################################################
-
 # ---------------------------------------------------------------------------- #
 #                            TreatmentGroup struct                             #
 # ---------------------------------------------------------------------------- #
@@ -277,10 +237,32 @@ end
 
 TreatmentGroup(; kwargs...) = x -> TreatmentGroup(x; kwargs...)
 
-test = DataTreatment(df, TreatmentGroup(dims=1, name_expr=r"^V"))
+######################################################################
 
-test = DataTreatment(df, TreatmentGroup(dims=1, name_expr=r"^V"), TreatmentGroup(dims=2))
+function DataTreatment(
+    dataset::Matrix,
+    vnames::Vector{String},
+    treatments::Base.Callable...=TreatmentGroup(win=wholewindow(), features=(maximum, minimum, mean));
+    float_type::Type=Float64
+)
+    ds_struct = get_dataset_structure(dataset)
+    # build_datasets(dataset, ds_struct, vnames, float_type)
 
+    # for treat in treatments
+    #     treat(vnames)
+    # end
+end
 
+DataTreatment(df::DataFrame, args...; kwargs...) =
+    DataTreatment(Matrix(df), names(df), args...; kwargs...)
 
+########################################################################
+
+# test = DataTreatment(df, TreatmentGroup(dims=1, name_expr=r"^V"))
+
+# test = DataTreatment(df, TreatmentGroup(dims=1, name_expr=r"^V"), TreatmentGroup(dims=2))
+
+test = DataTreatment(df)
+
+TreatmentGroup(win=wholewindow(), features=(maximum, minimum, mean))
 

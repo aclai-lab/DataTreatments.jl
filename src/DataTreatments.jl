@@ -29,7 +29,7 @@ export DatasetStructure
 export get_datatype, get_dims
 export get_valididxs, get_missingidxs, get_nanidxs
 export get_hasmissing, get_hasnans
-export get_structure
+export get_dataset_structure
 include("structs/dataset_structure.jl")
 
 # ---------------------------------------------------------------------------- #
@@ -205,7 +205,7 @@ struct DataTreatment{T,S} <: AbstractDataTreatment
     end
 
     DataTreatment(X::AbstractDataFrame, args...; kwargs...) =
-        DataTreatment(stack(vec.(eachcol(X))), args...; vnames=propertynames(X), kwargs...)
+        DataTreatment(Matrix(X), args...; vnames=propertynames(X), kwargs...)
 end
 
 # ---------------------------------------------------------------------------- #

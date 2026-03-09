@@ -1,10 +1,11 @@
 using Test
 using DataTreatments
 
+using DataFrames
+
 @testset "DatasetStructure" begin
     
     @testset "Constructor" begin
-        # Valid construction
         datatype = [Int64, Float64, String]
         dims = [0, 0, 0]
         valididxs = [[1, 2], [1, 2, 3], [1]]
@@ -16,11 +17,10 @@ using DataTreatments
         ds = DatasetStructure(datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
         @test length(ds) == 3
         
-        # Length mismatch error
         @test_throws DimensionMismatch DatasetStructure(
-            [Int64, Float64],  # 2 elements
-            [0, 0, 0],  # 3 elements
-            [[1, 2], [1, 2, 3], [1]],  # 3 elements
+            [Int64, Float64],
+            [0, 0, 0],
+            [[1, 2], [1, 2, 3], [1]],
             missingidxs, nanidxs, hasmissing, hasnans
         )
     end
@@ -96,63 +96,11 @@ using DataTreatments
         
         ds = DatasetStructure(datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
         
-        types = collect(ds)
-        @test types == [Int64, Float64, String]
-        
+        @test collect(ds) == [Int64, Float64, String]
         @test collect(eachindex(ds)) == [1, 2, 3]
     end
-    
-    @testset "get_structure method" begin
-        datatype = [Int64, Float64, Int64, String]
-        dims = [0, 0, 1, 0]
-        valididxs = [[1, 2], [1, 2, 3], [1], [1, 2]]
-        missingidxs = [Int[], Int[], [2], [1]]
-        nanidxs = [Int[], [3], Int[], Int[]]
-        hasmissing = [Int[], Int[], Int[], Int[]]
-        hasnans = [Int[], Int[], Int[], Int[]]
-        
-        ds = DatasetStructure(datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
-        structure = get_structure(ds)
-        
-        @test structure.ncols == 4
-        @test haskey(structure.type_to_cols, Int64)
-        @test haskey(structure.type_to_cols, Float64)
-        @test haskey(structure.type_to_cols, String)
-        
-        @test structure.type_to_cols[Int64] == [1, 3]
-        @test structure.type_to_cols[Float64] == [2]
-        @test structure.type_to_cols[String] == [4]
-        
-        @test Set(structure.cols_with_missing) == Set([3, 4])
-        @test Set(structure.cols_with_nans) == Set([2])
-    end
-    
-    @testset "show method" begin
-        datatype = [Int64, Float64, String]
-        dims = [0, 0, 0]
-        valididxs = [[1, 2], [1, 2, 3], [1]]
-        missingidxs = [Int[], Int[], [2]]
-        nanidxs = [Int[], [3], Int[]]
-        hasmissing = [Int[], Int[], Int[]]
-        hasnans = [Int[], Int[], Int[]]
-        
-        ds = DatasetStructure(datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
-        
-        # Test that show doesn't error
-        io = IOBuffer()
-        show(io, ds)
-        output = String(take!(io))
-        
-        @test contains(output, "DatasetStructure(3 columns)")
-        @test contains(output, "datatypes by columns:")
-        @test contains(output, "missing at:")
-        @test contains(output, "NaN at:")
-    end
-    
+
     @testset "Dims handling - vector/array dimensions" begin
-        # Scalar columns have dims=0
-        # Vector columns have dims=1
-        # Matrix columns have dims=2
         datatype = [Float64, Vector{Float64}, Matrix{Float64}]
         dims = [0, 1, 2]
         valididxs = [[1, 2, 3], [1, 2], [1, 2, 3]]
@@ -168,26 +116,68 @@ using DataTreatments
         @test get_dims(ds, 3) == 2
         @test get_dims(ds) == [0, 1, 2]
     end
-    
-    @testset "Complex scenario with mixed data types and issues" begin
-        # Simulate a complex dataset with multiple types, missing, and NaN
-        datatype = [String, Int64, Int64, Float64, Float64, Vector{Float64}, Matrix{Float64}]
-        dims = [0, 0, 0, 0, 0, 1, 2]
-        valididxs = [[1,2,3,4,5], [1,2,3,4,5], [1,2,4,5], [1,2,3,4,5], [1,2,3,4,5], [2,3,4,5], [1,2,3,4,5]]
-        missingidxs = [Int[], Int[], [3], Int[], Int[], [1], Int[]]
-        nanidxs = [Int[], Int[], Int[], [5], [4], Int[], [2]]
-        hasmissing = [Int[], Int[], Int[], Int[], Int[], Int[], Int[]]
-        hasnans = [Int[], Int[], Int[], Int[], Int[], [3], [4]]
+
+    @testset "get_dataset_structure - Matrix" begin
+        dataset = Matrix{Any}(undef, 5, 3)
+        dataset[:, 1] = [1, 2, missing, 4, 5]
+        dataset[:, 2] = [1.0, NaN, 3.0, missing, 5.0]
+        dataset[:, 3] = [collect(1.0:3.0), collect(2.0:4.0), collect(3.0:5.0), missing, NaN]
+
+        ds = get_dataset_structure(dataset)
+
+        @test length(ds) == 3
+
+        # col 1: Int with one missing
+        @test get_missingidxs(ds, 1) == [3]
+        @test get_nanidxs(ds, 1) == Int[]
+        @test get_valididxs(ds, 1) == [1, 2, 4, 5]
+
+        # col 2: Float with one NaN and one missing
+        @test get_missingidxs(ds, 2) == [4]
+        @test get_nanidxs(ds, 2) == [2]
+        @test get_valididxs(ds, 2) == [1, 3, 5]
+
+        # col 3: Vector column with one missing and one top-level NaN
+        @test get_missingidxs(ds, 3) == [4]
+        @test get_nanidxs(ds, 3) == [5]
+        @test get_valididxs(ds, 3) == [1, 2, 3]
+        @test get_dims(ds, 3) == 1
+    end
+
+    @testset "get_dataset_structure - DataFrame" begin
+        df = DataFrame(
+            a = [1, 2, missing, 4],
+            b = [1.0, NaN, 3.0, 4.0],
+            c = [collect(1.0:3.0), collect(2.0:4.0), missing, NaN]
+        )
+
+        ds = get_dataset_structure(df)
+
+        @test length(ds) == 3
+        @test get_missingidxs(ds, 1) == [3]
+        @test get_nanidxs(ds, 2) == [2]
+        @test get_dims(ds, 3) == 1
+        @test get_valididxs(ds, 3) == [1, 2]
+    end
+
+    @testset "show method" begin
+        datatype = [Int64, Float64, String]
+        dims = [0, 0, 0]
+        valididxs = [[1, 2], [1, 2, 3], [1]]
+        missingidxs = [Int[], Int[], [2]]
+        nanidxs = [Int[], [3], Int[]]
+        hasmissing = [Int[], Int[], Int[]]
+        hasnans = [Int[], Int[], Int[]]
         
         ds = DatasetStructure(datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
-        structure = get_structure(ds)
         
-        @test structure.ncols == 7
-        @test structure.type_to_cols[Float64] == [4, 5]
-        @test structure.type_to_cols[Int64] == [2, 3]
+        io = IOBuffer()
+        show(io, ds)
+        output = String(take!(io))
         
-        # Columns with issues: 3 (missing), 4 (NaN), 5 (NaN), 6 (hasnans), 7 (hasnans)
-        @test Set(structure.cols_with_missing) == Set([3, 6])
-        @test Set(structure.cols_with_nans) == Set([4, 5, 6, 7])
+        @test contains(output, "DatasetStructure(3 columns)")
+        @test contains(output, "datatypes by columns:")
+        @test contains(output, "missing at:")
+        @test contains(output, "NaN at:")
     end
 end
