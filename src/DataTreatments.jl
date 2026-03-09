@@ -32,6 +32,10 @@ export get_hasmissing, get_hasnans
 export get_dataset_structure
 include("structs/dataset_structure.jl")
 
+export TreatmentGroup
+export get_idxs, get_dims, get_vnames, get_aggrfunc, get_groupby
+include("structs/treatment_group.jl")
+
 # ---------------------------------------------------------------------------- #
 #                                   files                                      #
 # ---------------------------------------------------------------------------- #
