@@ -111,9 +111,9 @@ struct DataTreatment
         );
         float_type::Type=Float64
     )
-        ds_struct = get_dataset_structure(dataset, vnames)
+        ds_struct = DatasetStructure(dataset, vnames)
         t_groups = [treat(ds_struct) for treat in treatments]
-        # build_datasets(dataset, ds_struct, vnames, float_type)
+
         new(dataset, ds_struct, t_groups, float_type)
     end
 
@@ -207,16 +207,85 @@ Returns the number of columns in the dataset.
 get_ncols(dt::DataTreatment) = size(dt.dataset, 2)
 
 # ---------------------------------------------------------------------------- #
+#                               dataset builder                                #
+# ---------------------------------------------------------------------------- #
+function build_datasets(
+    X::Matrix,
+    vnames::Union{Vector{Symbol},Nothing}=[Symbol("V$i") for i in 1:size(X, 2)],
+    win::Union{Base.Callable,Tuple{Vararg{Base.Callable}}}=wholewindow(),
+    features::Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
+    reducefunc::Base.Callable=mean,
+    float_type::Type=Float64,
+    kwargs...
+)
+    Xtd = Xtc = Xmd = td_feats = tc_feats = md_feats = nothing
+    valtype, idx, hasmissing, hasnan = check_dataset_structure(X)
+
+    td_cols = findall(T -> !isnothing(T) && !(T <: AbstractFloat) && !(T <: AbstractArray), valtype)
+    tc_cols = findall(T -> !isnothing(T) && T <: AbstractFloat, valtype)
+    md_cols = findall(T -> !isnothing(T) && T <: AbstractArray, valtype)
+
+    # discrete
+    if !isempty(td_cols)
+        vnames_td = @views vnames[td_cols]
+        miss_td = hasmissing[td_cols]
+        codes, levels = discrete_encode(X[:, td_cols])
+
+        Xtd = stack(codes)
+        td_feats = [DiscreteFeat(i, vnames_td[i], levels[i], miss_td[i]) for i in eachindex(vnames_td)]
+    end
+
+    # scalar
+    if !isempty(tc_cols)
+        vnames_tc = @views vnames[tc_cols]
+        miss_tc, nan_tc = hasmissing[tc_cols], hasnan[tc_cols]
+
+        Xtc = reduce(hcat, [map(x -> ismissing(x) ? missing : float_type(x), @view X[:, col]) for col in tc_cols])
+        tc_feats = [ScalarFeat{float_type}(i, vnames_tc[i], miss_tc[i], nan_tc[i]) for i in eachindex(vnames_tc)]
+    end
+
+    # multivariate
+    if !isempty(md_cols)
+        X = @view X[:, md_cols]
+        vnames_md = @views vnames[md_cols]
+        idx_md = @views idx[md_cols]
+        miss, nan = hasmissing[md_cols], hasnan[md_cols]
+        win isa Base.Callable && (win = (win,))
+
+        if aggrtype == :aggregate
+            Xmd, nwindows = DataTreatments.aggregate(X, idx_md, float_type; win, features)
+            md_feats = vec([AggregateFeat{float_type}(i, vnames_md[c], f, nwindows[c], miss[c], nan[c])
+                    for (i, (f, c)) in enumerate(Iterators.product(features, axes(X,2)))])
+
+        elseif aggrtype == :reducesize
+            Xmd = DataTreatments.reducesize(X, idx_md, float_type; win, reducefunc)
+            md_feats = [ReduceFeat{AbstractArray{float_type}}(i, vnames_md[c], reducefunc, miss[c], nan[c])
+                for (i, c) in enumerate(axes(X,2))]
+
+        else
+            error("Unknown treatment type: $treat")
+        end
+    end
+
+    return Xtd, Xtc, Xmd, td_feats, tc_feats, md_feats
+end
+
+# ---------------------------------------------------------------------------- #
 #                             custom lazy methods                              #
 # ---------------------------------------------------------------------------- #
-function get_dataset(dt::DataTreatment; split=true, dataframe=false)
-    
+function get_datasets(dt::DataTreatment; split=true, dataframe=false)
+    dataset = get_dataset(dt)
+    ds_struct = get_dataset_structure(dt)
+    vnames = get_vnames(ds_struct)
     # first step: defines datasets based on treatment groups
+    for t in get_treatment_groups(dt)
+        build_datasets(dataset)
+    end
 
     # second step: defines datasets on leftover indicies
 end
 
-function get_dataset(dt::DataTreatment, grp::TreatmentGroup; dataframe=false)
+function get_datasets(dt::DataTreatment, grp::TreatmentGroup; dataframe=false)
 
 end
 
@@ -231,6 +300,7 @@ test = DataTreatment(
     TreatmentGroup(dims=2)
 )
 
+get_dataset(test)
 # test = DataTreatment(df)
 
 # TreatmentGroup(win=wholewindow(), features=(maximum, minimum, mean))

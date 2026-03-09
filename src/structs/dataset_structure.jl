@@ -26,6 +26,43 @@ the dataset.
 - `nanidxs::Vector{Vector{Int}}`: Indices of `NaN` values for each column
 - `hasmissing::Vector{Vector{Int}}`: Indices of elements containing `missing` (for vectors/matrices)
 - `hasnans::Vector{Vector{Int}}`: Indices of elements containing `NaN` (for vectors/matrices)
+
+# Constructors
+
+    DatasetStructure(
+        dataset::Matrix,
+        vnames::Union{Vector{String},Nothing}=["V\$i" for i in 1:size(dataset, 2)]
+    ) -> DatasetStructure
+
+    DatasetStructure(df::DataFrame) -> DatasetStructure
+
+Scans the dataset column by column (in parallel via `Threads.@threads`) and builds
+a `DatasetStructure` containing all metadata needed by `DataTreatment`.
+
+For each column, [`_get_column_structure`](@ref) is called to extract:
+- the element type
+- the dimensionality
+- the indices of valid, missing, NaN, and internally-corrupt elements
+
+## Arguments
+- `dataset::Matrix`: A matrix where each column is a feature. Elements may be scalars,
+  arrays, or matrices, and may contain `missing` or `NaN` values.
+- `vnames::Vector{String}`: Column names associated with each column of `dataset`.
+- `df::DataFrame`: Converted to `Matrix` before processing. Column names are
+  automatically extracted via `names(df)` and stored in the resulting `DatasetStructure`.
+
+## Example
+```julia
+# from a Matrix with explicit names
+ds = DatasetStructure(Matrix(df), names(df))
+get_vnames(ds)        # ["col1", "col2", ...]
+get_datatype(ds)      # Vector of types, one per column
+get_valididxs(ds, 3)  # Valid row indices for column 3
+
+# from a DataFrame (names extracted automatically)
+ds = DatasetStructure(df)
+get_vnames(ds)        # column names from the DataFrame
+```
 """
 struct DatasetStructure
     vnames::Vector{String}
@@ -60,6 +97,29 @@ struct DatasetStructure
 
         new(vnames, datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
     end
+
+    function DatasetStructure(
+        dataset::Matrix,
+        vnames::Union{Vector{String},Nothing}=["V$i" for i in 1:size(dataset, 2)],)
+        ncols = size(dataset, 2)
+
+        datatype = Vector{Type}(undef, ncols)
+        dims = Vector{Int}(undef, ncols)
+        valididxs = Vector{Vector{Int}}(undef, ncols)
+        missingidxs = Vector{Vector{Int}}(undef, ncols)
+        nanidxs = Vector{Vector{Int}}(undef, ncols)
+        hasmissing = Vector{Vector{Int}}(undef, ncols)
+        hasnans = Vector{Vector{Int}}(undef, ncols)
+
+        Threads.@threads for i in axes(dataset, 2)
+            datatype[i], dims[i], valididxs[i], missingidxs[i], nanidxs[i], hasmissing[i], hasnans[i] =
+                _get_column_structure(@view(dataset[:, i]))
+        end
+
+        return DatasetStructure(vnames, datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
+    end
+
+    DatasetStructure(df::DataFrame; kwargs...) = DatasetStructure(Matrix(df), names(df))
 end
 
 # ---------------------------------------------------------------------------- #
@@ -252,62 +312,6 @@ function _get_column_structure(col::AbstractVector)
 
     return datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans
 end
-
-"""
-    get_dataset_structure(dataset::Matrix, vnames::Vector{String}) -> DatasetStructure
-    get_dataset_structure(df::DataFrame) -> DatasetStructure
-
-Scans the dataset column by column (in parallel via `Threads.@threads`) and returns
-a [`DatasetStructure`](@ref) containing all metadata needed by `DataTreatment`.
-
-For each column, [`_get_column_structure`](@ref) is called to extract:
-- the element type
-- the dimensionality
-- the indices of valid, missing, NaN, and internally-corrupt elements
-
-# Arguments
-- `dataset::Matrix`: A matrix where each column is a feature. Elements may be scalars,
-  arrays, or matrices, and may contain `missing` or `NaN` values.
-- `vnames::Vector{String}`: Column names associated with each column of `dataset`.
-- `df::DataFrame`: Converted to `Matrix` before processing. Column names are
-  automatically extracted via `names(df)` and stored in the resulting `DatasetStructure`.
-
-# Returns
-A `DatasetStructure` object. See [`DatasetStructure`](@ref) for its fields.
-
-# Example
-```julia
-# from a Matrix with explicit names
-ds = get_dataset_structure(Matrix(df), names(df))
-get_vnames(ds)        # ["col1", "col2", ...]
-get_datatype(ds)      # Vector of types, one per column
-get_valididxs(ds, 3)  # Valid row indices for column 3
-
-# from a DataFrame (names extracted automatically)
-ds = get_dataset_structure(df)
-get_vnames(ds)        # column names from the DataFrame
-```
-"""
-function get_dataset_structure(dataset::Matrix, vnames::Vector{String})
-    ncols = size(dataset, 2)
-
-    datatype = Vector{Type}(undef, ncols)
-    dims = Vector{Int}(undef, ncols)
-    valididxs = Vector{Vector{Int}}(undef, ncols)
-    missingidxs = Vector{Vector{Int}}(undef, ncols)
-    nanidxs = Vector{Vector{Int}}(undef, ncols)
-    hasmissing = Vector{Vector{Int}}(undef, ncols)
-    hasnans = Vector{Vector{Int}}(undef, ncols)
-
-    Threads.@threads for i in axes(dataset, 2)
-        datatype[i], dims[i], valididxs[i], missingidxs[i], nanidxs[i], hasmissing[i], hasnans[i] =
-            _get_column_structure(@view(dataset[:, i]))
-    end
-
-    return DatasetStructure(vnames, datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
-end
-
-get_dataset_structure(df::DataFrame; kwargs...) = get_dataset_structure(Matrix(df), names(df))
 
 # ---------------------------------------------------------------------------- #
 #                                 show method                                  #

@@ -164,12 +164,12 @@ function build_datasets(
         win isa Base.Callable && (win = (win,))
 
         if aggrtype == :aggregate
-            Xmd, nwindows = DataTreatments.aggregate(X, win, features, idx_md, float_type)
+            Xmd, nwindows = DataTreatments.aggregate(X, idx_md, float_type; win, features)
             md_feats = vec([AggregateFeat{float_type}(i, vnames_md[c], f, nwindows[c], miss[c], nan[c])
                     for (i, (f, c)) in enumerate(Iterators.product(features, axes(X,2)))])
 
         elseif aggrtype == :reducesize
-            Xmd = DataTreatments.reducesize(X, win, reducefunc, idx_md, float_type)
+            Xmd = DataTreatments.reducesize(X, idx_md, float_type; win, reducefunc)
             md_feats = [ReduceFeat{AbstractArray{float_type}}(i, vnames_md[c], reducefunc, miss[c], nan[c])
                 for (i, c) in enumerate(axes(X,2))]
 
