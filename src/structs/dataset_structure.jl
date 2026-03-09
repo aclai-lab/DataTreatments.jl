@@ -18,6 +18,7 @@ the dataset.
 
 # Fields
 
+- `vnames::Vector{String}`: Column names of the dataset
 - `datatype::Vector{<:Type}`: Data type for each column
 - `dims::Vector{Int}`: Dimensionality of elements for each column
 - `valididxs::Vector{Vector{Int}}`: Indices of valid values for each column
@@ -27,6 +28,7 @@ the dataset.
 - `hasnans::Vector{Vector{Int}}`: Indices of elements containing `NaN` (for vectors/matrices)
 """
 struct DatasetStructure
+    vnames::Vector{String}
     datatype::Vector{<:Type}
     dims::Vector{Int}
     valididxs::Vector{Vector{Int}}
@@ -36,6 +38,7 @@ struct DatasetStructure
     hasnans::Vector{Vector{Int}}
 
     function DatasetStructure(
+        vnames::Vector{String},
         datatype::Vector{<:Type},
         dims::Vector{Int},
         valididxs::Vector{Vector{Int}},
@@ -45,6 +48,7 @@ struct DatasetStructure
         hasnans::Vector{Vector{Int}}
     )
         validate_vector_lengths(
+            vnames,
             datatype,
             dims,
             valididxs,
@@ -54,7 +58,7 @@ struct DatasetStructure
             hasnans
         )
 
-        new(datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
+        new(vnames, datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
     end
 end
 
@@ -99,6 +103,19 @@ Base.eachindex(ds::DatasetStructure) = eachindex(ds.datatype)
 # ---------------------------------------------------------------------------- #
 #                               getter methods                                 #
 # ---------------------------------------------------------------------------- #
+"""
+    get_vnames(ds::DatasetStructure)
+    get_vnames(ds::DatasetStructure, i::Int)
+    get_vnames(ds::DatasetStructure, idxs::Vector{Int})
+
+Returns the column names stored in the structure. If an index `i` is provided,
+returns the name of column `i`. If a vector of indices is provided, returns a
+view of the names for those columns.
+"""
+get_vnames(ds::DatasetStructure) = ds.vnames
+get_vnames(ds::DatasetStructure, i::Int) = ds.vnames[i]
+get_vnames(ds::DatasetStructure, idxs::Vector{Int}) = @views ds.vnames[idxs]
+
 """
     get_datatype(ds::DatasetStructure)
     get_datatype(ds::DatasetStructure, i::Int)
@@ -237,7 +254,7 @@ function _get_column_structure(col::AbstractVector)
 end
 
 """
-    get_dataset_structure(dataset::Matrix) -> DatasetStructure
+    get_dataset_structure(dataset::Matrix, vnames::Vector{String}) -> DatasetStructure
     get_dataset_structure(df::DataFrame) -> DatasetStructure
 
 Scans the dataset column by column (in parallel via `Threads.@threads`) and returns
@@ -251,20 +268,27 @@ For each column, [`_get_column_structure`](@ref) is called to extract:
 # Arguments
 - `dataset::Matrix`: A matrix where each column is a feature. Elements may be scalars,
   arrays, or matrices, and may contain `missing` or `NaN` values.
-- `df::DataFrame`: Converted to `Matrix` before processing. Column names are not preserved
-  in the resulting `DatasetStructure`.
+- `vnames::Vector{String}`: Column names associated with each column of `dataset`.
+- `df::DataFrame`: Converted to `Matrix` before processing. Column names are
+  automatically extracted via `names(df)` and stored in the resulting `DatasetStructure`.
 
 # Returns
 A `DatasetStructure` object. See [`DatasetStructure`](@ref) for its fields.
 
 # Example
 ```julia
-ds = get_dataset_structure(Matrix(df))
+# from a Matrix with explicit names
+ds = get_dataset_structure(Matrix(df), names(df))
+get_vnames(ds)        # ["col1", "col2", ...]
 get_datatype(ds)      # Vector of types, one per column
 get_valididxs(ds, 3)  # Valid row indices for column 3
+
+# from a DataFrame (names extracted automatically)
+ds = get_dataset_structure(df)
+get_vnames(ds)        # column names from the DataFrame
 ```
 """
-function get_dataset_structure(dataset::Matrix)
+function get_dataset_structure(dataset::Matrix, vnames::Vector{String})
     ncols = size(dataset, 2)
 
     datatype = Vector{Type}(undef, ncols)
@@ -280,14 +304,39 @@ function get_dataset_structure(dataset::Matrix)
             _get_column_structure(@view(dataset[:, i]))
     end
 
-    return DatasetStructure(datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
+    return DatasetStructure(vnames, datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
 end
 
-get_dataset_structure(df::DataFrame; kwargs...) = get_dataset_structure(Matrix(df))
+get_dataset_structure(df::DataFrame; kwargs...) = get_dataset_structure(Matrix(df), names(df))
 
 # ---------------------------------------------------------------------------- #
 #                                 show method                                  #
 # ---------------------------------------------------------------------------- #
+function get_structure(ds::DatasetStructure)
+    ncols = length(ds.datatype)
+    
+    # Group columns by datatype
+    type_to_cols = Dict{Type, Vector{Int}}()
+    foreach(i -> begin
+        dtype = ds.datatype[i]
+        haskey(type_to_cols, dtype) || (type_to_cols[dtype] = Int[])
+        push!(type_to_cols[dtype], i)
+    end, 1:ncols)
+    
+    # Find columns with missing values
+    cols_with_missing = filter(i -> !isempty(ds.missingidxs[i]) || !isempty(ds.hasmissing[i]), 1:ncols)
+    
+    # Find columns with NaN values
+    cols_with_nans = filter(i -> !isempty(ds.nanidxs[i]) || !isempty(ds.hasnans[i]), 1:ncols)
+    
+    return (
+        ncols = ncols,
+        type_to_cols = type_to_cols,
+        cols_with_missing = cols_with_missing,
+        cols_with_nans = cols_with_nans
+    )
+end
+
 function Base.show(io::IO, ds::DatasetStructure)
     structure = get_structure(ds)
     

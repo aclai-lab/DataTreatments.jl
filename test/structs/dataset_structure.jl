@@ -1,10 +1,11 @@
 using Test
 using DataTreatments
-
 using DataFrames
 
 @testset "DatasetStructure" begin
     
+    vnames = ["col1", "col2", "col3"]
+
     @testset "Constructor" begin
         datatype = [Int64, Float64, String]
         dims = [0, 0, 0]
@@ -14,13 +15,14 @@ using DataFrames
         hasmissing = [Int[], Int[], Int[]]
         hasnans = [Int[], Int[], Int[]]
         
-        ds = DatasetStructure(datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
+        ds = DatasetStructure(vnames, datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
         @test length(ds) == 3
         
         @test_throws DimensionMismatch DatasetStructure(
-            [Int64, Float64],
-            [0, 0, 0],
-            [[1, 2], [1, 2, 3], [1]],
+            ["col1", "col2"],          # mismatched length
+            datatype,
+            dims,
+            valididxs,
             missingidxs, nanidxs, hasmissing, hasnans
         )
     end
@@ -34,7 +36,7 @@ using DataFrames
         hasmissing = [Int[], Int[], Int[]]
         hasnans = [Int[], Int[], Int[]]
         
-        ds = DatasetStructure(datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
+        ds = DatasetStructure(vnames, datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
         
         @test size(ds) == (3,)
         @test length(ds) == 3
@@ -50,8 +52,11 @@ using DataFrames
         hasmissing = [Int[], Int[], Int[]]
         hasnans = [Int[], Int[], Int[]]
         
-        ds = DatasetStructure(datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
+        ds = DatasetStructure(vnames, datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
         
+        @test get_vnames(ds) == vnames
+        @test get_vnames(ds, 1) == "col1"
+        @test get_vnames(ds, [1, 3]) == ["col1", "col3"]
         @test get_datatype(ds) == datatype
         @test get_dims(ds) == dims
         @test get_valididxs(ds) == valididxs
@@ -70,8 +75,12 @@ using DataFrames
         hasmissing = [Int[], Int[], Int[]]
         hasnans = [Int[], Int[], Int[]]
         
-        ds = DatasetStructure(datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
+        ds = DatasetStructure(vnames, datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
         
+        @test get_vnames(ds, 1) == "col1"
+        @test get_vnames(ds, 2) == "col2"
+        @test get_vnames(ds, 3) == "col3"
+
         @test get_datatype(ds, 1) == Int64
         @test get_datatype(ds, 2) == Float64
         @test get_datatype(ds, 3) == String
@@ -94,7 +103,7 @@ using DataFrames
         hasmissing = [Int[], Int[], Int[]]
         hasnans = [Int[], Int[], Int[]]
         
-        ds = DatasetStructure(datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
+        ds = DatasetStructure(vnames, datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
         
         @test collect(ds) == [Int64, Float64, String]
         @test collect(eachindex(ds)) == [1, 2, 3]
@@ -109,7 +118,7 @@ using DataFrames
         hasmissing = [Int[], Int[], Int[]]
         hasnans = [Int[], [2], [1]]
         
-        ds = DatasetStructure(datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
+        ds = DatasetStructure(vnames, datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
         
         @test get_dims(ds, 1) == 0
         @test get_dims(ds, 2) == 1
@@ -122,10 +131,12 @@ using DataFrames
         dataset[:, 1] = [1, 2, missing, 4, 5]
         dataset[:, 2] = [1.0, NaN, 3.0, missing, 5.0]
         dataset[:, 3] = [collect(1.0:3.0), collect(2.0:4.0), collect(3.0:5.0), missing, NaN]
+        col_names = ["a", "b", "c"]
 
-        ds = get_dataset_structure(dataset)
+        ds = get_dataset_structure(dataset, col_names)
 
         @test length(ds) == 3
+        @test get_vnames(ds) == col_names
 
         # col 1: Int with one missing
         @test get_missingidxs(ds, 1) == [3]
@@ -154,6 +165,7 @@ using DataFrames
         ds = get_dataset_structure(df)
 
         @test length(ds) == 3
+        @test get_vnames(ds) == ["a", "b", "c"]
         @test get_missingidxs(ds, 1) == [3]
         @test get_nanidxs(ds, 2) == [2]
         @test get_dims(ds, 3) == 1
@@ -169,7 +181,7 @@ using DataFrames
         hasmissing = [Int[], Int[], Int[]]
         hasnans = [Int[], Int[], Int[]]
         
-        ds = DatasetStructure(datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
+        ds = DatasetStructure(vnames, datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
         
         io = IOBuffer()
         show(io, ds)

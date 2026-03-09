@@ -105,42 +105,6 @@ struct ReduceFeat{T} <: AbstractDataFeature
     # hasnans::Vector{Bool}}
 end
 
-####################################################################
-
-# function get_column_structure(col::AbstractVector)
-#     datatype = Any
-#     dims = 0
-#     valididxs = Int[]
-#     missingidxs = Int[]
-#     nanidxs = Int[]
-#     hasmissing = Int[]
-#     hasnans = Int[]
-
-#     for i in eachindex(col)
-#         val = col[i]
-#         if ismissing(val)
-#             push!(missingidxs, i)
-#         elseif val isa AbstractFloat && isnan(val)
-#             push!(nanidxs, i)
-#         elseif val isa AbstractVector{<:AbstractFloat} || val isa AbstractArray{<:AbstractFloat}
-#             any(ismissing, val) && push!(hasmissing, i)
-#             any(isnan, val) && push!(hasnans, i)
-#             datatype = typeof(val)
-#             dims = ndims(val)
-#             push!(valididxs, i)
-#         elseif !(val isa AbstractFloat) || !isnan(val)
-#             if datatype == Any || !(datatype <: AbstractVector)
-#                 datatype = typeof(val)
-#                 push!(valididxs, i)
-#             end
-#         end
-#     end
-
-#     return datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans
-# end
-
-
-
 ######################################################################
 
 function build_datasets(
@@ -211,23 +175,37 @@ end
 # ---------------------------------------------------------------------------- #
 #                            TreatmentGroup struct                             #
 # ---------------------------------------------------------------------------- #
-struct TreatmentGroup
+struct TreatmentGroup{T}
+    idxs::Vector{Int}
     dims::Int
     vnames::Vector{Symbol}
-    datatype::Type
+    aggrtype::Base.Callable
+    win::Tuple{Base.Callable...}
+    features::Tuple{Base.Callable...}
+    reducefunc::Base.Callable
 
     function TreatmentGroup(
+        ds_struct::DatasetStructure,
         vnames::Vector{String};
-        dims::Int,
+        dims::Int=-1,
         name_expr::Union{Regex,Base.Callable}=r".*",
         datatype::Type=Any,
-        aggrtype::Base.Callable=aggregate
+        aggrtype::Base.Callable=aggregate,
+        win::Tuple{Base.Callable...}=wholewindow(),
+        features::Tuple{Base.Callable...}=(maximum, minimum, mean),
+        reducefunc::Base.Callable=mean,
     )
-        valid_names = name_expr isa Regex ?
-        filter(item -> match(name_expr, item) !== nothing, vnames) :
-        filter(name_expr, vnames)
+        # filter by dims
+        idxs = dims == -1 ?
+            collect(1:length(ds_struct)) :
+            findall(get_dims(ds_struct) .== dims)
 
-        new(dims, Symbol.(valid_names), datatype)
+        # filter by names
+        valid_names = name_expr isa Regex ?
+            filter(item -> match(name_expr, item) !== nothing, vnames) :
+            filter(name_expr, vnames)
+
+        new{datatype}(dims, Symbol.(valid_names), aggrtype, win, features, reducefunc)
     end
 
     TreatmentGroup(vnames::Vector{Symbol}; kwargs...) = TreatmentGroup(String.(vnames); kwargs...)
@@ -242,15 +220,19 @@ TreatmentGroup(; kwargs...) = x -> TreatmentGroup(x; kwargs...)
 function DataTreatment(
     dataset::Matrix,
     vnames::Vector{String},
-    treatments::Base.Callable...=TreatmentGroup(win=wholewindow(), features=(maximum, minimum, mean));
+    treatments::Base.Callable...=TreatmentGroup(
+        aggrtype=:aggregate,
+        win=wholewindow(),
+        features=(maximum, minimum, mean)
+    );
     float_type::Type=Float64
 )
     ds_struct = get_dataset_structure(dataset)
     # build_datasets(dataset, ds_struct, vnames, float_type)
 
-    # for treat in treatments
-    #     treat(vnames)
-    # end
+    for treat in treatments
+        treat(ds_struct, vnames)
+    end
 end
 
 DataTreatment(df::DataFrame, args...; kwargs...) =
@@ -264,5 +246,5 @@ DataTreatment(df::DataFrame, args...; kwargs...) =
 
 test = DataTreatment(df)
 
-TreatmentGroup(win=wholewindow(), features=(maximum, minimum, mean))
+# TreatmentGroup(win=wholewindow(), features=(maximum, minimum, mean))
 
