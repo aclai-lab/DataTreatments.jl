@@ -75,7 +75,10 @@ struct TreatmentGroup{T}
         vnames = get_vnames(ds_struct)
         valid_names = name_expr isa Regex ?
             filter(item -> match(name_expr, item) !== nothing, vnames) :
-            filter(name_expr, vnames)
+            name_expr isa Vector{String} ?
+                name_expr :
+                filter(name_expr, vnames)
+
         idxs = idxs ∩ findall(n -> n in valid_names, vnames)
 
         # get types
