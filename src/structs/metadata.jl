@@ -2,15 +2,15 @@
 #                              metadata structs                                #
 # ---------------------------------------------------------------------------- #
 struct DiscreteFeat{T} <: AbstractDataFeature
-    id::Int
+    id::Vector
     vname::String
     levels::CategoricalArrays.CategoricalVector
     valididxs::Vector{Int}
     missingidxs::Vector{Int}
 
     function DiscreteFeat{T}(
-        id::Int,
-        vname::Union{String,Symbol},
+        id::Vector,
+        vname::String,
         levels::CategoricalArrays.CategoricalVector,
         valididxs::Vector{Int},
         missingidxs::Vector{Int}
@@ -20,15 +20,15 @@ struct DiscreteFeat{T} <: AbstractDataFeature
 end
 
 struct ContinuousFeat{T} <: AbstractDataFeature
-    id::Int
+    id::Vector
     vname::String
     valididxs::Vector{Int}
     missingidxs::Vector{Int}
     nanidxs::Vector{Int}
 
     function ContinuousFeat{T}(
-        id::Int,
-        vname::Union{String,Symbol},
+        id::Vector,
+        vname::String,
         valididxs::Vector{Int},
         missingidxs::Vector{Int},
         nanidxs::Vector{Int}
@@ -38,7 +38,7 @@ struct ContinuousFeat{T} <: AbstractDataFeature
 end
 
 struct AggregateFeat{T} <: AbstractDataFeature
-    id::Int
+    id::Vector
     vname::String
     feat::Base.Callable
     nwin::Int
@@ -49,8 +49,8 @@ struct AggregateFeat{T} <: AbstractDataFeature
     hasnans::Vector{Bool}
 
     function AggregateFeat{T}(
-        id::Int,
-        vname::Union{String,Symbol},
+        id::Vector,
+        vname::String,
         feat::Base.Callable,
         nwin::Int,
         valididxs::Vector{Int},
@@ -64,7 +64,7 @@ struct AggregateFeat{T} <: AbstractDataFeature
 end
 
 struct ReduceFeat{T} <: AbstractDataFeature
-    id::Int
+    id::Vector
     vname::Symbol
     reducefunc::Base.Callable
     valididxs::Vector{Int}
@@ -74,8 +74,8 @@ struct ReduceFeat{T} <: AbstractDataFeature
     hasnans::Vector{Bool}
 
     function ReduceFeat{T}(
-        id::Int,
-        vname::Union{String,Symbol},
+        id::Vector,
+        vname::String,
         reducefunc::Base.Callable,
         valididxs::Vector{Int},
         missingidxs::Vector{Int},

@@ -45,15 +45,15 @@ end
 # ---------------------------------------------------------------------------- #
 #                               dataset structs                                #
 # ---------------------------------------------------------------------------- #
-struct DiscreteDataset{T}
+struct DiscreteDataset
     dataset::Matrix
     info::Vector{DiscreteFeat}
 
     function DiscreteDataset(
-        dataset::Matrix
+        dataset::Matrix,
+        info::Vector{DiscreteFeat}
     )
-
-        new{T}(dataset, info)
+        new(dataset, info)
     end
 end
 
@@ -62,34 +62,32 @@ struct ContinuousDataset{T}
     info::Vector{ContinuousFeat}
 
     function ContinuousDataset(
-        dataset::Matrix
-    )
-
+        dataset::Matrix,
+        info::Vector{ContinuousFeat{T}}
+    ) where T
         new{T}(dataset, info)
     end
 end
 
-struct AggregatedMultidimDataset{T}
+struct AggregatedMultidimDataset
     dataset::Matrix
     info::Vector{AggregateFeat}
 
     function AggregatedMultidimDataset(
         dataset::Matrix
     )
-
-        new{T}(dataset, info)
+        new(dataset, info)
     end
 end
 
-struct ReducedMultidimDataset{T}
+struct ReducedMultidimDataset
     dataset::Matrix
     info::Vector{ReduceFeat}
 
     function ReducedMultidimDataset(
         dataset::Matrix
     )
-
-        new{T}(dataset, info)
+        new(dataset, info)
     end
 end
 
@@ -210,64 +208,81 @@ get_ncols(dt::DataTreatment) = size(dt.dataset, 2)
 #                               dataset builder                                #
 # ---------------------------------------------------------------------------- #
 function build_datasets(
-    X::Matrix,
-    vnames::Union{Vector{Symbol},Nothing}=[Symbol("V$i") for i in 1:size(X, 2)],
-    win::Union{Base.Callable,Tuple{Vararg{Base.Callable}}}=wholewindow(),
-    features::Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean),
-    reducefunc::Base.Callable=mean,
-    float_type::Type=Float64,
-    kwargs...
+    id::Vector,
+    dataset::Matrix,
+    ds_struct::DatasetStructure,
+    idxs::Vector{Int},
+    aggrfunc::Base.Callable,
+    float_type::Type=Float64
 )
-    Xtd = Xtc = Xmd = td_feats = tc_feats = md_feats = nothing
-    valtype, idx, hasmissing, hasnan = check_dataset_structure(X)
+    # dataset = @views dataset[:, idxs]
 
-    td_cols = findall(T -> !isnothing(T) && !(T <: AbstractFloat) && !(T <: AbstractArray), valtype)
-    tc_cols = findall(T -> !isnothing(T) && T <: AbstractFloat, valtype)
-    md_cols = findall(T -> !isnothing(T) && T <: AbstractArray, valtype)
+    ds_td = ds_tc = ds_md = nothing
+    # vnames = get_vnames(ds_struct)
+    valtype = get_datatype(ds_struct)
+
+    # idx = get_valididxs(ds_struct)
+    # missingidx = get_missingidxs(ds_struct)
+    # nanidx = get_nanidxs(ds_struct)
+
+    td_cols = idxs ∩ findall(T -> !isnothing(T) && !(T <: AbstractFloat) && !(T <: AbstractArray), valtype)
+    tc_cols = idxs ∩ findall(T -> !isnothing(T) && T <: AbstractFloat, valtype)
+    md_cols = idxs ∩ findall(T -> !isnothing(T) && T <: AbstractArray, valtype)
 
     # discrete
     if !isempty(td_cols)
-        vnames_td = @views vnames[td_cols]
-        miss_td = hasmissing[td_cols]
-        codes, levels = discrete_encode(X[:, td_cols])
+        T = get_datatype(ds_struct, td_cols)
+        vnames_td = get_vnames(ds_struct, td_cols)
+        idx = get_valididxs(ds_struct, td_cols)
+        miss_td = get_missingidxs(ds_struct, td_cols)
+        codes, levels = discrete_encode(dataset[:, td_cols])
 
-        Xtd = stack(codes)
-        td_feats = [DiscreteFeat(i, vnames_td[i], levels[i], miss_td[i]) for i in eachindex(vnames_td)]
+        ds_td = DiscreteDataset(
+            stack(codes),
+            [DiscreteFeat{T[i]}(push!(id, i), vnames_td[i], levels[i], idx[i], miss_td[i])
+                for i in eachindex(vnames_td)]
+        )
+        
     end
 
     # scalar
     if !isempty(tc_cols)
-        vnames_tc = @views vnames[tc_cols]
-        miss_tc, nan_tc = hasmissing[tc_cols], hasnan[tc_cols]
+        vnames_tc = get_vnames(ds_struct, tc_cols)
+        idx = get_valididxs(ds_struct, tc_cols)
+        miss_tc = get_missingidxs(ds_struct, tc_cols)
+        nan_tc = get_nanidxs(ds_struct, tc_cols)
 
-        Xtc = reduce(hcat, [map(x -> ismissing(x) ? missing : float_type(x), @view X[:, col]) for col in tc_cols])
-        tc_feats = [ScalarFeat{float_type}(i, vnames_tc[i], miss_tc[i], nan_tc[i]) for i in eachindex(vnames_tc)]
+        ds_tc = ContinuousDataset(
+            reduce(hcat, [map(x -> ismissing(x) ? missing : float_type(x), @view dataset[:, col])
+                for col in tc_cols]),
+            [ContinuousFeat{float_type}(push!(id, i), vnames_tc[i], idx[i], miss_tc[i], nan_tc[i]) for i in eachindex(vnames_tc)]
+        )
     end
 
-    # multivariate
-    if !isempty(md_cols)
-        X = @view X[:, md_cols]
-        vnames_md = @views vnames[md_cols]
-        idx_md = @views idx[md_cols]
-        miss, nan = hasmissing[md_cols], hasnan[md_cols]
-        win isa Base.Callable && (win = (win,))
+    # # multivariate
+    # if !isempty(md_cols)
+    #     X = @view X[:, md_cols]
+    #     vnames_md = @views vnames[md_cols]
+    #     idx_md = @views idx[md_cols]
+    #     miss, nan = hasmissing[md_cols], hasnan[md_cols]
+    #     win isa Base.Callable && (win = (win,))
 
-        if aggrtype == :aggregate
-            Xmd, nwindows = DataTreatments.aggregate(X, idx_md, float_type; win, features)
-            md_feats = vec([AggregateFeat{float_type}(i, vnames_md[c], f, nwindows[c], miss[c], nan[c])
-                    for (i, (f, c)) in enumerate(Iterators.product(features, axes(X,2)))])
+    #     if aggrtype == :aggregate
+    #         Xmd, nwindows = DataTreatments.aggregate(X, idx_md, float_type; win, features)
+    #         md_feats = vec([AggregateFeat{float_type}(i, vnames_md[c], f, nwindows[c], miss[c], nan[c])
+    #                 for (i, (f, c)) in enumerate(Iterators.product(features, axes(X,2)))])
 
-        elseif aggrtype == :reducesize
-            Xmd = DataTreatments.reducesize(X, idx_md, float_type; win, reducefunc)
-            md_feats = [ReduceFeat{AbstractArray{float_type}}(i, vnames_md[c], reducefunc, miss[c], nan[c])
-                for (i, c) in enumerate(axes(X,2))]
+    #     elseif aggrtype == :reducesize
+    #         Xmd = DataTreatments.reducesize(X, idx_md, float_type; win, reducefunc)
+    #         md_feats = [ReduceFeat{AbstractArray{float_type}}(i, vnames_md[c], reducefunc, miss[c], nan[c])
+    #             for (i, c) in enumerate(axes(X,2))]
 
-        else
-            error("Unknown treatment type: $treat")
-        end
-    end
+    #     else
+    #         error("Unknown treatment type: $treat")
+    #     end
+    # end
 
-    return Xtd, Xtc, Xmd, td_feats, tc_feats, md_feats
+    # return Xtd, Xtc, Xmd, td_feats, tc_feats, md_feats
 end
 
 # ---------------------------------------------------------------------------- #
@@ -275,11 +290,21 @@ end
 # ---------------------------------------------------------------------------- #
 function get_datasets(dt::DataTreatment; split=true, dataframe=false)
     dataset = get_dataset(dt)
-    ds_struct = get_dataset_structure(dt)
-    vnames = get_vnames(ds_struct)
+    float_type = get_float_type(dt)
+
     # first step: defines datasets based on treatment groups
-    for t in get_treatment_groups(dt)
-        build_datasets(dataset)
+    treats = get_treatment_groups(dt)
+    idxs = get_idxs(treats)
+
+    for i in eachindex(treats)
+        build_datasets(
+            [:treatment_group, i],
+            dataset,
+            ds_struct,
+            idxs[i],
+            get_aggrfunc(treats[i]),
+            float_type
+        )
     end
 
     # second step: defines datasets on leftover indicies
@@ -300,7 +325,7 @@ test = DataTreatment(
     TreatmentGroup(dims=2)
 )
 
-get_dataset(test)
+get_datasets(test)
 # test = DataTreatment(df)
 
 # TreatmentGroup(win=wholewindow(), features=(maximum, minimum, mean))
