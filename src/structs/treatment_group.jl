@@ -194,13 +194,13 @@ end
 # ---------------------------------------------------------------------------- #
 #                                 show method                                  #
 # ---------------------------------------------------------------------------- #
-# one-line (used inside arrays, tuples, etc.)
+# one-line
 function Base.show(io::IO, tg::TreatmentGroup{T}) where {T}
     dims_str = tg.dims == -1 ? "all" : string(tg.dims)
     print(io, "TreatmentGroup{$T}(", length(tg.idxs), " cols, dims=", dims_str, ")")
 end
 
-# pretty multi-line (used when printing a single object in text/plain contexts)
+# multi-line
 function Base.show(io::IO, ::MIME"text/plain", tg::TreatmentGroup{T}) where {T}
     n_selected = length(tg.idxs)
     dims_str = tg.dims == -1 ? "all" : string(tg.dims)

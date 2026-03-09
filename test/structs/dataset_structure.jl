@@ -183,13 +183,36 @@ using DataFrames
         
         ds = DatasetStructure(vnames, datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
         
+        # Test one-line show
         io = IOBuffer()
         show(io, ds)
         output = String(take!(io))
-        
+        @test contains(output, "DatasetStructure(3 cols)")
+
+        # Test multi-line show (text/plain)
+        io = IOBuffer()
+        show(io, MIME"text/plain"(), ds)
+        output = String(take!(io))
         @test contains(output, "DatasetStructure(3 columns)")
         @test contains(output, "datatypes by columns:")
         @test contains(output, "missing at:")
         @test contains(output, "NaN at:")
+
+        # Test columns with no missing/NaN are not shown
+        ds_clean = DatasetStructure(
+            vnames,
+            datatype,
+            dims,
+            [[1, 2], [1, 2, 3], [1, 2]],
+            [Int[], Int[], Int[]],
+            [Int[], Int[], Int[]],
+            [Int[], Int[], Int[]],
+            [Int[], Int[], Int[]]
+        )
+        io = IOBuffer()
+        show(io, MIME"text/plain"(), ds_clean)
+        output = String(take!(io))
+        @test !contains(output, "missing at:")
+        @test !contains(output, "NaN at:")
     end
 end

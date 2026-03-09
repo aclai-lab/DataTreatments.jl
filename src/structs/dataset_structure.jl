@@ -337,7 +337,11 @@ function get_structure(ds::DatasetStructure)
     )
 end
 
-function Base.show(io::IO, ds::DatasetStructure)
+# one-line
+Base.show(io::IO, ds::DatasetStructure) = print(io, "DatasetStructure(", length(ds), " cols)")
+
+# multi-line
+function Base.show(io::IO, ::MIME"text/plain", ds::DatasetStructure)
     structure = get_structure(ds)
     
     println(io, "DatasetStructure($(structure.ncols) columns)")
