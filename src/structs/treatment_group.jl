@@ -190,3 +190,33 @@ function get_idxs(tgs::Vector{<:TreatmentGroup})
 
     return idxs
 end
+
+# ---------------------------------------------------------------------------- #
+#                                 show method                                  #
+# ---------------------------------------------------------------------------- #
+# one-line (used inside arrays, tuples, etc.)
+function Base.show(io::IO, tg::TreatmentGroup{T}) where {T}
+    dims_str = tg.dims == -1 ? "all" : string(tg.dims)
+    print(io, "TreatmentGroup{$T}(", length(tg.idxs), " cols, dims=", dims_str, ")")
+end
+
+# pretty multi-line (used when printing a single object in text/plain contexts)
+function Base.show(io::IO, ::MIME"text/plain", tg::TreatmentGroup{T}) where {T}
+    n_selected = length(tg.idxs)
+    dims_str = tg.dims == -1 ? "all" : string(tg.dims)
+
+    # safer label for anonymous callables/closures
+    ftype_name = String(Base.unwrap_unionall(typeof(tg.aggrfunc)).name.name)
+    aggr_label = startswith(ftype_name, "#") ? "anonymous callable" : ftype_name
+
+    println(io, "TreatmentGroup{$T}($n_selected columns selected)")
+    println(io, "├─ dims filter: $dims_str")
+
+    if tg.dims > 0
+        println(io, "├─ selected indices: $(tg.idxs)")
+        println(io, "├─ aggregation function: $aggr_label")
+        print(io,   "└─ groupby: $(tg.groupby)")
+    else
+        print(io,   "└─ selected indices: $(tg.idxs)")
+    end
+end

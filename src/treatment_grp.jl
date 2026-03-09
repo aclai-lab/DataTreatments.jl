@@ -31,7 +31,7 @@ df = DataFrame(
 abstract type AbstractDataFeature end
 
 include("../src/errors.jl")
-using DataTreatments: reducesize, wholewindow, @evalwindow
+using DataTreatments: aggregate, reducesize, wholewindow
 include("../src/structs/dataset_structure.jl")
 include("../src/structs/treatment_group.jl")
 
@@ -219,6 +219,13 @@ get_ncols(dt::DataTreatment) = size(dt.dataset, 2)
 #                             custom lazy methods                              #
 # ---------------------------------------------------------------------------- #
 function get_dataset(dt::DataTreatment; split=true, dataframe=false)
+    
+    # first step: defines datasets based on treatment groups
+
+    # second step: defines datasets on leftover indicies
+end
+
+function get_dataset(dt::DataTreatment, grp::TreatmentGroup; dataframe=false)
 
 end
 
