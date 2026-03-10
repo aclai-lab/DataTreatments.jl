@@ -103,7 +103,7 @@ using Statistics
         hnans = [2]
 
         af = AggregateFeat{Float64}(
-            [3], "audio_signal", maximum, 4,
+            [3], "audio_signal", 1, maximum, 4,
             valid, miss, nans, hmiss, hnans
         )
 
@@ -118,6 +118,10 @@ using Statistics
 
         @testset "get_vname" begin
             @test get_vname(af) == "audio_signal"
+        end
+
+        @testset "get_dims" begin
+            @test get_dims(af) == 1
         end
 
         @testset "get_feat" begin
@@ -150,16 +154,26 @@ using Statistics
 
         @testset "different feature functions" begin
             af_mean = AggregateFeat{Float64}(
-                [1], "ts", mean, 2,
+                [1], "ts", 1, mean, 2,
                 [1, 2], Int[], Int[], Int[], Int[]
             )
             @test get_feat(af_mean) === mean
             @test get_nwin(af_mean) == 2
+            @test get_dims(af_mean) == 1
+        end
+
+        @testset "2D source" begin
+            af_2d = AggregateFeat{Float64}(
+                [5], "spectrogram", 2, mean, 1,
+                [1, 2, 3], Int[], Int[], Int[], Int[]
+            )
+            @test get_dims(af_2d) == 2
+            @test get_vname(af_2d) == "spectrogram"
         end
 
         @testset "all clean" begin
             af_clean = AggregateFeat{Float64}(
-                [1], "x", maximum, 1,
+                [1], "x", 1, maximum, 1,
                 [1, 2, 3], Int[], Int[], Int[], Int[]
             )
             @test isempty(get_missingidxs(af_clean))
@@ -178,7 +192,7 @@ using Statistics
         hnans = [3]
 
         rf = ReduceFeat{Float64}(
-            [4], "spectrogram", my_downsample,
+            [4], "spectrogram", 2, my_downsample,
             valid, miss, nans, hmiss, hnans
         )
 
@@ -193,6 +207,10 @@ using Statistics
 
         @testset "get_vname" begin
             @test get_vname(rf) == "spectrogram"
+        end
+
+        @testset "get_dims" begin
+            @test get_dims(rf) == 2
         end
 
         @testset "get_reducefunc" begin
@@ -219,9 +237,17 @@ using Statistics
             @test get_hasnans(rf) == [3]
         end
 
+        @testset "1D source" begin
+            rf_1d = ReduceFeat{Float64}(
+                [1], "audio", 1, identity,
+                [1, 2], Int[], Int[], Int[], Int[]
+            )
+            @test get_dims(rf_1d) == 1
+        end
+
         @testset "all clean" begin
             rf_clean = ReduceFeat{Float64}(
-                [1], "x", identity,
+                [1], "x", 1, identity,
                 [1, 2, 3], Int[], Int[], Int[], Int[]
             )
             @test isempty(get_missingidxs(rf_clean))
@@ -234,8 +260,8 @@ using Statistics
     @testset "Getter dispatch" begin
         df = DiscreteFeat{String}([1], "a", categorical(["x"]), [1], Int[])
         cf = ContinuousFeat{Float64}([2], "b", [1], Int[], Int[])
-        af = AggregateFeat{Float64}([3], "c", maximum, 1, [1], Int[], Int[], Int[], Int[])
-        rf = ReduceFeat{Float64}([4], "d", identity, [1], Int[], Int[], Int[], Int[])
+        af = AggregateFeat{Float64}([3], "c", 1, maximum, 1, [1], Int[], Int[], Int[], Int[])
+        rf = ReduceFeat{Float64}([4], "d", 1, identity, [1], Int[], Int[], Int[], Int[])
 
         @testset "Common getters work on all types" begin
             for f in [df, cf, af, rf]
@@ -244,6 +270,13 @@ using Statistics
                 @test get_valididxs(f) isa Vector{Int}
                 @test get_missingidxs(f) isa Vector{Int}
             end
+        end
+
+        @testset "get_dims dispatches on Aggregate and Reduce only" begin
+            @test get_dims(af) isa Int
+            @test get_dims(rf) isa Int
+            @test_throws MethodError get_dims(df)
+            @test_throws MethodError get_dims(cf)
         end
 
         @testset "get_nanidxs dispatches on Continuous, Aggregate, Reduce only" begin

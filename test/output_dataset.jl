@@ -226,11 +226,11 @@ using Statistics
 
     @testset "MultidimDataset" begin
 
-        # --- AggregateFeat (aggregate mode) - use parameterized vectors ---
+        # --- AggregateFeat (aggregate mode) - with dims ---
         info_aggr = AggregateFeat{Float64}[
-            AggregateFeat{Float64}([1, 1], "ts1", maximum, 2, [1, 2, 3], Int[], Int[], Int[], Int[]),
-            AggregateFeat{Float64}([1, 2], "ts1", minimum, 2, [1, 2, 3], Int[], Int[], Int[], Int[]),
-            AggregateFeat{Float64}([1, 3], "ts1", mean,    2, [1, 2, 3], Int[], Int[], Int[], Int[]),
+            AggregateFeat{Float64}([1, 1], "ts1", 1, maximum, 2, [1, 2, 3], Int[], Int[], Int[], Int[]),
+            AggregateFeat{Float64}([1, 2], "ts1", 1, minimum, 2, [1, 2, 3], Int[], Int[], Int[], Int[]),
+            AggregateFeat{Float64}([1, 3], "ts1", 1, mean,    2, [1, 2, 3], Int[], Int[], Int[], Int[]),
         ]
         mat_aggr = Matrix{Any}(Any[5.0 1.0 3.0; 6.0 2.0 4.0; 7.0 3.0 5.0])
         md_aggr = MultidimDataset(mat_aggr, info_aggr)
@@ -275,6 +275,9 @@ using Statistics
             @test get_idxs(md_aggr) == [[1, 1], [1, 2], [1, 3]]
             @test get_idxs(md_aggr, 2) == [1, 2]
             @test get_idxs(md_aggr, [1, 3]) == [[1, 1], [1, 3]]
+            @test get_dims(md_aggr) == [1, 1, 1]
+            @test get_dims(md_aggr, 1) == 1
+            @test get_dims(md_aggr, [1, 2]) == [1, 1]
         end
 
         @testset "show - one-line aggregate" begin
@@ -300,7 +303,7 @@ using Statistics
 
         @testset "show - multi-line aggregate with missing/NaN" begin
             info_aggr_dirty = AggregateFeat{Float64}[
-                AggregateFeat{Float64}([1, 1], "ts", maximum, 1, [1], [2], [3], [4], [5]),
+                AggregateFeat{Float64}([1, 1], "ts", 1, maximum, 1, [1], [2], [3], [4], [5]),
             ]
             md_dirty = MultidimDataset(Matrix{Any}(reshape(Any[5.0], 1, 1)), info_aggr_dirty)
             io = IOBuffer()
@@ -312,11 +315,22 @@ using Statistics
             @test contains(output, "columns with internal NaN: 1")
         end
 
-        # --- ReduceFeat (reducesize mode) ---
+        @testset "Getter methods - aggregate dims 2D" begin
+            info_aggr_2d = AggregateFeat{Float64}[
+                AggregateFeat{Float64}([1, 1], "spec", 2, maximum, 1, [1], Int[], Int[], Int[], Int[]),
+                AggregateFeat{Float64}([1, 2], "spec", 2, mean,    1, [1], Int[], Int[], Int[], Int[]),
+            ]
+            md_2d = MultidimDataset(Matrix{Any}(reshape(Any[5.0, 3.0], 1, 2)), info_aggr_2d)
+            @test get_dims(md_2d) == [2, 2]
+            @test get_dims(md_2d, 1) == 2
+            @test get_dims(md_2d, [1, 2]) == [2, 2]
+        end
+
+        # --- ReduceFeat (reducesize mode) - with dims ---
         downsample = x -> x[1:2:end]
         info_reduce = ReduceFeat{Float64}[
-            ReduceFeat{Float64}([2, 1], "signal1", downsample, [1, 2, 3], Int[], Int[], Int[], Int[]),
-            ReduceFeat{Float64}([2, 2], "signal2", downsample, [1, 2, 3], Int[], Int[], Int[], Int[]),
+            ReduceFeat{Float64}([2, 1], "signal1", 1, downsample, [1, 2, 3], Int[], Int[], Int[], Int[]),
+            ReduceFeat{Float64}([2, 2], "signal2", 1, downsample, [1, 2, 3], Int[], Int[], Int[], Int[]),
         ]
         mat_reduce = Matrix{Any}(undef, 3, 2)
         mat_reduce[:, 1] = [collect(1.0:5.0), collect(2.0:6.0), collect(3.0:7.0)]
@@ -342,6 +356,21 @@ using Statistics
         @testset "Getter methods - reducesize" begin
             @test get_vnames(md_reduce) == ["signal1", "signal2"]
             @test get_idxs(md_reduce) == [[2, 1], [2, 2]]
+            @test get_dims(md_reduce) == [1, 1]
+            @test get_dims(md_reduce, 1) == 1
+            @test get_dims(md_reduce, [1, 2]) == [1, 1]
+        end
+
+        @testset "Getter methods - reducesize dims 2D" begin
+            info_reduce_2d = ReduceFeat{Float64}[
+                ReduceFeat{Float64}([3, 1], "image", 2, downsample, [1], Int[], Int[], Int[], Int[]),
+            ]
+            md_reduce_2d = MultidimDataset(
+                Matrix{Any}(reshape(Any[ones(4, 4)], 1, 1)),
+                info_reduce_2d
+            )
+            @test get_dims(md_reduce_2d) == [2]
+            @test get_dims(md_reduce_2d, 1) == 2
         end
 
         @testset "show - one-line reducesize" begin
@@ -364,7 +393,7 @@ using Statistics
 
         @testset "show - multi-line reducesize with missing/NaN" begin
             info_reduce_dirty = ReduceFeat{Float64}[
-                ReduceFeat{Float64}([1, 1], "sig", downsample, [1], [2], [3], [4], [5]),
+                ReduceFeat{Float64}([1, 1], "sig", 1, downsample, [1], [2], [3], [4], [5]),
             ]
             md_reduce_dirty = MultidimDataset(Matrix{Any}(reshape(Any[collect(1.0:5.0)], 1, 1)), info_reduce_dirty)
             io = IOBuffer()
@@ -380,18 +409,12 @@ using Statistics
     @testset "Lazy constructors" begin
 
         @testset "DiscreteDataset lazy constructor" begin
-            # Note: the lazy constructor has a bug where it produces
-            # Matrix{Union{Missing,Int}} which doesn't match the direct
-            # constructor signature Matrix{Any} -> Vector{DiscreteFeat}.
-            # Skipping until source is fixed.
-            @test_broken begin
-                raw = Matrix{Any}(undef, 4, 2)
-                raw[:, 1] = ["a", "b", missing, "a"]
-                raw[:, 2] = ["x", "y", "x", "z"]
-                ds_struct = DatasetStructure(raw, ["color", "shape"])
-                dd = DiscreteDataset([1], raw, ds_struct, [1, 2])
-                dd isa DiscreteDataset
-            end
+            raw = Matrix{Any}(undef, 4, 2)
+            raw[:, 1] = ["a", "b", missing, "a"]
+            raw[:, 2] = ["x", "y", "x", "z"]
+            ds_struct = DatasetStructure(raw, ["color", "shape"])
+            dd = DiscreteDataset([1], raw, ds_struct, [1, 2])
+            @test dd isa DiscreteDataset
         end
 
         @testset "ContinuousDataset lazy constructor" begin
@@ -405,12 +428,9 @@ using Statistics
             @test cd isa ContinuousDataset{Float64}
             @test size(cd, 2) == 2
             @test get_vnames(cd) == ["temp", "pressure"]
-            # missing preserved
             @test ismissing(get_dataset(cd)[3, 1])
-            # converted to Float64
             valid_vals = filter(!ismissing, get_dataset(cd)[:, 1])
             @test all(v -> v isa Float64, valid_vals)
-            # info populated
             @test length(get_info(cd)) == 2
             @test all(f -> f isa ContinuousFeat, get_info(cd))
         end
@@ -428,14 +448,11 @@ using Statistics
         end
 
         @testset "MultidimDataset lazy constructor - aggregate" begin
-            # Build a raw dataset with array-valued cells (e.g., time series)
             raw = Matrix{Any}(undef, 3, 2)
             raw[:, 1] = [collect(1.0:4.0), collect(5.0:8.0), collect(9.0:12.0)]
             raw[:, 2] = [collect(10.0:13.0), collect(14.0:17.0), collect(18.0:21.0)]
 
             ds_struct = DatasetStructure(raw, ["ts1", "ts2"])
-
-            # aggregate() uses keyword arguments: win and features
             aggrfunc = aggregate(; win=(splitwindow(nwindows=2),), features=(maximum, minimum))
 
             md = MultidimDataset([4], raw, ds_struct, [1, 2], aggrfunc, Float64)
@@ -445,12 +462,12 @@ using Statistics
             # 2 features × 2 columns = 4 output columns (times number of windows)
             @test get_ncols(md) >= 4
             @test get_nrows(md) == 3
-            # vnames trace back to original columns
             vn = get_vnames(md)
             @test count(==("ts1"), vn) >= 2
             @test count(==("ts2"), vn) >= 2
-            # each AggregateFeat stores the window count
             @test all(f -> get_nwin(f) > 0, md.info)
+            # dims should reflect 1D source (vectors)
+            @test all(f -> get_dims(f) == 1, md.info)
         end
 
         @testset "MultidimDataset lazy constructor - reducesize" begin
@@ -458,8 +475,6 @@ using Statistics
             raw[:, 1] = [collect(1.0:10.0), collect(11.0:20.0), collect(21.0:30.0)]
 
             ds_struct = DatasetStructure(raw, ["signal"])
-
-            # reducesize() uses keyword arguments: win and reducefunc
             reducefn = reducesize(; reducefunc=mean)
 
             md = MultidimDataset([5], raw, ds_struct, [1], reducefn, Float64)
@@ -469,8 +484,9 @@ using Statistics
             @test get_ncols(md) == 1
             @test get_nrows(md) == 1
             @test get_vnames(md) == ["signal"]
-            # Each cell should be a reduced-size array (5 elements from 10)
             @test length(get_dataset(md)[1, 1]) == 1
+            # dims should reflect 1D source (vectors)
+            @test all(f -> get_dims(f) == 1, md.info)
         end
     end
 
@@ -483,7 +499,7 @@ using Statistics
     @testset "Cross-type getter consistency" begin
         info_d = DiscreteFeat[DiscreteFeat{String}([1, 1], "a", categorical(["x"]), [1], Int[])]
         info_c = ContinuousFeat{Float64}[ContinuousFeat{Float64}([2, 1], "b", [1], Int[], Int[])]
-        info_a = AggregateFeat{Float64}[AggregateFeat{Float64}([3, 1], "c", maximum, 1, [1], Int[], Int[], Int[], Int[])]
+        info_a = AggregateFeat{Float64}[AggregateFeat{Float64}([3, 1], "c", 1, maximum, 1, [1], Int[], Int[], Int[], Int[])]
 
         dd = DiscreteDataset(Matrix{Any}(reshape(Any[1], 1, 1)), info_d)
         cd = ContinuousDataset(Matrix{Any}(reshape(Any[1.0], 1, 1)), info_c)
@@ -499,5 +515,9 @@ using Statistics
             @test eachindex(ds) == Base.OneTo(1)
             @test ds[1] isa DT.AbstractDataFeature
         end
+
+        # dims only available on MultidimDataset
+        @test get_dims(md) == [1]
+        @test get_dims(md, 1) == 1
     end
 end

@@ -97,13 +97,15 @@ splatted into multiple scalar columns — one per (window, feature) combination.
 This struct stores the metadata needed to reconstruct and validate that process.
 
 # Type Parameter
-- `T`: the element type of the inner arrays (e.g., `Float64`).
+- `T`: the numeric element type of the aggregated output (e.g., `Float64`).
 
 # Fields
 - `id::Vector`: column index identifier within the original dataset.
-- `vname::String`: column name.
+- `vname::String`: column name of the source multidimensional column.
+- `dims::Int`: the dimensionality of the source multidimensional elements
+  (e.g., `1` for time series vectors, `2` for spectrograms/matrices).
 - `feat::Base.Callable`: the feature function applied within each window
-  (e.g., `maximum`, `mean`).
+  (e.g., `maximum`, `mean`, `std`).
 - `nwin::Int`: the number of windows used in the aggregation.
 - `valididxs::Vector{Int}`: row indices with valid (non-missing, non-NaN) elements.
 - `missingidxs::Vector{Int}`: row indices where the element is `missing`.
@@ -115,7 +117,11 @@ This struct stores the metadata needed to reconstruct and validate that process.
 
 # Example
 ```julia
-AggregateFeat{Float64}([3], "audio_signal", maximum, 4, [1,2], Int[], Int[], Int[], [2])
+# 1D source (time series of length 1000, split into 4 windows, aggregated with maximum)
+AggregateFeat{Float64}([3], "audio_signal", 1, maximum, 4, [1,2], Int[], Int[], Int[], [2])
+
+# 2D source (spectrogram 128×64, whole window, aggregated with mean)
+AggregateFeat{Float64}([5], "spectrogram", 2, mean, 1, [1,2,3], Int[], Int[], Int[], Int[])
 ```
 
 See also: [`ReduceFeat`](@ref), [`aggregate`](@ref)
@@ -123,6 +129,7 @@ See also: [`ReduceFeat`](@ref), [`aggregate`](@ref)
 struct AggregateFeat{T} <: AbstractDataFeature
     id::Vector
     vname::String
+    dims::Int
     feat::Base.Callable
     nwin::Int
     valididxs::Vector{Int}
@@ -134,6 +141,7 @@ struct AggregateFeat{T} <: AbstractDataFeature
     function AggregateFeat{T}(
         id::Vector,
         vname::String,
+        dims::Int,
         feat::Base.Callable,
         nwin::Int,
         valididxs::Vector{Int},
@@ -142,7 +150,7 @@ struct AggregateFeat{T} <: AbstractDataFeature
         hasmissing::Vector{Int},
         hasnans::Vector{Int}
     ) where T
-        new{T}(id, vname, feat, nwin, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
+        new{T}(id, vname, dims, feat, nwin, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
     end
 end
 
@@ -160,11 +168,13 @@ a 1024×128 spectrogram to 64×16).
 This struct stores the metadata needed to reconstruct and validate that process.
 
 # Type Parameter
-- `T`: the element type of the inner arrays (e.g., `Float64`).
+- `T`: the element type of the inner arrays after reduction (e.g., `Float64`).
 
 # Fields
 - `id::Vector`: column index identifier within the original dataset.
-- `vname::String`: column name.
+- `vname::String`: column name of the source multidimensional column.
+- `dims::Int`: the dimensionality of the source multidimensional elements
+  (e.g., `1` for time series vectors, `2` for spectrograms/matrices).
 - `reducefunc::Base.Callable`: the function used to reduce the element size
   (e.g., a resampling or interpolation callable).
 - `valididxs::Vector{Int}`: row indices with valid (non-missing, non-NaN) elements.
@@ -177,7 +187,11 @@ This struct stores the metadata needed to reconstruct and validate that process.
 
 # Example
 ```julia
-ReduceFeat{Float64}([4], "spectrogram", my_downsample, [1,2,3], Int[], Int[], Int[], [3])
+# 1D source (time series reduced from 10000 to 256 points)
+ReduceFeat{Float64}([4], "audio_signal", 1, my_downsample, [1,2,3], Int[], Int[], Int[], [3])
+
+# 2D source (spectrogram reduced from 1024×128 to 64×16)
+ReduceFeat{Float64}([5], "spectrogram", 2, my_resize, [1,2,3], Int[], Int[], Int[], Int[])
 ```
 
 See also: [`AggregateFeat`](@ref), [`reducesize`](@ref)
@@ -185,6 +199,7 @@ See also: [`AggregateFeat`](@ref), [`reducesize`](@ref)
 struct ReduceFeat{T} <: AbstractDataFeature
     id::Vector
     vname::String
+    dims::Int
     reducefunc::Base.Callable
     valididxs::Vector{Int}
     missingidxs::Vector{Int}
@@ -195,6 +210,7 @@ struct ReduceFeat{T} <: AbstractDataFeature
     function ReduceFeat{T}(
         id::Vector,
         vname::String,
+        dims::Int,
         reducefunc::Base.Callable,
         valididxs::Vector{Int},
         missingidxs::Vector{Int},
@@ -202,7 +218,7 @@ struct ReduceFeat{T} <: AbstractDataFeature
         hasmissing::Vector{Int},
         hasnans::Vector{Int}
     ) where T
-        new{T}(id, vname, reducefunc, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
+        new{T}(id, vname, dims, reducefunc, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
     end
 end
 
@@ -222,6 +238,13 @@ get_id(f::AbstractDataFeature) = f.id
 Returns the variable name of the feature.
 """
 get_vname(f::AbstractDataFeature) = f.vname
+"""
+    get_dims(f::Union{AggregateFeat,ReduceFeat}) -> Int
+
+Returns the dimensionality of the source multidimensional elements
+(e.g., `1` for vectors/time series, `2` for matrices/spectrograms).
+"""
+get_dims(f::Union{AggregateFeat,ReduceFeat}) = f.dims
 
 """
     get_valididxs(f::AbstractDataFeature) -> Vector{Int}

@@ -20,39 +20,7 @@ abstract type AbstractDataFeature end
 # abstract type AbstractMetaData end
 
 # ---------------------------------------------------------------------------- #
-#                                  structs                                     #
-# ---------------------------------------------------------------------------- #
-export DatasetStructure
-export get_vnames, get_datatype, get_dims
-export get_valididxs, get_missingidxs, get_nanidxs
-export get_hasmissing, get_hasnans
-export get_dataset_structure
-include("dataset_structure.jl")
-
-export TreatmentGroup
-export get_idxs, get_dims, get_vnames, get_aggrfunc, get_groupby
-include("treatment_group.jl")
-
-export DiscreteFeat, ContinuousFeat, AggregateFeat, ReduceFeat
-export get_id, get_vname, get_valididxs
-export get_missingidxs, get_nanidxs, get_hasmissing, get_hasnans
-export get_levels, get_feat, get_nwin, get_reducefunc
-include("metadata.jl")
-
-export DiscreteDataset, ContinuousDataset, MultidimDataset
-export discrete_encode
-export get_dataset, get_info, get_nrows, get_ncols, get_vnames, get_idxs
-include("output_dataset.jl")
-
-export DataTreatment
-export get_dataset, get_ds_struct, get_t_groups, get_float_type
-export get_nrows, get_ncols
-export get_treatments_datasets, get_leftover_datasets
-export get_datasets
-include("datatreatment.jl")
-
-# ---------------------------------------------------------------------------- #
-#                                   files                                      #
+#                                 includes                                     #
 # ---------------------------------------------------------------------------- #
 # feature extraction via Catch22
 # export user friendly Catch22 nicknames
@@ -70,6 +38,35 @@ include("windowing.jl")
 export aggregate, reducesize
 export is_multidim_dataset, has_uniform_element_size, safe_feat
 include("treatment.jl")
+
+export DatasetStructure
+export get_vnames, get_datatype, get_dims
+export get_valididxs, get_missingidxs, get_nanidxs
+export get_hasmissing, get_hasnans
+export get_dataset_structure
+include("dataset_structure.jl")
+
+export TreatmentGroup
+export get_idxs, get_dims, get_vnames, get_aggrfunc, get_groupby
+include("treatment_group.jl")
+
+export DiscreteFeat, ContinuousFeat, AggregateFeat, ReduceFeat
+export get_id, get_vname, get_dims, get_valididxs
+export get_missingidxs, get_nanidxs, get_hasmissing, get_hasnans
+export get_levels, get_feat, get_nwin, get_reducefunc
+include("metadata.jl")
+
+export DiscreteDataset, ContinuousDataset, MultidimDataset
+export discrete_encode
+export get_dataset, get_info, get_nrows, get_ncols, get_vnames, get_idxs
+include("output_dataset.jl")
+
+export DataTreatment
+export get_dataset, get_ds_struct, get_t_groups, get_float_type
+export get_nrows, get_ncols
+export get_treatments_datasets, get_leftover_datasets
+export get_datasets
+include("datatreatment.jl")
 
 # import Normalization: @_Normalization
 # export ZScore, MinMax, Center, Sigmoid, UnitEnergy, UnitPower

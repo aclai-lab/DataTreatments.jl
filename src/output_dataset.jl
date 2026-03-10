@@ -194,19 +194,20 @@ operations or auditing the source of each derived feature.
   type when aggregation flattens the data.
 
 # Fields
-- `dataset::Matrix`: the processed matrix. When using `aggregate`, this is a
+- `dataset::AbstractArray`: the processed matrix. When using `aggregate`, this is a
   scalar tabular matrix with one column per (feature × window × original column)
   combination. When using `reducesize`, this is a matrix of reduced-size arrays.
-- `info::Vector{Union{AggregateFeat,ReduceFeat}}`: per-column metadata. Contains
+- `info::Vector{<:Union{AggregateFeat,ReduceFeat}}`: per-column metadata. Contains
   [`AggregateFeat`](@ref) entries when using `aggregate`, or [`ReduceFeat`](@ref)
   entries when using `reducesize`. Each entry stores the original column name,
-  validity/missing/NaN indices, internal corruption indices (`hasmissing`,
-  `hasnans`), and the applied feature function or reduction function.
+  source dimensionality (`dims`), validity/missing/NaN indices, internal corruption
+  indices (`hasmissing`, `hasnans`), and the applied feature function or reduction
+  function.
 
 # Constructors
 
-    MultidimDataset(dataset::Matrix, info::Vector{AggregateFeat{T}})
-    MultidimDataset(dataset::Matrix, info::Vector{ReduceFeat{T}})
+    MultidimDataset(dataset::AbstractArray, info::Vector{<:AggregateFeat{T}})
+    MultidimDataset(dataset::AbstractArray, info::Vector{<:ReduceFeat{T}})
 
 Direct constructors from a pre-built matrix and metadata vector.
 
@@ -252,6 +253,7 @@ struct MultidimDataset{T} <: AbstractDataset
     )
         dataset = @view dataset[:, cols]
         vnames = get_vnames(ds_struct, cols)
+        dims = get_dims(ds_struct, cols)
         idx = get_valididxs(ds_struct, cols)
         miss = get_missingidxs(ds_struct, cols)
         nan = get_nanidxs(ds_struct, cols)
@@ -264,6 +266,7 @@ struct MultidimDataset{T} <: AbstractDataset
             vec([AggregateFeat{float_type}(
                 push!(id, i),
                 vnames[c],
+                dims[c],
                 f,
                 nwindows[c],
                 idx[c],
@@ -276,6 +279,7 @@ struct MultidimDataset{T} <: AbstractDataset
             [ReduceFeat{AbstractArray{float_type}}(
                 push!(id, i),
                 vnames[c],
+                dims[c],
                 _get_reducefunc(aggrfunc),
                 idx[c],
                 miss[c],
@@ -371,6 +375,22 @@ Returns the variable name(s) for the specified feature index/indices.
 """
 get_vnames(ds::AbstractDataset, i::Int) = get_vname(ds.info[i])
 get_vnames(ds::AbstractDataset, idxs::Vector{Int}) = [get_vname(ds.info[i]) for i in idxs]
+
+"""
+    get_dims(ds::MultidimDataset) -> Vector{Int}
+
+Returns the source dimensionality for all features in the multidimensional dataset.
+"""
+get_dims(ds::MultidimDataset) = [get_dims(f) for f in ds.info]
+
+"""
+    get_dims(ds::MultidimDataset, i::Int) -> Int
+    get_dims(ds::MultidimDataset, idxs::Vector{Int}) -> Vector{Int}
+
+Returns the source dimensionality for the specified feature index/indices.
+"""
+get_dims(ds::MultidimDataset, i::Int) = get_dims(ds.info[i])
+get_dims(ds::MultidimDataset, idxs::Vector{Int}) = [get_dims(ds.info[i]) for i in idxs]
 
 """
     get_ids(ds::AbstractDataset) -> Vector{Vector}
