@@ -1,120 +1,92 @@
-# ---------------------------------------------------------------------------- #
-#                           dataset structure utils                            #
-# ---------------------------------------------------------------------------- #
-"""
-    check_column_structure(col::AbstractArray) -> (valtype, idx, hasmissing, hasnan)
+# # ---------------------------------------------------------------------------- #
+# #                           dataset structure utils                            #
+# # ---------------------------------------------------------------------------- #
+# """
+#     check_column_structure(col::AbstractArray) -> (valtype, idx, hasmissing, hasnan)
 
-Analyze the structure of a single column to extract preliminary information.
+# Analyze the structure of a single column to extract preliminary information.
 
-DataTreatments is designed to import heterogeneous datasets composed of columns 
-with discrete values, continuous values, and multivariate values. Additionally, 
-the presence of possible `NaN` or `missing` values is expected. There are no 
-starting assumptions: we know nothing about how the dataset is structured.
+# DataTreatments is designed to import heterogeneous datasets composed of columns 
+# with discrete values, continuous values, and multivariate values. Additionally, 
+# the presence of possible `NaN` or `missing` values is expected. There are no 
+# starting assumptions: we know nothing about how the dataset is structured.
 
-This internal function is used by DataTreatments to scan the column and output 
-preliminary information.
+# This internal function is used by DataTreatments to scan the column and output 
+# preliminary information.
 
-# Arguments
-- `col::AbstractArray`: a single column to analyze
+# # Arguments
+# - `col::AbstractArray`: a single column to analyze
 
-# Returns
-- `valtype::Type`: the predominant type of values in the column
-- `idx::Vector{Int}`: indices of valid (non-missing, non-NaN) elements
-- `hasmissing::Bool`: whether the column contains `missing` values
-- `hasnan::Bool`: whether the column contains `NaN` values
-"""
-function check_column_structure(col::AbstractArray)
-    valtype, idx, hasmissing, hasnan = nothing, Int[], false, false
+# # Returns
+# - `valtype::Type`: the predominant type of values in the column
+# - `idx::Vector{Int}`: indices of valid (non-missing, non-NaN) elements
+# - `hasmissing::Bool`: whether the column contains `missing` values
+# - `hasnan::Bool`: whether the column contains `NaN` values
+# """
+# function check_column_structure(col::AbstractArray)
+#     valtype, idx, hasmissing, hasnan = nothing, Int[], false, false
 
-    for i in eachindex(col)
-        val = col[i]
-        if ismissing(val)
-            hasmissing = true
-        elseif val isa AbstractFloat && isnan(val)
-            hasnan = true
-        elseif val isa AbstractVector{<:AbstractFloat} || val isa AbstractArray{<:AbstractFloat}
-            if any(isnan, val)
-                hasnan = true
-            end
-            valtype = typeof(val)
-            push!(idx, i)
-        elseif !(val isa AbstractFloat) || !isnan(val)
-            if isnothing(valtype) || !(valtype <: AbstractVector)
-                valtype = typeof(val)
-                push!(idx, i)
-            end
-        end
-    end
+#     for i in eachindex(col)
+#         val = col[i]
+#         if ismissing(val)
+#             hasmissing = true
+#         elseif val isa AbstractFloat && isnan(val)
+#             hasnan = true
+#         elseif val isa AbstractVector{<:AbstractFloat} || val isa AbstractArray{<:AbstractFloat}
+#             if any(isnan, val)
+#                 hasnan = true
+#             end
+#             valtype = typeof(val)
+#             push!(idx, i)
+#         elseif !(val isa AbstractFloat) || !isnan(val)
+#             if isnothing(valtype) || !(valtype <: AbstractVector)
+#                 valtype = typeof(val)
+#                 push!(idx, i)
+#             end
+#         end
+#     end
 
-    return valtype, idx, hasmissing, hasnan
-end
+#     return valtype, idx, hasmissing, hasnan
+# end
 
-"""
-    check_dataset_structure(X::Matrix) -> (valtype, idx, hasmissing, hasnan)
+# """
+#     check_dataset_structure(X::Matrix) -> (valtype, idx, hasmissing, hasnan)
 
-Analyze the structure of an entire dataset to extract preliminary information.
+# Analyze the structure of an entire dataset to extract preliminary information.
 
-DataTreatments is designed to import heterogeneous datasets composed of columns 
-with discrete values, continuous values, and multivariate values. Additionally, 
-the presence of possible `NaN` or `missing` values is expected. There are no 
-starting assumptions: we know nothing about how the dataset is structured.
+# DataTreatments is designed to import heterogeneous datasets composed of columns 
+# with discrete values, continuous values, and multivariate values. Additionally, 
+# the presence of possible `NaN` or `missing` values is expected. There are no 
+# starting assumptions: we know nothing about how the dataset is structured.
 
-This internal function is used by DataTreatments to scan the dataset and output 
-preliminary information for each column, processed in parallel.
+# This internal function is used by DataTreatments to scan the dataset and output 
+# preliminary information for each column, processed in parallel.
 
-# Arguments
-- `X::Matrix`: the dataset matrix to analyze
+# # Arguments
+# - `X::Matrix`: the dataset matrix to analyze
 
-# Returns
-- `valtype::Vector{Type}`: vector where `valtype[i]` is the predominant type of 
-  column `i`, distinguishing between discrete, continuous, and multivariate columns
-- `idx::Vector{Vector{Int}}`: vector of vectors where `idx[i]` contains the indices 
-  of valid (non-missing, non-NaN) elements in column `i`
-- `hasmissing::Vector{Bool}`: boolean vector indicating whether column `i` contains 
-  `missing` values (useful for future developments)
-- `hasnan::Vector{Bool}`: boolean vector indicating whether column `i` contains 
-  `NaN` values (useful for future developments)
-"""
-function check_dataset_structure(X::Matrix)
-    dim = size(X, 2)
-    valtype = Vector{Type}(undef, dim)
-    idx = Vector{Vector{Int}}(undef, dim)
-    hasmissing = Vector{Bool}(undef, dim)
-    hasnan = Vector{Bool}(undef, dim)
+# # Returns
+# - `valtype::Vector{Type}`: vector where `valtype[i]` is the predominant type of 
+#   column `i`, distinguishing between discrete, continuous, and multivariate columns
+# - `idx::Vector{Vector{Int}}`: vector of vectors where `idx[i]` contains the indices 
+#   of valid (non-missing, non-NaN) elements in column `i`
+# - `hasmissing::Vector{Bool}`: boolean vector indicating whether column `i` contains 
+#   `missing` values (useful for future developments)
+# - `hasnan::Vector{Bool}`: boolean vector indicating whether column `i` contains 
+#   `NaN` values (useful for future developments)
+# """
+# function check_dataset_structure(X::Matrix)
+#     dim = size(X, 2)
+#     valtype = Vector{Type}(undef, dim)
+#     idx = Vector{Vector{Int}}(undef, dim)
+#     hasmissing = Vector{Bool}(undef, dim)
+#     hasnan = Vector{Bool}(undef, dim)
 
-    Threads.@threads for i in axes(X, 2)
-        valtype[i], idx[i], hasmissing[i], hasnan[i] = check_column_structure(@view(X[:, i]))
-    end
-    return valtype, idx, hasmissing, hasnan
-end
-
-# ---------------------------------------------------------------------------- #
-#                               discrete utils                                 #
-# ---------------------------------------------------------------------------- #
-"""
-    discrete_encode(X::Matrix) -> (codes, levels)
-
-Encode each column of `X` as a categorical variable.
-
-`missing` values are **not** categorized: they are preserved as
-`missing` in the output `codes` and are excluded from the level labels.
-
-# Arguments
-- `X::Matrix`: a matrix whose columns contain discrete values of any type.
-
-# Returns
-- `codes`: a vector of `Vector{Union{Missing,Int}}`, where `codes[i]` contains
-  the integer level codes for column `i`. `missing` and entries in the
-  original column are mapped to `missing` (not assigned a level code).
-- `levels`: a vector of `Vector{String}`, where `levels[i]` contains the sorted
-  unique string labels for column `i`, such that `levels[i][codes[i][j]]`
-  reconstructs the original value of `X[j, i]` for non-missing entries.
-"""
-function discrete_encode(X::Matrix)
-    to_str(v) = (ismissing(v) || (v isa AbstractFloat && isnan(v))) ? missing : string(v)
-    cats = [categorical(to_str.(col)) for col in eachcol(X)]
-    return [levelcode.(cat) for cat in cats], levels.(cats)
-end
+#     Threads.@threads for i in axes(X, 2)
+#         valtype[i], idx[i], hasmissing[i], hasnan[i] = check_column_structure(@view(X[:, i]))
+#     end
+#     return valtype, idx, hasmissing, hasnan
+# end
 
 # ---------------------------------------------------------------------------- #
 #                               dataset builder                                #
