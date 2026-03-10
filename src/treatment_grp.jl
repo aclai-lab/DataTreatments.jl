@@ -49,11 +49,25 @@ struct DiscreteDataset
     dataset::Matrix
     info::Vector{DiscreteFeat}
 
+    DiscreteDataset(dataset::Matrix, info::Vector{DiscreteFeat}) = new(dataset, info)
+    
     function DiscreteDataset(
-        dataset::Matrix,
-        info::Vector{DiscreteFeat}
+        id::Vector,
+        dataset::Matrix, 
+        ds_struct::DatasetStructure,
+        cols::Vector{Int}
     )
-        new(dataset, info)
+        T = get_datatype(ds_struct, cols)
+        vnames = get_vnames(ds_struct, cols)
+        idx = get_valididxs(ds_struct, cols)
+        miss = get_missingidxs(ds_struct, cols)
+        codes, levels = discrete_encode(dataset[:, cols])
+
+        return DiscreteDataset(
+            stack(codes),
+            [DiscreteFeat{T[i]}(push!(id, i), vnames[i], levels[i], idx[i], miss[i])
+                for i in eachindex(vnames)]
+        )
     end
 end
 
@@ -61,11 +75,27 @@ struct ContinuousDataset{T}
     dataset::Matrix
     info::Vector{ContinuousFeat}
 
-    function ContinuousDataset(
-        dataset::Matrix,
-        info::Vector{ContinuousFeat{T}}
-    ) where T
+    ContinuousDataset(dataset::Matrix, info::Vector{ContinuousFeat{T}}) where T =
         new{T}(dataset, info)
+
+    function ContinuousDataset(
+        id::Vector,
+        dataset::Matrix, 
+        ds_struct::DatasetStructure,
+        cols::Vector{Int},
+        float_type::Type
+    )
+        vnames = get_vnames(ds_struct, cols)
+        idx = get_valididxs(ds_struct, cols)
+        miss = get_missingidxs(ds_struct, cols)
+        nan = get_nanidxs(ds_struct, cols)
+
+        return ContinuousDataset(
+            reduce(hcat, [map(x -> ismissing(x) ? missing : float_type(x), @view dataset[:, col])
+                for col in cols]),
+            [ContinuousFeat{float_type}(push!(id, i), vnames[i], idx[i], miss[i], nan[i])
+                for i in eachindex(vnames)]
+        )
     end
 end
 
@@ -73,11 +103,15 @@ struct AggregatedMultidimDataset{T}
     dataset::Matrix
     info::Vector{AggregateFeat}
 
-    function AggregatedMultidimDataset(
-        dataset::Matrix,
-        info::Vector{AggregateFeat{T}}
-    ) where T
+    AggregatedMultidimDataset(dataset::Matrix, info::Vector{ContinuousFeat{T}}) where T =
         new{T}(dataset, info)
+
+    function AggregatedMultidimDataset(
+        dataset::Matrix, 
+        ds_struct::DatasetStructure,
+        cols::Vector{Int}
+    )
+
     end
 end
 
@@ -85,11 +119,15 @@ struct ReducedMultidimDataset{T}
     dataset::Matrix
     info::Vector{ReduceFeat}
 
-    function ReducedMultidimDataset(
-        dataset::Matrix,
-        info::Vector{ReduceFeat{T}}
-    ) where T
+    ReducedMultidimDataset(dataset::Matrix, info::Vector{ContinuousFeat{T}}) where T =
         new{T}(dataset, info)
+
+    function ReducedMultidimDataset(
+        dataset::Matrix, 
+        ds_struct::DatasetStructure,
+        cols::Vector{Int}
+    )
+
     end
 end
 
@@ -222,7 +260,7 @@ function build_datasets(
 )
     # dataset = @views dataset[:, idxs]
 
-    ds_td = ds_tc = ds_md = nothing
+    # ds_td = ds_tc = ds_md = nothing
     # vnames = get_vnames(ds_struct)
     valtype = get_datatype(ds_struct)
 
@@ -234,35 +272,38 @@ function build_datasets(
     tc_cols = idxs ∩ findall(T -> !isnothing(T) && T <: AbstractFloat, valtype)
     md_cols = idxs ∩ findall(T -> !isnothing(T) && T <: AbstractArray, valtype)
 
-    # discrete
-    if !isempty(td_cols)
-        T = get_datatype(ds_struct, td_cols)
-        vnames_td = get_vnames(ds_struct, td_cols)
-        idx = get_valididxs(ds_struct, td_cols)
-        miss_td = get_missingidxs(ds_struct, td_cols)
-        codes, levels = discrete_encode(dataset[:, td_cols])
+    ds_td = isempty(td_cols) ? [] : DiscreteDataset(id, dataset, ds_struct, td_cols)
+    ds_tc = isempty(tc_cols) ? [] : ContinuousDataset(id, dataset, ds_struct, tc_cols, float_type)
 
-        ds_td = DiscreteDataset(
-            stack(codes),
-            [DiscreteFeat{T[i]}(push!(id, i), vnames_td[i], levels[i], idx[i], miss_td[i])
-                for i in eachindex(vnames_td)]
-        )
+    # discrete
+    # if !isempty(td_cols)
+        # T = get_datatype(ds_struct, td_cols)
+        # vnames_td = get_vnames(ds_struct, td_cols)
+        # idx = get_valididxs(ds_struct, td_cols)
+        # miss_td = get_missingidxs(ds_struct, td_cols)
+        # codes, levels = discrete_encode(dataset[:, td_cols])
+
+        # ds_td = DiscreteDataset(
+        #     stack(codes),
+        #     [DiscreteFeat{T[i]}(push!(id, i), vnames_td[i], levels[i], idx[i], miss_td[i])
+        #         for i in eachindex(vnames_td)]
+        # )
         
-    end
+    # end
 
     # continue
-    if !isempty(tc_cols)
-        vnames_tc = get_vnames(ds_struct, tc_cols)
-        idx = get_valididxs(ds_struct, tc_cols)
-        miss_tc = get_missingidxs(ds_struct, tc_cols)
-        nan_tc = get_nanidxs(ds_struct, tc_cols)
+    # if !isempty(tc_cols)
+    #     vnames_tc = get_vnames(ds_struct, tc_cols)
+    #     idx = get_valididxs(ds_struct, tc_cols)
+    #     miss_tc = get_missingidxs(ds_struct, tc_cols)
+    #     nan_tc = get_nanidxs(ds_struct, tc_cols)
 
-        ds_tc = ContinuousDataset(
-            reduce(hcat, [map(x -> ismissing(x) ? missing : float_type(x), @view dataset[:, col])
-                for col in tc_cols]),
-            [ContinuousFeat{float_type}(push!(id, i), vnames_tc[i], idx[i], miss_tc[i], nan_tc[i]) for i in eachindex(vnames_tc)]
-        )
-    end
+    #     ds_tc = ContinuousDataset(
+    #         reduce(hcat, [map(x -> ismissing(x) ? missing : float_type(x), @view dataset[:, col])
+    #             for col in tc_cols]),
+    #         [ContinuousFeat{float_type}(push!(id, i), vnames_tc[i], idx[i], miss_tc[i], nan_tc[i]) for i in eachindex(vnames_tc)]
+    #     )
+    # end
 
     # multidimensional
     if !isempty(md_cols)
@@ -289,7 +330,9 @@ function build_datasets(
         end
     end
 
-    return ds_td, ds_tc, ds_md
+    # @show ds_md
+
+    # return ds_td, ds_tc, ds_md
 end
 
 # ---------------------------------------------------------------------------- #
@@ -330,10 +373,11 @@ test = DataTreatment(
     df,
     TreatmentGroup(dims=0),
     TreatmentGroup(name_expr=r"^V"),
+    TreatmentGroup(dims=1),
     TreatmentGroup(dims=2, aggrfunc=reducesize())
 )
 
-get_datasets(test)
+a=get_datasets(test)
 # test = DataTreatment(df)
 
 # TreatmentGroup(win=wholewindow(), features=(maximum, minimum, mean))
