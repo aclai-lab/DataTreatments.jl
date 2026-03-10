@@ -170,20 +170,20 @@ Returns the raw dataset matrix.
 get_dataset(dt::DataTreatment) = dt.dataset
 
 """
-    get_dataset_structure(dt::DataTreatment)
+    get_ds_struct(dt::DataTreatment)
 
 Returns the dataset structure containing metadata about the dataset.
 """
-get_dataset_structure(dt::DataTreatment) = dt.ds_struct
+get_ds_struct(dt::DataTreatment) = dt.ds_struct
 
 """
-    get_treatment_groups(dt::DataTreatment)
-    get_treatment_groups(dt::DataTreatment, i::Int)
+    get_t_groups(dt::DataTreatment)
+    get_t_groups(dt::DataTreatment, i::Int)
 
 Returns the treatment groups. If `i` is provided, returns the `i`-th treatment group.
 """
-get_treatment_groups(dt::DataTreatment) = dt.t_groups
-get_treatment_groups(dt::DataTreatment, i::Int) = dt.t_groups[i]
+get_t_groups(dt::DataTreatment) = dt.t_groups
+get_t_groups(dt::DataTreatment, i::Int) = dt.t_groups[i]
 
 """
     get_float_type(dt::DataTreatment)
@@ -276,17 +276,18 @@ function build_datasets(
 
         md, nwindows = aggrfunc(dataset, idx, float_type)
 
-        if eltype(md) <: Union{Missing,float_type}
+        if hasfield(typeof(aggrfunc), :features)
             md_feats = vec([AggregateFeat{float_type}(push!(id, i), vnames_md[c], f, nwindows[c], idx[c], miss_md[c], nan_md[c], hasmiss_md[c], hasnan_md[c])
                     for (i, (f, c)) in enumerate(Iterators.product(get_features(aggrfunc), axes(dataset,2)))])
             ds_md = AggregatedMultidimDataset(md, md_feats)
-        else
+        elseif hasfield(typeof(aggrfunc), :reducefunc)
             md_feats = [ReduceFeat{AbstractArray{float_type}}(push!(id, i), vnames_md[c], get_reducefunc(aggrfunc), idx[c], miss_md[c], nan_md[c], hasmiss_md[c], hasnan_md[c])
                 for (i, c) in enumerate(axes(dataset,2))]
+            ds_md = ReducedMultidimDataset(md, md_feats)
+        else
+            error("aggrfunc must have either a `features` field (aggregate) or a `reducefunc` field (reducesize), got: $(typeof(aggrfunc))")
         end
     end
-
-    @show ds_md
 
     return ds_td, ds_tc, ds_md
 end
@@ -296,10 +297,11 @@ end
 # ---------------------------------------------------------------------------- #
 function get_datasets(dt::DataTreatment; split=true, dataframe=false)
     dataset = get_dataset(dt)
+    ds_struct = get_ds_struct(dt)
     float_type = get_float_type(dt)
 
     # first step: defines datasets based on treatment groups
-    treats = get_treatment_groups(dt)
+    treats = get_t_groups(dt)
     idxs = get_idxs(treats)
 
     for i in eachindex(treats)

@@ -65,13 +65,13 @@ end
 
 struct ReduceFeat{T} <: AbstractDataFeature
     id::Vector
-    vname::Symbol
+    vname::String
     reducefunc::Base.Callable
     valididxs::Vector{Int}
     missingidxs::Vector{Int}
     nanidxs::Vector{Int}
-    hasmissing::Vector{Bool}
-    hasnans::Vector{Bool}
+    hasmissing::Vector{Int}
+    hasnans::Vector{Int}
 
     function ReduceFeat{T}(
         id::Vector,
@@ -80,8 +80,8 @@ struct ReduceFeat{T} <: AbstractDataFeature
         valididxs::Vector{Int},
         missingidxs::Vector{Int},
         nanidxs::Vector{Int},
-        hasmissing::Vector{Bool},
-        hasnans::Vector{Bool}
+        hasmissing::Vector{Int},
+        hasnans::Vector{Int}
     ) where T
         new{T}(id, vname, reducefunc, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
     end
