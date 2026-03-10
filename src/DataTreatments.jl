@@ -41,7 +41,8 @@ include("metadata.jl")
 
 export DiscreteDataset, ContinuousDataset, MultidimDataset
 export discrete_encode
-include("dataset.jl")
+export get_dataset, get_info, get_nrows, get_ncols, get_vnames, get_idxs
+include("output_dataset.jl")
 
 export DataTreatment
 export get_dataset, get_ds_struct, get_t_groups, get_float_type
