@@ -1,6 +1,9 @@
 # ---------------------------------------------------------------------------- #
 #                                   utils                                      #
 # ---------------------------------------------------------------------------- #
+_get_features(a::Base.Callable) = a.features
+_get_reducefunc(r::Base.Callable) = r.reducefunc
+
 """
     discrete_encode(X::Matrix) -> (codes, levels)
 
@@ -121,12 +124,12 @@ struct MultidimDataset{T} <: AbstractDataset
                 nan[c],
                 hasmiss[c],
                 hasnan[c])
-                for (i, (f, c)) in enumerate(Iterators.product(get_features(aggrfunc), axes(dataset,2)))])
+                for (i, (f, c)) in enumerate(Iterators.product(_get_features(aggrfunc), axes(dataset,2)))])
         else
             [ReduceFeat{AbstractArray{float_type}}(
                 push!(id, i),
                 vnames[c],
-                get_reducefunc(aggrfunc),
+                _get_reducefunc(aggrfunc),
                 idx[c],
                 miss[c],
                 nan[c],

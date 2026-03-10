@@ -28,39 +28,10 @@ end
 # ---------------------------------------------------------------------------- #
 #                                Base methods                                  #
 # ---------------------------------------------------------------------------- #
-"""
-    Base.size(dt::DataTreatment)
-
-Returns the size of the dataset as a tuple `(nrows, ncols)`.
-"""
 Base.size(dt::DataTreatment) = size(dt.dataset)
-
-"""
-    Base.length(dt::DataTreatment)
-
-Returns the number of treatment groups.
-"""
 Base.length(dt::DataTreatment) = length(dt.t_groups)
-
-"""
-    Base.ndims(dt::DataTreatment)
-
-Returns the number of dimensions in the dataset (always 2 for a matrix).
-"""
 Base.ndims(dt::DataTreatment) = 2
-
-"""
-    Base.iterate(dt::DataTreatment, state=1)
-
-Iterates over the treatment groups.
-"""
 Base.iterate(dt::DataTreatment, state=1) = state > length(dt) ? nothing : (dt.t_groups[state], state + 1)
-
-"""
-    Base.eachindex(dt::DataTreatment)
-
-Returns the indices of the treatment groups.
-"""
 Base.eachindex(dt::DataTreatment) = eachindex(dt.t_groups)
 
 # ---------------------------------------------------------------------------- #
@@ -113,10 +84,7 @@ get_ncols(dt::DataTreatment) = size(dt.dataset, 2)
 # ---------------------------------------------------------------------------- #
 #                               dataset builder                                #
 # ---------------------------------------------------------------------------- #
-get_features(a::Base.Callable) = a.features
-get_reducefunc(r::Base.Callable) = r.reducefunc
-
-function build_datasets(
+function _build_datasets(
     id::Vector,
     dataset::Matrix,
     ds_struct::DatasetStructure,
@@ -150,7 +118,7 @@ function get_datasets(dt::DataTreatment; split=true, dataframe=false)
     idxs = get_idxs(treats)
 
     for i in eachindex(treats)
-        build_datasets(
+        _build_datasets(
             [:treatment_group, i],
             dataset,
             ds_struct,

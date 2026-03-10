@@ -1,6 +1,30 @@
 # ---------------------------------------------------------------------------- #
 #                              metadata structs                                #
 # ---------------------------------------------------------------------------- #
+"""
+    DiscreteFeat{T} <: AbstractDataFeature
+
+Metadata for a **discrete (categorical)** column in a `DataTreatment`.
+
+Stores the categorical levels alongside validity information. Used for columns
+whose values belong to a finite set of categories (e.g., labels, classes, 
+ordinal codes).
+
+# Type Parameter
+- `T`: the element type of the column (e.g., `String`, `Int`).
+
+# Fields
+- `id::Vector`: column index identifier within the original dataset.
+- `vname::String`: column name.
+- `levels::CategoricalArrays.CategoricalVector`: the ordered set of categorical levels.
+- `valididxs::Vector{Int}`: row indices with valid (non-missing) values.
+- `missingidxs::Vector{Int}`: row indices containing `missing`.
+
+# Example
+```julia
+DiscreteFeat{String}([1], "color", categorical(["red", "blue", "green"]), [1,2,3], Int[])
+```
+"""
 struct DiscreteFeat{T} <: AbstractDataFeature
     id::Vector
     vname::String
@@ -19,6 +43,29 @@ struct DiscreteFeat{T} <: AbstractDataFeature
     end
 end
 
+"""
+    ContinuousFeat{T} <: AbstractDataFeature
+
+Metadata for a **continuous (numeric scalar)** column in a `DataTreatment`.
+
+Tracks validity, missingness, and `NaN` indices for scalar numeric columns
+(e.g., measurements, sensor readings, computed statistics).
+
+# Type Parameter
+- `T`: the numeric element type (e.g., `Float64`, `Int`).
+
+# Fields
+- `id::Vector`: column index identifier within the original dataset.
+- `vname::String`: column name.
+- `valididxs::Vector{Int}`: row indices with valid (non-missing, non-NaN) values.
+- `missingidxs::Vector{Int}`: row indices containing `missing`.
+- `nanidxs::Vector{Int}`: row indices containing `NaN`.
+
+# Example
+```julia
+ContinuousFeat{Float64}([2], "temperature", [1,2,4,5], [3], Int[])
+```
+"""
 struct ContinuousFeat{T} <: AbstractDataFeature
     id::Vector
     vname::String
@@ -37,6 +84,42 @@ struct ContinuousFeat{T} <: AbstractDataFeature
     end
 end
 
+"""
+    AggregateFeat{T} <: AbstractDataFeature
+
+Metadata for a **multidimensional column processed via aggregation** in a `DataTreatment`.
+
+When a column contains multidimensional elements (e.g., time series, spectrograms),
+the `aggregate` strategy flattens them into tabular form by applying a set of
+feature functions over one or more sliding windows. Each original element is
+splatted into multiple scalar columns — one per (window, feature) combination.
+
+This struct stores the metadata needed to reconstruct and validate that process.
+
+# Type Parameter
+- `T`: the element type of the inner arrays (e.g., `Float64`).
+
+# Fields
+- `id::Vector`: column index identifier within the original dataset.
+- `vname::String`: column name.
+- `feat::Base.Callable`: the feature function applied within each window
+  (e.g., `maximum`, `mean`).
+- `nwin::Int`: the number of windows used in the aggregation.
+- `valididxs::Vector{Int}`: row indices with valid (non-missing, non-NaN) elements.
+- `missingidxs::Vector{Int}`: row indices where the element is `missing`.
+- `nanidxs::Vector{Int}`: row indices where the element is `NaN`.
+- `hasmissing::Vector{Int}`: row indices where the element is a valid array but
+  contains `missing` values internally.
+- `hasnans::Vector{Int}`: row indices where the element is a valid array but
+  contains `NaN` values internally.
+
+# Example
+```julia
+AggregateFeat{Float64}([3], "audio_signal", maximum, 4, [1,2], Int[], Int[], Int[], [2])
+```
+
+See also: [`ReduceFeat`](@ref), [`aggregate`](@ref)
+"""
 struct AggregateFeat{T} <: AbstractDataFeature
     id::Vector
     vname::String
@@ -63,6 +146,42 @@ struct AggregateFeat{T} <: AbstractDataFeature
     end
 end
 
+"""
+    ReduceFeat{T} <: AbstractDataFeature
+
+Metadata for a **multidimensional column processed via size reduction** in a `DataTreatment`.
+
+Unlike [`AggregateFeat`](@ref), which flattens multidimensional elements into
+scalar tabular columns, `ReduceFeat` preserves the original dimensionality of
+each element and simply reduces its size to make it manageable for machine learning
+pipelines (e.g., downsampling a 10 000-point time series to 256 points, or resizing
+a 1024×128 spectrogram to 64×16).
+
+This struct stores the metadata needed to reconstruct and validate that process.
+
+# Type Parameter
+- `T`: the element type of the inner arrays (e.g., `Float64`).
+
+# Fields
+- `id::Vector`: column index identifier within the original dataset.
+- `vname::String`: column name.
+- `reducefunc::Base.Callable`: the function used to reduce the element size
+  (e.g., a resampling or interpolation callable).
+- `valididxs::Vector{Int}`: row indices with valid (non-missing, non-NaN) elements.
+- `missingidxs::Vector{Int}`: row indices where the element is `missing`.
+- `nanidxs::Vector{Int}`: row indices where the element is `NaN`.
+- `hasmissing::Vector{Int}`: row indices where the element is a valid array but
+  contains `missing` values internally.
+- `hasnans::Vector{Int}`: row indices where the element is a valid array but
+  contains `NaN` values internally.
+
+# Example
+```julia
+ReduceFeat{Float64}([4], "spectrogram", my_downsample, [1,2,3], Int[], Int[], Int[], [3])
+```
+
+See also: [`AggregateFeat`](@ref), [`reducesize`](@ref)
+"""
 struct ReduceFeat{T} <: AbstractDataFeature
     id::Vector
     vname::String
