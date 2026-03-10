@@ -181,14 +181,12 @@ In other words, the output groups are made pairwise disjoint by filtering overla
 from left to right, giving priority to groups with higher position in `tgs`.
 """
 function get_idxs(tgs::Vector{<:TreatmentGroup})
-    idxs = Vector{Vector{Int}}(undef, length(tgs))
-
-    for (i, tg) in enumerate(tgs)
-        idxs[i] = get_idxs(tg)
-        idxs[1:i-1] = map(v -> filter(∉(idxs[i]), v), idxs[1:i-1])
-    end
-
-    return idxs
+    seen = Set{Int}()
+    return reverse(map(reverse(tgs)) do tg
+        unique_idxs = filter(∉(seen), get_idxs(tg))
+        union!(seen, unique_idxs)
+        unique_idxs
+    end)
 end
 
 # ---------------------------------------------------------------------------- #

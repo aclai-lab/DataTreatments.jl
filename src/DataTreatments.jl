@@ -1,27 +1,23 @@
 module DataTreatments
 
+using CategoricalArrays
 using DataFrames
 using Catch22
 
 using Statistics: mean, median, std, cov
-using StatsBase: mad
-using LinearAlgebra: norm
+# using StatsBase: mad
+# using LinearAlgebra: norm
 
-using CategoricalArrays
-using Normalization
+
+# using Normalization
 
 # ---------------------------------------------------------------------------- #
 #                               abstract types                                 #
 # ---------------------------------------------------------------------------- #
-abstract type AbstractDataTreatment end
+# abstract type AbstractDataTreatment end
 abstract type AbstractDataset end
 abstract type AbstractDataFeature end
-abstract type AbstractMetaData end
-
-# ---------------------------------------------------------------------------- #
-#                               internal utils                                 #
-# ---------------------------------------------------------------------------- #
-include("errors.jl")
+# abstract type AbstractMetaData end
 
 # ---------------------------------------------------------------------------- #
 #                                  structs                                     #
@@ -31,27 +27,27 @@ export get_vnames, get_datatype, get_dims
 export get_valididxs, get_missingidxs, get_nanidxs
 export get_hasmissing, get_hasnans
 export get_dataset_structure
-include("structs/dataset_structure.jl")
+include("dataset_structure.jl")
 
 export TreatmentGroup
 export get_idxs, get_dims, get_vnames, get_aggrfunc, get_groupby
-include("structs/treatment_group.jl")
+include("treatment_group.jl")
 
 export DiscreteFeat, ContinuousFeat, AggregateFeat, ReduceFeat
 export get_id, get_vname, get_valididxs
 export get_missingidxs, get_nanidxs, get_hasmissing, get_hasnans
 export get_levels, get_feat, get_nwin, get_reducefunc
-include("structs/metadata.jl")
+include("metadata.jl")
 
 export DiscreteDataset, ContinuousDataset, MultidimDataset
 export discrete_encode
-include("structs/dataset.jl")
+include("dataset.jl")
 
 export DataTreatment
 export get_dataset, get_ds_struct, get_t_groups, get_float_type
 export get_nrows, get_ncols
 export get_datasets
-include("structs/datatreatment.jl")
+include("datatreatment.jl")
 
 # ---------------------------------------------------------------------------- #
 #                                   files                                      #
