@@ -83,9 +83,27 @@ using Statistics
         end
 
         @testset "getindex" begin
-            @test dd[1] === info_discrete[1]
-            @test dd[2] === info_discrete[2]
-            @test dd[[1, 2]] == info_discrete
+            # single index returns a new DiscreteDataset with 1 column
+            dd1 = dd[1]
+            @test dd1 isa DiscreteDataset
+            @test length(dd1) == 1
+            @test size(dd1) == (3, 1)
+            @test get_info(dd1, 1) === info_discrete[1]
+
+            dd2 = dd[2]
+            @test dd2 isa DiscreteDataset
+            @test get_info(dd2, 1) === info_discrete[2]
+
+            # vector index returns a new DiscreteDataset with selected columns
+            dd12 = dd[[1, 2]]
+            @test dd12 isa DiscreteDataset
+            @test length(dd12) == 2
+            @test get_info(dd12) == info_discrete
+
+            # range index
+            dd_range = dd[1:2]
+            @test dd_range isa DiscreteDataset
+            @test length(dd_range) == 2
         end
 
         @testset "Getter methods" begin
@@ -167,8 +185,23 @@ using Statistics
         end
 
         @testset "getindex" begin
-            @test cd[1] === info_cont[1]
-            @test cd[[1, 2]] == info_cont
+            # single index returns a new ContinuousDataset with 1 column
+            cd1 = cd[1]
+            @test cd1 isa ContinuousDataset{Float64}
+            @test length(cd1) == 1
+            @test size(cd1) == (4, 1)
+            @test get_info(cd1, 1) === info_cont[1]
+
+            # vector index
+            cd12 = cd[[1, 2]]
+            @test cd12 isa ContinuousDataset{Float64}
+            @test length(cd12) == 2
+            @test get_info(cd12) == info_cont
+
+            # range index
+            cd_range = cd[1:2]
+            @test cd_range isa ContinuousDataset{Float64}
+            @test length(cd_range) == 2
         end
 
         @testset "Getter methods" begin
@@ -257,8 +290,23 @@ using Statistics
         end
 
         @testset "getindex - aggregate" begin
-            @test md_aggr[1] === info_aggr[1]
-            @test md_aggr[[1, 3]] == [info_aggr[1], info_aggr[3]]
+            # single index returns a new MultidimDataset with 1 column
+            md1 = md_aggr[1]
+            @test md1 isa MultidimDataset{Float64}
+            @test length(md1) == 1
+            @test size(md1) == (3, 1)
+            @test get_info(md1, 1) === info_aggr[1]
+
+            # vector index
+            md13 = md_aggr[[1, 3]]
+            @test md13 isa MultidimDataset{Float64}
+            @test length(md13) == 2
+            @test get_info(md13) == [info_aggr[1], info_aggr[3]]
+
+            # range index
+            md_range = md_aggr[1:3]
+            @test md_range isa MultidimDataset{Float64}
+            @test length(md_range) == 3
         end
 
         @testset "Getter methods - aggregate" begin
@@ -513,7 +561,11 @@ using Statistics
             @test size(ds) == (1, 1)
             @test length(ds) == 1
             @test eachindex(ds) == Base.OneTo(1)
-            @test ds[1] isa DT.AbstractDataFeature
+            # getindex now returns a dataset, check the info inside it
+            sub = ds[1]
+            @test sub isa DT.AbstractDataset
+            @test length(sub) == 1
+            @test get_info(sub, 1) isa DT.AbstractDataFeature
         end
 
         # dims only available on MultidimDataset

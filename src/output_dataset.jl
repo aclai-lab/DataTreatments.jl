@@ -72,14 +72,14 @@ from `dataset`, encodes them categorically, and builds the corresponding
 See also: [`ContinuousDataset`](@ref), [`MultidimDataset`](@ref), [`DiscreteFeat`](@ref)
 """
 struct DiscreteDataset <: AbstractDataset
-    dataset::Matrix
+    dataset::AbstractMatrix
     info::Vector{<:DiscreteFeat}
 
-    DiscreteDataset(dataset::Matrix, info::Vector{<:DiscreteFeat}) = new(dataset, info)
+    DiscreteDataset(dataset::AbstractMatrix, info::Vector{<:DiscreteFeat}) = new(dataset, info)
     
     function DiscreteDataset(
         id::Vector,
-        dataset::Matrix, 
+        dataset::AbstractMatrix, 
         ds_struct::DatasetStructure,
         cols::Vector{Int}
     )
@@ -139,15 +139,15 @@ and builds the corresponding [`ContinuousFeat`](@ref) metadata from `ds_struct`.
 See also: [`DiscreteDataset`](@ref), [`MultidimDataset`](@ref), [`ContinuousFeat`](@ref)
 """
 struct ContinuousDataset{T} <: AbstractDataset
-    dataset::Matrix
+    dataset::AbstractMatrix
     info::Vector{<:ContinuousFeat}
 
-    ContinuousDataset(dataset::Matrix, info::Vector{<:ContinuousFeat{T}}) where T =
+    ContinuousDataset(dataset::AbstractMatrix, info::Vector{<:ContinuousFeat{T}}) where T =
         new{T}(dataset, info)
 
     function ContinuousDataset(
         id::Vector,
-        dataset::Matrix, 
+        dataset::AbstractMatrix, 
         ds_struct::DatasetStructure,
         cols::Vector{Int},
         float_type::Type
@@ -245,7 +245,7 @@ struct MultidimDataset{T} <: AbstractDataset
 
     function MultidimDataset(
         id::Vector,
-        dataset::Matrix, 
+        dataset::AbstractMatrix, 
         ds_struct::DatasetStructure,
         cols::Vector{Int},
         aggrfunc::Base.Callable,
@@ -304,8 +304,19 @@ Base.eachindex(ds::AbstractDataset) = Base.OneTo(length(ds))
 Base.iterate(ds::AbstractDataset, state=1) =
     state > length(ds) ? nothing : (ds.info[state], state + 1)
 
-Base.getindex(ds::AbstractDataset, i::Int) = ds.info[i]
-Base.getindex(ds::AbstractDataset, idxs::Vector{Int}) = ds.info[idxs]
+Base.getindex(ds::DiscreteDataset, i::Int) =
+    DiscreteDataset(ds.dataset[:, i:i], [ds.info[i]])
+Base.getindex(ds::ContinuousDataset, i::Int) =
+    ContinuousDataset(ds.dataset[:, i:i], [ds.info[i]])
+Base.getindex(ds::MultidimDataset, i::Int) =
+    MultidimDataset(ds.dataset[:, i:i], [ds.info[i]])
+
+Base.getindex(ds::DiscreteDataset, idxs::AbstractVector{Int}) =
+    DiscreteDataset(@view(ds.dataset[:, idxs]), ds.info[idxs])
+Base.getindex(ds::ContinuousDataset, idxs::AbstractVector{Int}) =
+    ContinuousDataset(@view(ds.dataset[:, idxs]), ds.info[idxs])
+Base.getindex(ds::MultidimDataset, idxs::AbstractVector{Int}) =
+    MultidimDataset(@view(ds.dataset[:, idxs]), ds.info[idxs])
 
 Base.eltype(::DiscreteDataset) = DiscreteFeat
 Base.eltype(::ContinuousDataset{T}) where T = ContinuousFeat{T}

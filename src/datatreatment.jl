@@ -173,7 +173,7 @@ Returns the number of columns in the dataset.
 get_ncols(dt::DataTreatment) = size(dt.dataset, 2)
 
 # ---------------------------------------------------------------------------- #
-#                               dataset builder                                #
+#                             internal functions                               #
 # ---------------------------------------------------------------------------- #
 """
     _build_datasets(
@@ -254,6 +254,52 @@ function _build_datasets(
     return ds_td, ds_tc, ds_md
 end
 
+"""
+    _view_md_by_dims(md_datasets, ds_struct) -> Dict{Int, Vector{@NamedTuple{md::MultidimDataset, idxs::Vector{Int}}}}
+
+Returns a lazy view of `MultidimDataset`s grouped by the dimensionality (`dims`) of their
+columns, as recorded in `ds_struct`. Unlike [`_split_md_by_dims`](@ref), this does **not**
+construct new `MultidimDataset` objects — it only returns references to the originals
+along with the column indices belonging to each dimensionality group.
+
+# Returns
+A `Dict` mapping each unique dimensionality to a vector of named tuples `(md, idxs)`,
+where `md` is the original `MultidimDataset` and `idxs` are the column indices of that
+dimensionality within it.
+"""
+function _split_md_by_dims(ds_md::MultidimDataset)
+    dims = get_dims(ds_md)
+    unique_dims = unique(get_dims(ds_md))
+
+    idxs = [filter(i -> dims[i] == ud, eachindex(dims)) for ud in unique_dims]
+    # result = Dict{Int, Vector{@NamedTuple{md::MultidimDataset, idxs::Vector{Int}}}}()
+
+    # for md in md_datasets
+    #     col_idxs = get_idxs(md)
+
+    #     # group columns by their dimensionality
+    #     dims_groups = Dict{Int, Vector{Int}}()
+    #     for ci in col_idxs
+    #         d = dims_info[ci]
+    #         if !haskey(dims_groups, d)
+    #             dims_groups[d] = Int[]
+    #         end
+    #         push!(dims_groups[d], ci)
+    #     end
+
+    #     for (d, group_idxs) in dims_groups
+    #         entry = (md=md, idxs=group_idxs)
+    #         if !haskey(result, d)
+    #             result[d] = typeof(entry)[]
+    #         end
+    #         push!(result[d], entry)
+    #     end
+    # end
+
+    # return result
+    ds_md
+end
+
 # ---------------------------------------------------------------------------- #
 #                             custom lazy methods                              #
 # ---------------------------------------------------------------------------- #
@@ -281,10 +327,10 @@ function get_treatments_datasets(dt::DataTreatment; split=true, dataframe=false)
         )
     end
 
-    return (
+    return(
         all(isnothing, ds_td) ? nothing : filter(!isnothing, ds_td),
         all(isnothing, ds_tc) ? nothing : filter(!isnothing, ds_tc),
-        all(isnothing, ds_md) ? nothing : filter(!isnothing, ds_md),
+        all(isnothing, ds_md) ? nothing : _split_md_by_dims.(filter(!isnothing, ds_md))
     )
 end
 
@@ -308,7 +354,7 @@ function get_leftover_datasets(dt::DataTreatment; split=true, dataframe=false)
     return (
         isnothing(ds_td) ? nothing : [ds_td],
         isnothing(ds_tc) ? nothing : [ds_tc],
-        isnothing(ds_md) ? nothing : [ds_md],
+        isnothing(ds_md) ? nothing : _split_md_by_dims(ds_md)
     )
 end
 
