@@ -3,9 +3,6 @@ using DataTreatments
 
 using SoleData.Artifacts
 
-# fill your Artifacts.toml file;
-# fillartifacts()
-
 function run_tests(list)
     println("\n" * ("#"^50))
     for test in list
@@ -24,9 +21,7 @@ test_suites = [
     ("Metadatas",  ["metadata.jl",]),
     ("Output Datasets",  ["output_dataset.jl",]),
     ("Treatments",  ["treatment.jl",]),
-    # ("Groupby", ["groupby.jl"]),
-    # ("Normalize",  ["normalize.jl",]),
-    # ("Grouped Norm", ["grouped_norm.jl"]),
+    ("DataTreatment", ["datatreatment.jl"]),
 ]
 
 @testset "DataTreatments.jl" begin
