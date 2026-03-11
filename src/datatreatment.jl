@@ -254,7 +254,25 @@ function _build_datasets(
     return ds_td, ds_tc, ds_md
 end
 
+"""
+    _split_md_by_dims(ds_md::MultidimDataset) -> Vector{MultidimDataset}
 
+Split a [`MultidimDataset`](@ref) into multiple `MultidimDataset`s, one for each
+unique source dimensionality of its features.
+
+When a `MultidimDataset` contains features originating from arrays of different
+dimensionalities (e.g., 1D time series and 2D spectrograms), this function groups
+them by dimensionality and returns a separate `MultidimDataset` for each group.
+
+# Arguments
+- `ds_md::MultidimDataset`: A multidimensional dataset potentially containing
+  features with heterogeneous source dimensionalities.
+
+# Returns
+A `Vector{MultidimDataset}` where each element contains only features sharing the
+same dimensionality. The length of the returned vector equals the number of unique
+dimensionalities present in `ds_md`.
+"""
 function _split_md_by_dims(ds_md::MultidimDataset)
     dims = get_dims(ds_md)
     unique_dims = unique(get_dims(ds_md))
@@ -267,6 +285,60 @@ end
 # ---------------------------------------------------------------------------- #
 #                             custom lazy methods                              #
 # ---------------------------------------------------------------------------- #
+"""
+    get_treatments_datasets(dt::DataTreatment) -> Vector{AbstractDataset}
+
+Extract the processed datasets using the [`TreatmentGroup`](@ref) directives
+specified by the user during the construction of the [`DataTreatment`](@ref) object.
+
+Returns a flat `Vector{AbstractDataset}` where each element is one of:
+- [`DiscreteDataset`](@ref): columns with categorical/discrete data.
+- [`ContinuousDataset`](@ref): columns with scalar numeric data.
+- [`MultidimDataset`](@ref): columns with array-valued data (e.g., time series,
+  spectrograms), processed according to the aggregation or reduction function
+  specified in each treatment group.
+
+When multidimensional columns originate from arrays of different dimensionalities
+(e.g., 1D and 2D), they are automatically split into separate `MultidimDataset`s,
+one per unique dimensionality. If the user specifies a finer partitioning through
+multiple `TreatmentGroup`s, this partitioning is preserved in the output.
+
+!!! note
+    Only the columns covered by the user-defined treatment groups are returned.
+    Columns not assigned to any `TreatmentGroup` are **not** included; use
+    [`get_leftover_datasets`](@ref) to retrieve them, or [`get_datasets`](@ref)
+    to obtain both.
+
+# Arguments
+- `dt::DataTreatment`: The `DataTreatment` object containing the raw dataset and
+  the user-defined treatment groups.
+
+# Returns
+A `Vector{AbstractDataset}` containing, in order:
+1. All [`DiscreteDataset`](@ref)s (one per treatment group that has discrete columns).
+2. All [`ContinuousDataset`](@ref)s (one per treatment group that has continuous columns).
+3. All [`MultidimDataset`](@ref)s, split by source dimensionality.
+
+Empty categories are omitted from the result.
+
+# Examples
+```julia
+using DataTreatments, DataFrames, Statistics
+
+dt = DataTreatment(
+    df,
+    TreatmentGroup(dims=1, aggrfunc=aggregate(features=(mean, std))),
+    TreatmentGroup(dims=0),
+)
+
+datasets = get_treatments_datasets(dt)
+# e.g., [ContinuousDataset{Float64}(100×3), MultidimDataset{Float64}(100×6, dims=[1], aggregate)]
+```
+
+See also: [`DataTreatment`](@ref), [`TreatmentGroup`](@ref),
+[`get_leftover_datasets`](@ref), [`get_datasets`](@ref),
+[`_build_datasets`](@ref), [`_split_md_by_dims`](@ref)
+"""
 function get_treatments_datasets(dt::DataTreatment)
     treats = get_t_groups(dt)
     idxs = get_idxs(treats)
@@ -299,6 +371,55 @@ function get_treatments_datasets(dt::DataTreatment)
     return AbstractDataset[td_filtered; tc_filtered; md_split]
 end
 
+"""
+    get_leftover_datasets(dt::DataTreatment) -> Vector{AbstractDataset}
+
+Complement of [`get_treatments_datasets`](@ref): returns the dataset columns that
+were **not** selected by any user-defined [`TreatmentGroup`](@ref), formatted as
+a flat `Vector{AbstractDataset}`.
+
+Leftover columns are partitioned by data type using the same logic as
+[`get_treatments_datasets`](@ref):
+- Categorical/discrete columns → [`DiscreteDataset`](@ref)
+- Scalar numeric columns → [`ContinuousDataset`](@ref)
+- Array-valued columns → [`MultidimDataset`](@ref), processed with the default
+  aggregation function (`maximum`, `minimum`, `mean` over the whole window) and
+  split by source dimensionality.
+
+!!! note
+    If every column of the dataset is covered by the user-defined treatment groups,
+    the returned vector will be empty.
+
+# Arguments
+- `dt::DataTreatment`: The `DataTreatment` object containing the raw dataset and
+  the user-defined treatment groups.
+
+# Returns
+A `Vector{AbstractDataset}` containing, in order:
+1. A [`DiscreteDataset`](@ref) for leftover categorical columns (if any).
+2. A [`ContinuousDataset`](@ref) for leftover scalar numeric columns (if any).
+3. One or more [`MultidimDataset`](@ref)s for leftover array-valued columns (if any),
+   split by source dimensionality.
+
+Empty categories are omitted from the result.
+
+# Examples
+```julia
+using DataTreatments, DataFrames, Statistics
+
+# Only treat 1D columns — scalars and 2D columns become leftovers
+dt = DataTreatment(
+    df,
+    TreatmentGroup(dims=1, aggrfunc=aggregate(features=(mean, std))),
+)
+
+leftovers = get_leftover_datasets(dt)
+# e.g., [ContinuousDataset{Float64}(100×2), MultidimDataset{Float64}(100×9, dims=[2], aggregate)]
+```
+
+See also: [`DataTreatment`](@ref), [`get_treatments_datasets`](@ref),
+[`get_datasets`](@ref), [`_build_datasets`](@ref), [`_split_md_by_dims`](@ref)
+"""
 function get_leftover_datasets(dt::DataTreatment)
     treats = get_t_groups(dt)
     idxs = setdiff(collect(eachindex(dt)), reduce(vcat, get_idxs(treats)))
@@ -323,6 +444,52 @@ function get_leftover_datasets(dt::DataTreatment)
     return AbstractDataset[td_filtered; tc_filtered; md_split]
 end
 
+"""
+    get_datasets(dt::DataTreatment) -> Vector{AbstractDataset}
+
+Return the complete set of processed datasets, combining both the user-specified
+treatment groups and the leftover columns into a single flat
+`Vector{AbstractDataset}`.
+
+This is a convenience method that concatenates the results of
+[`get_treatments_datasets`](@ref) and [`get_leftover_datasets`](@ref). The returned
+vector contains, in order:
+1. All datasets produced by [`get_treatments_datasets`](@ref) (discrete, continuous,
+   and multidimensional columns covered by user-defined [`TreatmentGroup`](@ref)s).
+2. All datasets produced by [`get_leftover_datasets`](@ref) (columns not assigned to
+   any treatment group, processed with the default aggregation function).
+
+Each element is one of:
+- [`DiscreteDataset`](@ref): columns with categorical/discrete data.
+- [`ContinuousDataset`](@ref): columns with scalar numeric data.
+- [`MultidimDataset`](@ref): columns with array-valued data, split by source
+  dimensionality.
+
+# Arguments
+- `dt::DataTreatment`: The `DataTreatment` object containing the raw dataset and
+  the user-defined treatment groups.
+
+# Returns
+A `Vector{AbstractDataset}` covering **every** column of the original dataset.
+
+# Examples
+```julia
+using DataTreatments, DataFrames, Statistics
+
+dt = DataTreatment(
+    df,
+    TreatmentGroup(dims=1, aggrfunc=aggregate(features=(mean, std))),
+)
+
+all_datasets = get_datasets(dt)
+# e.g., [MultidimDataset{Float64}(100×6, dims=[1], aggregate),
+#         ContinuousDataset{Float64}(100×2),
+#         MultidimDataset{Float64}(100×9, dims=[2], aggregate)]
+```
+
+See also: [`DataTreatment`](@ref), [`get_treatments_datasets`](@ref),
+[`get_leftover_datasets`](@ref)
+"""
 function get_datasets(dt::DataTreatment; dataframe=false)
     return AbstractDataset[
         get_treatments_datasets(dt);
