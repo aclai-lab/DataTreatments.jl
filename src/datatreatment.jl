@@ -6,110 +6,22 @@ const DefaultAggrFunc = aggregate(win=(wholewindow(),), features=(maximum, minim
 # ---------------------------------------------------------------------------- #
 #                             DataTreatment struct                             #
 # ---------------------------------------------------------------------------- #
-"""
-    DataTreatment
-
-The core structure of the `DataTreatments` package.
-
-Its purpose is to collect all metadata useful for working with a dataset, while also
-accepting user directives in the form of [`TreatmentGroup`](@ref) structures. Through
-these, the user can customize how the dataset is partitioned and how multidimensional
-data is handled (see [`TreatmentGroup`](@ref) and [`aggregate`](@ref) / [`reducesize`](@ref)).
-
-`DataTreatment` stores not only the **static metadata** about the dataset — retrieved
-via [`DatasetStructure`](@ref) — but also all **user-specified preferences** for
-processing.
-
-## Lazy Design
-
-`DataTreatment` is designed to be **lazy** in order to maximize scalability. While it
-provides Base methods, getters, and a set of convenience methods for extracting and
-formatting the dataset contents, it is very likely that users will need to create their
-own custom methods. The lazy approach makes this possible: the raw dataset and all
-metadata are stored and accessible, but expensive computations (such as building the
-final processed datasets) are deferred until explicitly requested.
-
-## Fields
-
-- `dataset::Matrix`: The raw dataset matrix as provided by the user.
-- `ds_struct::DatasetStructure`: Static metadata about the dataset (types, dimensions,
-  missing/NaN indices per column). See [`DatasetStructure`](@ref).
-- `t_groups::Vector{TreatmentGroup}`: User-defined treatment groups that specify how
-  to partition columns and how to process multidimensional data.
-- `float_type::Type`: The floating-point type used for numeric processing (default: `Float64`).
-
-## Constructors
-
-    DataTreatment(
-        dataset::Matrix,
-        vnames::Vector{String},
-        treatments::Base.Callable...;
-        float_type::Type=Float64
-    )
-
-    DataTreatment(df::DataFrame, args...; kwargs...)
-
-### Arguments
-- `dataset::Matrix`: A matrix where each column is a feature. Elements may be scalars,
-  arrays, or contain `missing` / `NaN` values.
-- `vnames::Vector{String}`: Column names corresponding to each column of `dataset`.
-- `treatments::Base.Callable...`: One or more [`TreatmentGroup`](@ref) constructors
-  (typically in curried form). Each callable receives the internal [`DatasetStructure`](@ref)
-  and returns a configured `TreatmentGroup`. Defaults to a single group that aggregates
-  all multidimensional columns using `(maximum, minimum, mean)` over the whole window.
-- `float_type::Type`: The floating-point type for numeric output (default: `Float64`).
-- `df::DataFrame`: Alternatively, pass a `DataFrame` directly; column names are
-  extracted automatically via `names(df)`.
-
-## Examples
-
-```julia
-using DataTreatments, DataFrames, Statistics
-
-# From a DataFrame with default treatment (aggregate with max, min, mean)
-dt = DataTreatment(df)
-
-# From a matrix with explicit column names
-dt = DataTreatment(Matrix(df), names(df))
-
-# With custom treatment groups
-dt = DataTreatment(
-    df,
-    TreatmentGroup(dims=0),                          # scalars: no processing
-    TreatmentGroup(dims=1, aggrfunc=aggregate(       # 1D arrays: custom aggregation
-        win=(splitwindow(4),),
-        features=(mean, std)
-    )),
-)
-
-# With a specific float type
-dt = DataTreatment(df; float_type=Float32)
-
-# Lazy access — build processed datasets only when needed
-datasets = get_datasets(dt)
-```
-
-See also: [`DatasetStructure`](@ref), [`TreatmentGroup`](@ref), [`aggregate`](@ref),
-[`reducesize`](@ref)
-"""
 struct DataTreatment
     dataset::Matrix
+    target::Union{Nothing,CategoricalArray,Vector{AbstractFloat}}
     ds_struct::DatasetStructure
-    t_groups::Vector{TreatmentGroup}
+    t_groups::Union{Nothing,Vector{TreatmentGroup}}
     float_type::Type
 
     function DataTreatment(
         dataset::Matrix,
         vnames::Vector{String},
-        treatments::Base.Callable...=TreatmentGroup(
-            aggrfunc=DefaultAggrFunc,
-        );
+        target::Union{Nothing,CategoricalArray,Vector{AbstractFloat}}=nothing;
         float_type::Type=Float64
     )
         ds_struct = DatasetStructure(dataset, vnames)
-        t_groups = [treat(ds_struct) for treat in treatments]
 
-        new(dataset, ds_struct, t_groups, float_type)
+        new(dataset, target, ds_struct, nothing, float_type)
     end
 
     DataTreatment(df::DataFrame, args...; kwargs...) =
@@ -286,7 +198,7 @@ end
 #                             custom lazy methods                              #
 # ---------------------------------------------------------------------------- #
 """
-    get_treatments_datasets(dt::DataTreatment) -> Vector{AbstractDataset}
+    _get_treatments_datasets(dt::DataTreatment) -> Vector{AbstractDataset}
 
 Extract the processed datasets using the [`TreatmentGroup`](@ref) directives
 specified by the user during the construction of the [`DataTreatment`](@ref) object.
@@ -306,7 +218,7 @@ multiple `TreatmentGroup`s, this partitioning is preserved in the output.
 !!! note
     Only the columns covered by the user-defined treatment groups are returned.
     Columns not assigned to any `TreatmentGroup` are **not** included; use
-    [`get_leftover_datasets`](@ref) to retrieve them, or [`get_datasets`](@ref)
+    [`_get_leftover_datasets`](@ref) to retrieve them, or [`get_datasets`](@ref)
     to obtain both.
 
 # Arguments
@@ -331,15 +243,15 @@ dt = DataTreatment(
     TreatmentGroup(dims=0),
 )
 
-datasets = get_treatments_datasets(dt)
+datasets = _get_treatments_datasets(dt)
 # e.g., [ContinuousDataset{Float64}(100×3), MultidimDataset{Float64}(100×6, dims=[1], aggregate)]
 ```
 
 See also: [`DataTreatment`](@ref), [`TreatmentGroup`](@ref),
-[`get_leftover_datasets`](@ref), [`get_datasets`](@ref),
+[`_get_leftover_datasets`](@ref), [`get_datasets`](@ref),
 [`_build_datasets`](@ref), [`_split_md_by_dims`](@ref)
 """
-function get_treatments_datasets(dt::DataTreatment)
+function _get_treatments_datasets(dt::DataTreatment)
     treats = get_t_groups(dt)
     idxs = get_idxs(treats)
 
@@ -372,14 +284,14 @@ function get_treatments_datasets(dt::DataTreatment)
 end
 
 """
-    get_leftover_datasets(dt::DataTreatment) -> Vector{AbstractDataset}
+    _get_leftover_datasets(dt::DataTreatment) -> Vector{AbstractDataset}
 
-Complement of [`get_treatments_datasets`](@ref): returns the dataset columns that
+Complement of [`_get_treatments_datasets`](@ref): returns the dataset columns that
 were **not** selected by any user-defined [`TreatmentGroup`](@ref), formatted as
 a flat `Vector{AbstractDataset}`.
 
 Leftover columns are partitioned by data type using the same logic as
-[`get_treatments_datasets`](@ref):
+[`_get_treatments_datasets`](@ref):
 - Categorical/discrete columns → [`DiscreteDataset`](@ref)
 - Scalar numeric columns → [`ContinuousDataset`](@ref)
 - Array-valued columns → [`MultidimDataset`](@ref), processed with the default
@@ -413,14 +325,14 @@ dt = DataTreatment(
     TreatmentGroup(dims=1, aggrfunc=aggregate(features=(mean, std))),
 )
 
-leftovers = get_leftover_datasets(dt)
+leftovers = _get_leftover_datasets(dt)
 # e.g., [ContinuousDataset{Float64}(100×2), MultidimDataset{Float64}(100×9, dims=[2], aggregate)]
 ```
 
-See also: [`DataTreatment`](@ref), [`get_treatments_datasets`](@ref),
+See also: [`DataTreatment`](@ref), [`_get_treatments_datasets`](@ref),
 [`get_datasets`](@ref), [`_build_datasets`](@ref), [`_split_md_by_dims`](@ref)
 """
-function get_leftover_datasets(dt::DataTreatment)
+function _get_leftover_datasets(dt::DataTreatment)
     treats = get_t_groups(dt)
     idxs = setdiff(collect(eachindex(dt)), reduce(vcat, get_idxs(treats)))
 
@@ -444,55 +356,15 @@ function get_leftover_datasets(dt::DataTreatment)
     return AbstractDataset[td_filtered; tc_filtered; md_split]
 end
 
-"""
-    get_datasets(dt::DataTreatment) -> Vector{AbstractDataset}
 
-Return the complete set of processed datasets, combining both the user-specified
-treatment groups and the leftover columns into a single flat
-`Vector{AbstractDataset}`.
-
-This is a convenience method that concatenates the results of
-[`get_treatments_datasets`](@ref) and [`get_leftover_datasets`](@ref). The returned
-vector contains, in order:
-1. All datasets produced by [`get_treatments_datasets`](@ref) (discrete, continuous,
-   and multidimensional columns covered by user-defined [`TreatmentGroup`](@ref)s).
-2. All datasets produced by [`get_leftover_datasets`](@ref) (columns not assigned to
-   any treatment group, processed with the default aggregation function).
-
-Each element is one of:
-- [`DiscreteDataset`](@ref): columns with categorical/discrete data.
-- [`ContinuousDataset`](@ref): columns with scalar numeric data.
-- [`MultidimDataset`](@ref): columns with array-valued data, split by source
-  dimensionality.
-
-# Arguments
-- `dt::DataTreatment`: The `DataTreatment` object containing the raw dataset and
-  the user-defined treatment groups.
-
-# Returns
-A `Vector{AbstractDataset}` covering **every** column of the original dataset.
-
-# Examples
-```julia
-using DataTreatments, DataFrames, Statistics
-
-dt = DataTreatment(
-    df,
-    TreatmentGroup(dims=1, aggrfunc=aggregate(features=(mean, std))),
+function get_datasets(
+    dt::DataTreatment,
+    treatments::Base.Callable...=TreatmentGroup(aggrfunc=DefaultAggrFunc,)
 )
+    dt.t_groups = [treat(ds_struct) for treat in treatments]
 
-all_datasets = get_datasets(dt)
-# e.g., [MultidimDataset{Float64}(100×6, dims=[1], aggregate),
-#         ContinuousDataset{Float64}(100×2),
-#         MultidimDataset{Float64}(100×9, dims=[2], aggregate)]
-```
-
-See also: [`DataTreatment`](@ref), [`get_treatments_datasets`](@ref),
-[`get_leftover_datasets`](@ref)
-"""
-function get_datasets(dt::DataTreatment; dataframe=false)
     return AbstractDataset[
-        get_treatments_datasets(dt);
-        get_leftover_datasets(dt)
+        _get_treatments_datasets(dt);
+        _get_leftover_datasets(dt)
     ]
 end

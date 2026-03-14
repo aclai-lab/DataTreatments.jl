@@ -1,11 +1,14 @@
-# using SoleXplorer
-# const SX = SoleXplorer
+using DataTreatments
 
-# using MLJ
 using Downloads
 using CSV, DataFrames
 using CategoricalArrays
-# using Downloads, DelimitedFiles
+
+const FloatType = Float32
+
+# ---------------------------------------------------------------------------- #
+#                      proposed method to work with csvs                       #
+# ---------------------------------------------------------------------------- #
 
 # datasets to tests
 # ds = dataset nanme
@@ -23,7 +26,7 @@ datasets = [
     (ds="house-votes-84", y="party"),
     (ds="HTRU_2", y="class"),
     (ds="Mammographic_Masses", y="Severity"),
-    (ds="monk", y="'class'", rm="'id'"),
+    (ds="monk", y="'class'", rm="id"),
     (ds="mushrooms", y="class"),
     (ds="Occupancy", y="Occupancy"),
     (ds="penguins", y="species"),
@@ -46,37 +49,29 @@ Threads.@threads for dataset in datasets
     isfile(local_path) || Downloads.download(url, local_path)
 end
 
-# # base URL for datasets on PasoStudio73 GitHub
-# dir = "../datasets/csv/"
+# local filepath
+filepaths = [joinpath(@__DIR__, "datasets/", dataset.ds * ".csv") for dataset in datasets]
 
-# X_vec = Vector{DataFrame}(undef, length(datasets))
-# y_vec = Vector{CategoricalArray{String,1}}(undef, length(datasets))
+datatreatments = Vector{DataTreatment}(undef, length(datasets))
 
-# # collect datasets
-# Threads.@threads for i in eachindex(datasets)
-#     path = joinpath(@__DIR__, dir * datasets[i].ds * ".csv")
-#     dataset = CSV.read(path, DataFrame)
-#     if haskey(datasets[i], :rm)
-#         select!(dataset, Not(datasets[i].rm))
-#     end
-#     y_vec[i] = categorical(string.(dataset[!, datasets[i].y]))
-# end
+# construct DataTreatment objects from loaded datasets
+Threads.@threads for i in eachindex(filepaths)
+    dataset = CSV.read(filepaths[i], DataFrame)
 
-filepath = [joinpath(@__DIR__, "datasets/" * "$(d[1])" * ".data") for d in datasets]
-data = [DelimitedFiles.readdlm(f, ',') for f in filepath]
-dataX = [DataFrame(d[:, datasets[i][2]], :auto) for (i,d) in enumerate(data)]
-datay = [d[:, datasets[i][3]] for (i,d) in enumerate(data)]
+    if haskey(datasets[i], :y)
+        target = categorical(string.(dataset[!, datasets[i].y]))
+        features = select(dataset, Not(datasets[i].y))
+    else
+        target = nothing
+        features = dataset
+    end
 
-analysis_collection = [
-    symbolic_analysis(
-        X, y;
-        model=XGBoostClassifier(max_depth=3, early_stopping_rounds=20),
-        seed=11,
-        valid_ratio=0.2,
-        measures=(accuracy,)
-    ) for (X, y) in zip(dataX, datay)
-]
+    # check if there's any columns to be removed in advance from the dataset
+    haskey(datasets[i], :rm) && select!(features, Not(datasets[i].rm))
 
-for modelc in analysis_collection
-    @test modelc isa SX.ModelSet
+    datatreatments[i] = DataTreatment(
+        features,
+        target;
+        float_type=FloatType
+    )
 end
