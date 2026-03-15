@@ -29,6 +29,23 @@ function discrete_encode(X::Matrix)
     return [levelcode.(cat) for cat in cats], levels.(cats)
 end
 
+"""
+    discrete_encode(x::AbstractVector) -> (codes, levels)
+
+Encode a vector of discrete values as a categorical variable.
+
+`missing` values are **not** categorized: they are preserved as `missing` in the output `codes` and are excluded from the level labels.
+
+# Arguments
+- `x::AbstractVector`: a vector containing discrete values of any type.
+
+# Returns
+- `codes`: a vector of integer level codes for each entry in `x`, with `missing` preserved.
+- `levels`: a vector of sorted unique string labels, such that `levels[codes[j]]` reconstructs the original value of `x[j]` for non-missing entries.
+
+# Usage
+This function is used internally by `DataTreatments` to encode target vectors for classification tasks, storing both the encoded values and the associated labels in a `TargetStructure`.
+"""
 function discrete_encode(x::AbstractVector)
     to_str(v) = (ismissing(v) || (v isa AbstractFloat && isnan(v))) ? missing : string(v)
     cats = categorical(to_str.(x))
@@ -78,14 +95,14 @@ from `dataset`, encodes them categorically, and builds the corresponding
 See also: [`ContinuousDataset`](@ref), [`MultidimDataset`](@ref), [`DiscreteFeat`](@ref)
 """
 struct DiscreteDataset <: AbstractDataset
-    dataset::AbstractMatrix
+    data::AbstractMatrix
     info::Vector{<:DiscreteFeat}
 
-    DiscreteDataset(dataset::AbstractMatrix, info::Vector{<:DiscreteFeat}) = new(dataset, info)
+    DiscreteDataset(data::AbstractMatrix, info::Vector{<:DiscreteFeat}) = new(data, info)
     
     function DiscreteDataset(
         id::Vector,
-        dataset::AbstractMatrix, 
+        data::AbstractMatrix, 
         ds_struct::DatasetStructure,
         cols::Vector{Int}
     )
@@ -93,7 +110,7 @@ struct DiscreteDataset <: AbstractDataset
         vnames = get_vnames(ds_struct, cols)
         idx = get_valididxs(ds_struct, cols)
         miss = get_missingidxs(ds_struct, cols)
-        codes, levels = discrete_encode(dataset[:, cols])
+        codes, levels = discrete_encode(data[:, cols])
 
         return new(
             stack(codes),
@@ -145,15 +162,15 @@ and builds the corresponding [`ContinuousFeat`](@ref) metadata from `ds_struct`.
 See also: [`DiscreteDataset`](@ref), [`MultidimDataset`](@ref), [`ContinuousFeat`](@ref)
 """
 struct ContinuousDataset{T} <: AbstractDataset
-    dataset::AbstractMatrix
+    data::AbstractMatrix
     info::Vector{<:ContinuousFeat}
 
-    ContinuousDataset(dataset::AbstractMatrix, info::Vector{<:ContinuousFeat{T}}) where T =
-        new{T}(dataset, info)
+    ContinuousDataset(data::AbstractMatrix, info::Vector{<:ContinuousFeat{T}}) where T =
+        new{T}(data, info)
 
     function ContinuousDataset(
         id::Vector,
-        dataset::AbstractMatrix, 
+        data::AbstractMatrix, 
         ds_struct::DatasetStructure,
         cols::Vector{Int},
         float_type::Type
@@ -164,7 +181,7 @@ struct ContinuousDataset{T} <: AbstractDataset
         nan = get_nanidxs(ds_struct, cols)
 
         return new{float_type}(
-            reduce(hcat, [map(x -> ismissing(x) ? missing : float_type(x), @view dataset[:, col])
+            reduce(hcat, [map(x -> ismissing(x) ? missing : float_type(x), @view data[:, col])
                 for col in cols]),
             [ContinuousFeat{float_type}(push!(id, i), vnames[i], idx[i], miss[i], nan[i])
                 for i in eachindex(vnames)]
@@ -241,23 +258,23 @@ See also: [`DiscreteDataset`](@ref), [`ContinuousDataset`](@ref),
 [`AggregateFeat`](@ref), [`ReduceFeat`](@ref), [`aggregate`](@ref), [`reducesize`](@ref)
 """
 struct MultidimDataset{T} <: AbstractDataset
-    dataset::AbstractArray
+    data::AbstractArray
     info::Vector{<:Union{AggregateFeat,ReduceFeat}}
 
-    MultidimDataset(dataset::AbstractArray, info::Vector{<:AggregateFeat{T}}) where T =
-        new{T}(dataset, info)
-    MultidimDataset(dataset::AbstractArray, info::Vector{<:ReduceFeat{T}}) where T =
-        new{T}(dataset, info)
+    MultidimDataset(data::AbstractArray, info::Vector{<:AggregateFeat{T}}) where T =
+        new{T}(data, info)
+    MultidimDataset(data::AbstractArray, info::Vector{<:ReduceFeat{T}}) where T =
+        new{T}(data, info)
 
     function MultidimDataset(
         id::Vector,
-        dataset::AbstractMatrix, 
+        data::AbstractMatrix, 
         ds_struct::DatasetStructure,
         cols::Vector{Int},
         aggrfunc::Base.Callable,
         float_type::Type
     )
-        dataset = @view dataset[:, cols]
+        data = @view data[:, cols]
         vnames = get_vnames(ds_struct, cols)
         dims = get_dims(ds_struct, cols)
         idx = get_valididxs(ds_struct, cols)
@@ -266,7 +283,7 @@ struct MultidimDataset{T} <: AbstractDataset
         hasmiss = get_hasmissing(ds_struct, cols)
         hasnan = get_hasnans(ds_struct, cols)
 
-        md, nwindows = aggrfunc(dataset, idx, float_type)
+        md, nwindows = aggrfunc(data, idx, float_type)
 
         md_feats = if hasfield(typeof(aggrfunc), :features)
             vec([AggregateFeat{float_type}(
@@ -280,7 +297,7 @@ struct MultidimDataset{T} <: AbstractDataset
                 nan[c],
                 hasmiss[c],
                 hasnan[c])
-                for (i, (f, c)) in enumerate(Iterators.product(_get_features(aggrfunc), axes(dataset,2)))])
+                for (i, (f, c)) in enumerate(Iterators.product(_get_features(aggrfunc), axes(data,2)))])
         else
             [ReduceFeat{AbstractArray{float_type}}(
                 push!(id, i),
@@ -291,7 +308,7 @@ struct MultidimDataset{T} <: AbstractDataset
                 miss[c],
                 nan[c],
                 hasmiss[c],hasnan[c])
-                for (i, c) in enumerate(axes(dataset,2))]
+                for (i, c) in enumerate(axes(data,2))]
         end
 
         return new{float_type}(md, md_feats)
@@ -301,28 +318,28 @@ end
 # ---------------------------------------------------------------------------- #
 #                               Base methods                                   #
 # ---------------------------------------------------------------------------- #
-Base.size(ds::AbstractDataset) = size(ds.dataset)
-Base.size(ds::AbstractDataset, d::Int) = size(ds.dataset, d)
+Base.size(ds::AbstractDataset) = size(ds.data)
+Base.size(ds::AbstractDataset, d::Int) = size(ds.data, d)
 
 Base.length(ds::AbstractDataset) = length(ds.info)
-Base.ndims(ds::AbstractDataset) = ndims(ds.dataset)
+Base.ndims(ds::AbstractDataset) = ndims(ds.data)
 Base.eachindex(ds::AbstractDataset) = Base.OneTo(length(ds))
 Base.iterate(ds::AbstractDataset, state=1) =
     state > length(ds) ? nothing : (ds.info[state], state + 1)
 
 Base.getindex(ds::DiscreteDataset, i::Int) =
-    DiscreteDataset(ds.dataset[:, i:i], [ds.info[i]])
+    DiscreteDataset(ds.data[:, i:i], [ds.info[i]])
 Base.getindex(ds::ContinuousDataset, i::Int) =
-    ContinuousDataset(ds.dataset[:, i:i], [ds.info[i]])
+    ContinuousDataset(ds.data[:, i:i], [ds.info[i]])
 Base.getindex(ds::MultidimDataset, i::Int) =
-    MultidimDataset(ds.dataset[:, i:i], [ds.info[i]])
+    MultidimDataset(ds.data[:, i:i], [ds.info[i]])
 
 Base.getindex(ds::DiscreteDataset, idxs::AbstractVector{Int}) =
-    DiscreteDataset(@view(ds.dataset[:, idxs]), ds.info[idxs])
+    DiscreteDataset(@view(ds.data[:, idxs]), ds.info[idxs])
 Base.getindex(ds::ContinuousDataset, idxs::AbstractVector{Int}) =
-    ContinuousDataset(@view(ds.dataset[:, idxs]), ds.info[idxs])
+    ContinuousDataset(@view(ds.data[:, idxs]), ds.info[idxs])
 Base.getindex(ds::MultidimDataset, idxs::AbstractVector{Int}) =
-    MultidimDataset(@view(ds.dataset[:, idxs]), ds.info[idxs])
+    MultidimDataset(@view(ds.data[:, idxs]), ds.info[idxs])
 
 Base.eltype(::DiscreteDataset) = DiscreteFeat
 Base.eltype(::ContinuousDataset{T}) where T = ContinuousFeat{T}
@@ -332,20 +349,20 @@ Base.eltype(::MultidimDataset{T}) where T = Union{AggregateFeat{T},ReduceFeat{T}
 #                               getter methods                                 #
 # ---------------------------------------------------------------------------- #
 """
-    get_dataset(ds::AbstractDataset) -> Matrix
+    get_data(ds::AbstractDataset) -> Matrix
 
 Returns the underlying dataset matrix.
 """
-get_dataset(ds::AbstractDataset) = ds.dataset
+get_data(ds::AbstractDataset) = ds.data
 
 """
-    get_dataset(ds::AbstractDataset, i::Int) -> Vector
-    get_dataset(ds::AbstractDataset, idxs::Vector{Int}) -> Matrix
+    get_data(ds::AbstractDataset, i::Int) -> Vector
+    get_data(ds::AbstractDataset, idxs::Vector{Int}) -> Matrix
 
 Returns column `i` or columns `idxs` of the underlying dataset matrix.
 """
-get_dataset(ds::AbstractDataset, i::Int) = @view ds.dataset[:, i]
-get_dataset(ds::AbstractDataset, idxs::Vector{Int}) = @view ds.dataset[:, idxs]
+get_data(ds::AbstractDataset, i::Int) = @view ds.data[:, i]
+get_data(ds::AbstractDataset, idxs::Vector{Int}) = @view ds.data[:, idxs]
 
 """
     get_info(ds::AbstractDataset) -> Vector{<:AbstractDataFeature}

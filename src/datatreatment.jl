@@ -6,7 +6,7 @@ const DefaultAggrFunc = aggregate(win=(wholewindow(),), features=(maximum, minim
 # ---------------------------------------------------------------------------- #
 #                             DataTreatment struct                             #
 # ---------------------------------------------------------------------------- #
-struct DataTreatment
+mutable struct DataTreatment
     data::Matrix
     target::Union{Nothing,TargetStructure}
     ds_struct::DatasetStructure
@@ -367,13 +367,22 @@ end
 
 function get_dataset(
     dt::DataTreatment,
-    treatments::Base.Callable...=TreatmentGroup(aggrfunc=DefaultAggrFunc,)
+    treatments::Base.Callable...=TreatmentGroup(aggrfunc=DefaultAggrFunc,);
+    treatment_ds::Bool=true,
+    leftover_ds::Bool=true,
+    matrix::Bool=false,
+    dataframe::Bool=false
 )
-    dt.t_groups = [treat(ds_struct) for treat in treatments]
+    dt.t_groups = [treat(get_ds_struct(dt)) for treat in treatments]
 
-    return AbstractDataset[
-        _get_treatments_datasets(dt);
-        _get_leftover_datasets(dt)
-    ]
+    ds = AbstractDataset[]
+    treatment_ds && append!(ds, _get_treatments_datasets(dt))
+    leftover_ds && append!(ds, _get_leftover_datasets(dt))
+
+    isempty(ds) && return
+
+    matrix && return reduce(vcat, get_data.(ds))
+    dataframe && return DataFrame(reduce(vcat, get_data.(ds)), get_vnames(get_ds_struct(dt)))
+    return ds
 end
 
