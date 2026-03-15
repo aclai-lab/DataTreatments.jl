@@ -286,18 +286,23 @@ struct MultidimDataset{T} <: AbstractDataset
         md, nwindows = aggrfunc(data, idx, float_type)
 
         md_feats = if hasfield(typeof(aggrfunc), :features)
-            vec([AggregateFeat{float_type}(
-                push!(id, i),
+            tuples = Iterators.flatten((
+                ((c, f, n) for f in _get_features(aggrfunc) for n in 1:nwindows[c])
+                for c in eachindex(vnames)
+            ))
+
+            [AggregateFeat{float_type}(
+                [id..., j],
                 vnames[c],
                 dims[c],
                 f,
-                nwindows[c],
+                n,
                 idx[c],
                 miss[c],
                 nan[c],
                 hasmiss[c],
-                hasnan[c])
-                for (i, (f, c)) in enumerate(Iterators.product(_get_features(aggrfunc), axes(data,2)))])
+                hasnan[c]
+            ) for (j, (c, f, n)) in enumerate(tuples)]
         else
             [ReduceFeat{AbstractArray{float_type}}(
                 push!(id, i),
@@ -308,7 +313,7 @@ struct MultidimDataset{T} <: AbstractDataset
                 miss[c],
                 nan[c],
                 hasmiss[c],hasnan[c])
-                for (i, c) in enumerate(axes(data,2))]
+                for (i, c) in enumerate(axes(md,2))]
         end
 
         return new{float_type}(md, md_feats)
