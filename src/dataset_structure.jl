@@ -5,6 +5,49 @@ _isnanval(v) = v isa AbstractFloat && isnan(v)
 _isarray(v) = v isa AbstractArray
 
 # ---------------------------------------------------------------------------- #
+#                            TargetStructure struct                            #
+# ---------------------------------------------------------------------------- #
+"""
+    TargetStructure
+
+A structure used by `DataTreatments` to store information about the target (dependent variable) of a dataset.
+It holds both the vector of target values and, for classification tasks, the labels associated with discrete-encoded classes.
+
+This struct is constructed automatically from a target vector and is used internally by `DataTreatment` objects.
+
+# Fields
+- `values::Vector{Union{<:Int, <:AbstractFloat}}`: The encoded target values (integers for classification, floats for regression).
+- `labels::Union{Nothing, CategoricalArrays.CategoricalVector}`: The class labels for classification tasks, or `nothing` for regression.
+"""
+struct TargetStructure
+    values::Vector{Union{<:Int,<:AbstractFloat}}
+    labels::Union{Nothing,CategoricalArrays.CategoricalVector}
+
+    function TargetStructure(y::AbstractVector)
+        eltype(y) <: AbstractFloat ?
+            new(y, nothing) :
+            new(discrete_encode(y)...)
+    end
+end
+
+# ---------------------------------------------------------------------------- #
+#                               getter methods                                 #
+# ---------------------------------------------------------------------------- #
+"""
+get_values(ts::TargetStructure)
+
+Returns the vector of encoded target values.
+"""
+get_values(ts::TargetStructure) = ts.values
+
+"""
+get_labels(ts::TargetStructure)
+
+Returns the class labels for classification tasks, or nothing for regression.
+"""
+get_labels(ts::TargetStructure) = ts.labels
+
+# ---------------------------------------------------------------------------- #
 #                           DatasetStructure struct                            #
 # ---------------------------------------------------------------------------- #
 """

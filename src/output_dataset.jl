@@ -29,6 +29,12 @@ function discrete_encode(X::Matrix)
     return [levelcode.(cat) for cat in cats], levels.(cats)
 end
 
+function discrete_encode(x::AbstractVector)
+    to_str(v) = (ismissing(v) || (v isa AbstractFloat && isnan(v))) ? missing : string(v)
+    cats = categorical(to_str.(x))
+    return [levelcode(cat) for cat in cats], levels(cats)
+end
+
 # ---------------------------------------------------------------------------- #
 #                               dataset structs                                #
 # ---------------------------------------------------------------------------- #

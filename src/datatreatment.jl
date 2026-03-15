@@ -7,21 +7,22 @@ const DefaultAggrFunc = aggregate(win=(wholewindow(),), features=(maximum, minim
 #                             DataTreatment struct                             #
 # ---------------------------------------------------------------------------- #
 struct DataTreatment
-    dataset::Matrix
-    target::Union{Nothing,CategoricalArray,Vector{AbstractFloat}}
+    data::Matrix
+    target::Union{Nothing,TargetStructure}
     ds_struct::DatasetStructure
     t_groups::Union{Nothing,Vector{TreatmentGroup}}
     float_type::Type
 
     function DataTreatment(
-        dataset::Matrix,
+        data::Matrix,
         vnames::Vector{String},
-        target::Union{Nothing,CategoricalArray,Vector{AbstractFloat}}=nothing;
+        target::Union{Nothing,AbstractVector}=nothing;
         float_type::Type=Float64
     )
-        ds_struct = DatasetStructure(dataset, vnames)
+        isa(target, AbstractVector) && (target = TargetStructure(target))
+        ds_struct = DatasetStructure(data, vnames)
 
-        new(dataset, target, ds_struct, nothing, float_type)
+        new(data, target, ds_struct, nothing, float_type)
     end
 
     DataTreatment(df::DataFrame, args...; kwargs...) =
@@ -31,21 +32,28 @@ end
 # ---------------------------------------------------------------------------- #
 #                                Base methods                                  #
 # ---------------------------------------------------------------------------- #
-Base.size(dt::DataTreatment) = size(dt.dataset)
-Base.length(dt::DataTreatment) = size(dt.dataset, 2)
+Base.size(dt::DataTreatment) = size(dt.data)
+Base.length(dt::DataTreatment) = size(dt.data, 2)
 Base.eachindex(dt::DataTreatment) = Base.OneTo(length(dt))
 Base.iterate(dt::DataTreatment, state=1) =
-    state > length(dt) ? nothing : (@view(dt.dataset[:, state]), state + 1)
+    state > length(dt) ? nothing : (@view(dt.data[:, state]), state + 1)
 
 # ---------------------------------------------------------------------------- #
 #                               getter methods                                 #
 # ---------------------------------------------------------------------------- #
 """
-    get_dataset(dt::DataTreatment)
+    get_data(dt::DataTreatment)
 
-Returns the raw dataset matrix.
+Returns the raw data matrix.
 """
-get_dataset(dt::DataTreatment) = dt.dataset
+get_data(dt::DataTreatment) = dt.data
+
+"""
+    get_target(dt::DataTreatment)
+
+Returns the target vector for supervised datasets.
+"""
+get_target(dt::DataTreatment) = dt.target
 
 """
     get_ds_struct(dt::DataTreatment)
@@ -90,7 +98,7 @@ get_ncols(dt::DataTreatment) = size(dt.dataset, 2)
 """
     _build_datasets(
         id::Vector,
-        dataset::Matrix,
+        data::Matrix,
         ds_struct::DatasetStructure,
         idxs::Vector{Int},
         aggrfunc::Base.Callable,
@@ -115,7 +123,7 @@ Columns whose detected type is `nothing` are silently skipped.
 # Arguments
 - `id::Vector`: An identifier tag for the dataset partition (e.g.,
   `[:treatment_group, 1]`), propagated to each sub-dataset for traceability.
-- `dataset::Matrix`: The raw dataset matrix.
+- `DataFrames::Matrix`: The raw DataFrames matrix.
 - `ds_struct::DatasetStructure`: Precomputed metadata about the dataset
   (types, dimensions, validity indices). See [`DatasetStructure`](@ref).
 - `idxs::Vector{Int}`: Column indices to consider (typically from a
@@ -141,7 +149,7 @@ See also: [`DataTreatment`](@ref), [`TreatmentGroup`](@ref),
 """
 function _build_datasets(
     id::Vector,
-    dataset::Matrix,
+    data::Matrix,
     ds_struct::DatasetStructure,
     idxs::Vector{Int},
     aggrfunc::Base.Callable,
@@ -155,13 +163,13 @@ function _build_datasets(
 
     ds_td = isempty(td_cols) ?
         nothing :
-        DiscreteDataset(id, dataset, ds_struct, td_cols)
+        DiscreteDataset(id, data, ds_struct, td_cols)
     ds_tc = isempty(tc_cols) ?
         nothing :
-        ContinuousDataset(id, dataset, ds_struct, tc_cols, float_type)
+        ContinuousDataset(id, data, ds_struct, tc_cols, float_type)
     ds_md = isempty(md_cols) ?
         nothing :
-        MultidimDataset(id, dataset, ds_struct, md_cols, aggrfunc, float_type)
+        MultidimDataset(id, data, ds_struct, md_cols, aggrfunc, float_type)
 
     return ds_td, ds_tc, ds_md
 end
@@ -194,9 +202,6 @@ function _split_md_by_dims(ds_md::MultidimDataset)
     return [ds_md[idx] for idx in idxs]
 end
 
-# ---------------------------------------------------------------------------- #
-#                             custom lazy methods                              #
-# ---------------------------------------------------------------------------- #
 """
     _get_treatments_datasets(dt::DataTreatment) -> Vector{AbstractDataset}
 
@@ -255,7 +260,7 @@ function _get_treatments_datasets(dt::DataTreatment)
     treats = get_t_groups(dt)
     idxs = get_idxs(treats)
 
-    dataset = get_dataset(dt)
+    data = get_data(dt)
     ds_struct = get_ds_struct(dt)
     float_type = get_float_type(dt)
 
@@ -267,7 +272,7 @@ function _get_treatments_datasets(dt::DataTreatment)
     Threads.@threads for i in eachindex(treats)
         ds_td[i], ds_tc[i], ds_md[i] = _build_datasets(
             [:treatment_group, i],
-            dataset,
+            data,
             ds_struct,
             idxs[i],
             get_aggrfunc(treats[i]),
@@ -336,13 +341,13 @@ function _get_leftover_datasets(dt::DataTreatment)
     treats = get_t_groups(dt)
     idxs = setdiff(collect(eachindex(dt)), reduce(vcat, get_idxs(treats)))
 
-    dataset = get_dataset(dt)
+    data = get_data(dt)
     ds_struct = get_ds_struct(dt)
     float_type = get_float_type(dt)
 
     ds_td, ds_tc, ds_md = _build_datasets(
         [:leftover, 1],
-        dataset,
+        data,
         ds_struct,
         idxs,
         DefaultAggrFunc,
@@ -356,8 +361,11 @@ function _get_leftover_datasets(dt::DataTreatment)
     return AbstractDataset[td_filtered; tc_filtered; md_split]
 end
 
+# ---------------------------------------------------------------------------- #
+#                             custom lazy methods                              #
+# ---------------------------------------------------------------------------- #
 
-function get_datasets(
+function get_dataset(
     dt::DataTreatment,
     treatments::Base.Callable...=TreatmentGroup(aggrfunc=DefaultAggrFunc,)
 )
@@ -368,3 +376,4 @@ function get_datasets(
         _get_leftover_datasets(dt)
     ]
 end
+

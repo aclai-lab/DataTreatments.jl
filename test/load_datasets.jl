@@ -58,13 +58,9 @@ datatreatments = Vector{DataTreatment}(undef, length(datasets))
 Threads.@threads for i in eachindex(filepaths)
     dataset = CSV.read(filepaths[i], DataFrame)
 
-    if haskey(datasets[i], :y)
-        target = categorical(string.(dataset[!, datasets[i].y]))
-        features = select(dataset, Not(datasets[i].y))
-    else
-        target = nothing
-        features = dataset
-    end
+    target, features = haskey(datasets[i], :y) ?
+        (dataset[!, datasets[i].y], select(dataset, Not(datasets[i].y))) :
+        (nothing, dataset)
 
     # check if there's any columns to be removed in advance from the dataset
     haskey(datasets[i], :rm) && select!(features, Not(datasets[i].rm))
@@ -75,3 +71,4 @@ Threads.@threads for i in eachindex(filepaths)
         float_type=FloatType
     )
 end
+
