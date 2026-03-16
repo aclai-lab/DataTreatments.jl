@@ -1,19 +1,6 @@
 # ---------------------------------------------------------------------------- #
-#                              split & _groupby                                 #
+#                              split & _groupby                                #
 # ---------------------------------------------------------------------------- #
-# _get_dims(ds::MultidimDataset{<:AggregateFeat}) = ds.info[1].dims
-# _get_vname(ds::MultidimDataset{<:AggregateFeat}) = ds.info[1].vname
-# _get_nwin(ds::MultidimDataset{<:AggregateFeat}) = ds.info[1].nwin
-# _get_feat(ds::MultidimDataset{<:AggregateFeat}) = ds.info[1].feat
-
-# @inline field_getter(field::Symbol) =
-#     field == :dims ? _get_dims :
-#     field == :vname ? _get_vname :
-#     field == :nwin ? _get_nwin :
-#     field == :feat ? _get_feat :
-#     # field == :reducefunc ? get_reducefunc :
-#     throw(ArgumentError("Unknown field: $field"))
-
 @inline field_getter(field::Symbol) =
     field == :dims ? f -> f.dims :
     field == :vname ? f -> f.vname :
@@ -118,15 +105,9 @@ function _groupby(
     field == :all && return (i for i in eachindex(datafeats))
 
     getter = field_getter(field)
-    # vals = [getter(datafeats[i]) for i in eachindex(datafeats)]
     infos = datafeats.info
     vals = [getter(infos[i]) for i in eachindex(infos)]
     unique_vals = unique(vals)
     idxs = (findall(==(v), vals) for v in unique_vals)
     return (get_idx.(@view(infos[i])) for i in idxs)
-    # return [
-    #     [get_id(infos[j]) for j in findall(==(v), vals)]
-    #     for v in unique_vals
-    # ]
-    # return (findall(==(v), vals) for v in unique_vals)
 end
