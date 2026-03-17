@@ -37,22 +37,31 @@ function _split_md_by_dims(ds_md::MultidimDataset)
 end
 
 """
-    _groupby(datafeats::MultidimDataset{<:AggregateFeat}, fields::Vector{Symbol})
+    _groupby(info::AbstractVector{<:AggregateFeat{T}}, fields::Tuple{Vararg{Symbol}}) where T
 
 Perform hierarchical (multi-level) grouping by applying `_groupby` recursively
 on each sub-group for every field in `fields`, left to right.
 
-## Arguments
-- `datafeats`: Vector of `AbstractDataFeature` elements.
-- `fields`: Ordered vector of attribute symbols to group by sequentially.
-  Each element must be a valid field for `field_getter` (`:type`, `:vname`,
-  `:nwin`, `:feat`, `:reducefunc`).
+# Arguments
+- `info::AbstractVector{<:AggregateFeat{T}}`: Vector of `AggregateFeat` metadata
+  entries, one per feature column.
+- `fields::Tuple{Vararg{Symbol}}`: Ordered tuple of attribute symbols to group by
+  sequentially. Each element must be one of the symbols supported by
+  [`field_getter`](@ref): `:dims`, `:vname`, `:nwin`, `:feat`.
 
-## Returns
-A `Vector{Base.Generator}`, where each element is itself a generator of
-`Vector{Int}` index groups produced by the remaining fields.
-When flattened (e.g. with `reduce(vcat, collect.(collect(...)))`), the result
-is a `Vector{Vector{Int}}` giving every leaf group in hierarchical order.
+# Returns
+A `Vector{Vector{Int}}` where each inner vector contains the original column
+indices belonging to one leaf group in the hierarchical grouping.
+
+# Example
+```julia
+# Group first by variable name, then by feature function
+groups = _groupby(info, (:vname, :feat))
+# → [[1, 4], [2, 5], [3, 6]]  (example indices)
+```
+
+See also: [`_groupby(::AbstractVector{<:AggregateFeat}, ::Symbol)`](@ref),
+[`field_getter`](@ref)
 """
 function _groupby(
     info::AbstractVector{<:AggregateFeat{T}},
@@ -81,22 +90,31 @@ function _groupby(
 end
 
 """
-    _groupby(datafeats::MultidimDataset{<:AggregateFeat}, field::Symbol)
+    _groupby(info::AbstractVector{<:AggregateFeat{T}}, field::Symbol) where T
 
-Group a multidimensional feature vector by a single feature attribute.
-Valid field names are: `:type`, `:vname`, `:nwin`, `:feat`, `:reducefunc`.
+Group feature metadata by a single attribute and return the corresponding
+original column indices for each unique value.
 
-## Arguments
-- `datafeats`: Vector of `AbstractDataFeature` elements.
-- `field`: A `Symbol` naming the attribute to group by.
-  Pass `:all` to return a single group with all indices.
+# Arguments
+- `info::AbstractVector{<:AggregateFeat{T}}`: Vector of `AggregateFeat` metadata
+  entries, one per feature column.
+- `field::Symbol`: The attribute to group by. Must be one of the symbols supported
+  by [`field_getter`](@ref): `:dims`, `:vname`, `:nwin`, `:feat`.
+  The special value `:all` returns each index as its own singleton group.
 
-## Returns
-A generator of `Vector{Int}` (original dataset column indices), one per unique value
-of the chosen attribute.
+# Returns
+A generator yielding `Vector{Int}` groups, where each vector contains original
+column indices (obtained via `get_idx`) sharing the same value for `field`.
 
-## Errors
-Throws `ArgumentError` if `field` is not a recognised attribute name.
+When `field == :all`, returns a generator yielding one index per element
+(i.e., no grouping is performed).
+
+# Errors
+Throws `ArgumentError` (via [`field_getter`](@ref)) if `field` is not a
+recognised attribute name.
+
+See also: [`_groupby(::AbstractVector{<:AggregateFeat}, ::Tuple{Vararg{Symbol}})`](@ref),
+[`field_getter`](@ref)
 """
 function _groupby(
     info::AbstractVector{<:AggregateFeat{T}},
