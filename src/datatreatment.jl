@@ -81,11 +81,11 @@ datasets = get_datasets(dt)
 
 See also: [`get_dataset`](@ref), [`TreatmentGroup`](@ref), [`DatasetStructure`](@ref)
 """
-mutable struct DataTreatment
+struct DataTreatment
     data::Matrix
     target::Union{Nothing,TargetStructure}
     ds_struct::DatasetStructure
-    t_groups::Union{Nothing,Vector{TreatmentGroup}}
+    # t_groups::Union{Nothing,Vector{TreatmentGroup}}
     float_type::Type
 
     function DataTreatment(
@@ -97,7 +97,7 @@ mutable struct DataTreatment
         isa(target, AbstractVector) && (target = TargetStructure(target))
         ds_struct = DatasetStructure(data, vnames)
 
-        new(data, target, ds_struct, nothing, float_type)
+        new(data, target, ds_struct, float_type)
     end
 
     DataTreatment(df::DataFrame, args...; kwargs...) =
@@ -247,9 +247,10 @@ function _build_datasets(
         nothing :
         MultidimDataset(id, data, ds_struct, md_cols, aggrfunc, float_type)
 
-    if !isnothing(grps) && aggrfunc isa typeof(aggregate())
-        _groupby(ds_md, grps)
-    end
+    # if !isnothing(grps) && !isnothing(ds_md)
+    #     grouped_idxs = _groupby(ds_md, grps)
+    #     @show [ds_md[idxs] for idxs in grouped_idxs]
+    # end
 
     return ds_td, ds_tc, ds_md
 end
@@ -310,8 +311,8 @@ See also: [`DataTreatment`](@ref), [`TreatmentGroup`](@ref),
 [`_get_leftover_datasets`](@ref), [`get_datasets`](@ref),
 [`_build_datasets`](@ref), [`_split_md_by_dims`](@ref)
 """
-function _get_treatments_datasets(dt::DataTreatment)
-    treats = get_t_groups(dt)
+function _get_treatments_datasets(dt::DataTreatment, treats::Vector{<:TreatmentGroup})
+    # treats = get_t_groups(dt)
     idxs = get_idxs(treats)
 
     data = get_data(dt)
@@ -330,7 +331,7 @@ function _get_treatments_datasets(dt::DataTreatment)
             ds_struct,
             idxs[i],
             get_aggrfunc(treats[i]);
-            grps=get_groupby(treats[i]),
+            # grps=get_groupby(treats[i]),
             float_type
         )
     end
@@ -393,8 +394,8 @@ leftovers = _get_leftover_datasets(dt)
 See also: [`DataTreatment`](@ref), [`_get_treatments_datasets`](@ref),
 [`get_datasets`](@ref), [`_build_datasets`](@ref), [`_split_md_by_dims`](@ref)
 """
-function _get_leftover_datasets(dt::DataTreatment)
-    treats = get_t_groups(dt)
+function _get_leftover_datasets(dt::DataTreatment, treats::Vector{<:TreatmentGroup})
+    # treats = get_t_groups(dt)
     idxs = setdiff(collect(eachindex(dt)), reduce(vcat, get_idxs(treats)))
 
     data = get_data(dt)
@@ -488,11 +489,11 @@ function get_dataset(
     matrix::Bool=false,
     dataframe::Bool=false
 )
-    dt.t_groups = [treat(get_ds_struct(dt)) for treat in treatments]
+    treats = [treat(get_ds_struct(dt)) for treat in treatments]
 
     ds = AbstractDataset[]
-    treatment_ds && append!(ds, _get_treatments_datasets(dt))
-    leftover_ds && append!(ds, _get_leftover_datasets(dt))
+    treatment_ds && append!(ds, _get_treatments_datasets(dt, treats))
+    leftover_ds && append!(ds, _get_leftover_datasets(dt, treats))
 
     isempty(ds) && return
 

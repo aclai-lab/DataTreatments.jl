@@ -272,7 +272,8 @@ struct MultidimDataset{T} <: AbstractDataset
         ds_struct::DatasetStructure,
         cols::Vector{Int},
         aggrfunc::Base.Callable,
-        float_type::Type
+        float_type::Type;
+        # groupby::Vector{Vector{Int}}=Vector{Vector{Int}}[]
     )
         data = @view data[:, cols]
         vnames = get_vnames(ds_struct, cols)

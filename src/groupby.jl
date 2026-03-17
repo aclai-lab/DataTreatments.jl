@@ -55,7 +55,7 @@ When flattened (e.g. with `reduce(vcat, collect.(collect(...)))`), the result
 is a `Vector{Vector{Int}}` giving every leaf group in hierarchical order.
 """
 function _groupby(
-    datafeats::MultidimDataset{<:AggregateFeat},
+    datafeats::MultidimDataset,
     fields::Tuple{Vararg{Symbol}}
 )
     # this function performs multi-level grouping (recursive).
@@ -99,7 +99,7 @@ of the chosen attribute.
 Throws `ArgumentError` if `field` is not a recognised attribute name.
 """
 function _groupby(
-    datafeats::MultidimDataset{<:AggregateFeat},
+    datafeats::MultidimDataset,
     field::Symbol
 )
     field == :all && return (i for i in eachindex(datafeats))
