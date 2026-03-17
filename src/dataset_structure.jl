@@ -11,13 +11,24 @@ _isarray(v) = v isa AbstractArray
     TargetStructure
 
 A structure used by `DataTreatments` to store information about the target (dependent variable) of a dataset.
-It holds both the vector of target values and, for classification tasks, the labels associated with discrete-encoded classes.
+It holds both the vector of target values and, for classification tasks, 
+the labels associated with discrete-encoded classes.
 
 This struct is constructed automatically from a target vector and is used internally by `DataTreatment` objects.
 
 # Fields
-- `values::Vector{Union{<:Int, <:AbstractFloat}}`: The encoded target values (integers for classification, floats for regression).
-- `labels::Union{Nothing, CategoricalArrays.CategoricalVector}`: The class labels for classification tasks, or `nothing` for regression.
+- `values::Vector{Union{<:Int, <:AbstractFloat}}`: 
+  The encoded target values (integers for classification via `discrete_encode`, floats for regression).
+- `labels::Union{Nothing, CategoricalArrays.CategoricalVector}`: 
+  The class labels for classification tasks (returned by `discrete_encode`), or `nothing` for regression.
+
+# Constructor
+
+    TargetStructure(y::AbstractVector) -> TargetStructure
+
+If `eltype(y) <: AbstractFloat`, stores `y` directly as values with `labels = nothing` (regression).
+Otherwise, calls `discrete_encode(y)` to produce integer-encoded values 
+and the corresponding categorical labels (classification).
 """
 struct TargetStructure
     values::Vector{Union{<:Int,<:AbstractFloat}}
@@ -67,14 +78,16 @@ the dataset.
 
 # Fields
 
-- `vnames::Vector{String}`: Column names of the dataset
-- `datatype::Vector{<:Type}`: Data type for each column
-- `dims::Vector{Int}`: Dimensionality of elements for each column
-- `valididxs::Vector{Vector{Int}}`: Indices of valid values for each column
-- `missingidxs::Vector{Vector{Int}}`: Indices of `missing` values for each column
-- `nanidxs::Vector{Vector{Int}}`: Indices of `NaN` values for each column
-- `hasmissing::Vector{Vector{Int}}`: Indices of elements containing `missing` (for vectors/matrices)
-- `hasnans::Vector{Vector{Int}}`: Indices of elements containing `NaN` (for vectors/matrices)
+- `vnames::Vector{String}`: Column names of the dataset.
+- `datatype::Vector{<:Type}`: Data type for each column. Computed incrementally via `typejoin`;
+  if a column contains only `missing` or `NaN` values (i.e., no valid elements), the type remains `Any`.
+- `dims::Vector{Int}`: Maximum dimensionality of array elements for each column.
+  Columns containing only scalar values will have `dims = 0`.
+- `valididxs::Vector{Vector{Int}}`: Indices of valid (non-`missing`, non-`NaN`) values for each column.
+- `missingidxs::Vector{Vector{Int}}`: Indices of top-level `missing` values for each column.
+- `nanidxs::Vector{Vector{Int}}`: Indices of top-level `NaN` values for each column.
+- `hasmissing::Vector{Vector{Int}}`: Indices of array elements that internally contain `missing` values.
+- `hasnans::Vector{Vector{Int}}`: Indices of array elements that internally contain `NaN` values.
 
 # Constructors
 
@@ -102,21 +115,29 @@ For each column, a single pass over the elements extracts:
   automatically extracted via `names(df)` and stored in the resulting `DatasetStructure`.
 
 ## Example
-```julia
-# from a Matrix with explicit names
-ds = DatasetStructure(Matrix(df), names(df))
-get_vnames(ds)        # ["col1", "col2", ...]
-get_datatype(ds)      # Vector of types, one per column
-get_valididxs(ds, 3)  # Valid row indices for column 3
+```@example
+dataset = Matrix{Any}([
+    1.0    "hello"   missing
+    2.0    "world"   4.0
+    NaN    "foo"     5.0
+])
+vnames = ["numeric", "text", "with_missing"]
 
-# from a DataFrame (names extracted automatically)
-ds = DatasetStructure(df)
-get_vnames(ds)        # column names from the DataFrame
+ds = DatasetStructure(dataset, vnames)
+```
+```@example
+get_vnames(ds)
+```
+```@example
+get_datatype(ds)
+```
+```@example
+get_valididxs(ds, 3)
 ```
 """
 struct DatasetStructure
     vnames::Vector{String}
-    datatype::Vector{<:Type}
+    datatype::Vector{Type}
     dims::Vector{Int}
     valididxs::Vector{Vector{Int}}
     missingidxs::Vector{Vector{Int}}
@@ -180,7 +201,7 @@ struct DatasetStructure
         return new(vnames, datatype, dims, valididxs, missingidxs, nanidxs, hasmissing, hasnans)
     end
 
-    DatasetStructure(df::DataFrame; kwargs...) = DatasetStructure(Matrix(df), names(df))
+    DatasetStructure(df::DataFrame) = DatasetStructure(Matrix(df), names(df))
 end
 
 # ---------------------------------------------------------------------------- #
@@ -213,6 +234,10 @@ get_vnames(ds::DatasetStructure, idxs::Vector{Int}) = @views ds.vnames[idxs]
 
 Returns the data types. If an index `i` is provided, returns the type of column `i`.
 If a vector of indices is provided, returns a view of the types for those columns.
+
+!!! note
+    If a column contains only `missing` or `NaN` values (no valid elements),
+    its data type will be `Any`.
 """
 get_datatype(ds::DatasetStructure) = ds.datatype
 get_datatype(ds::DatasetStructure, i::Int) = ds.datatype[i]
@@ -225,6 +250,7 @@ get_datatype(ds::DatasetStructure, idxs::Vector{Int}) = @views ds.datatype[idxs]
 
 Returns the dimensionalities. If an index `i` is provided, returns the dimensionality of column `i`.
 If a vector of indices is provided, returns a view of the dimensionalities for those columns.
+A value of `0` indicates the column contains only scalar elements.
 """
 get_dims(ds::DatasetStructure) = ds.dims
 get_dims(ds::DatasetStructure, i::Int) = ds.dims[i]
@@ -235,8 +261,9 @@ get_dims(ds::DatasetStructure, idxs::Vector{Int}) = @views ds.dims[idxs]
     get_valididxs(ds::DatasetStructure, i::Int)
     get_valididxs(ds::DatasetStructure, idxs::Vector{Int})
 
-Returns the indices of valid values. If an index `i` is provided, returns the valid indices of column `i`.
-If a vector of indices is provided, returns a view of the valid indices for those columns.
+Returns the indices of valid (non-`missing`, non-`NaN`) values. If an index `i` is provided,
+returns the valid indices of column `i`. If a vector of indices is provided, returns a view
+of the valid indices for those columns.
 """
 get_valididxs(ds::DatasetStructure) = ds.valididxs
 get_valididxs(ds::DatasetStructure, i::Int) = ds.valididxs[i]
@@ -247,8 +274,11 @@ get_valididxs(ds::DatasetStructure, idxs::Vector{Int}) = @views ds.valididxs[idx
     get_missingidxs(ds::DatasetStructure, i::Int)
     get_missingidxs(ds::DatasetStructure, idxs::Vector{Int})
 
-Returns the indices of `missing` values. If an index `i` is provided, returns the `missing` indices of column `i`.
-If a vector of indices is provided, returns a view of the missing indices for those columns.
+Returns the indices of top-level `missing` values. If an index `i` is provided,
+returns the `missing` indices of column `i`. If a vector of indices is provided,
+returns a view of the missing indices for those columns.
+
+See also [`get_hasmissing`](@ref) for indices of array elements that internally contain `missing`.
 """
 get_missingidxs(ds::DatasetStructure) = ds.missingidxs
 get_missingidxs(ds::DatasetStructure, i::Int) = ds.missingidxs[i]
@@ -259,8 +289,11 @@ get_missingidxs(ds::DatasetStructure, idxs::Vector{Int}) = @views ds.missingidxs
     get_nanidxs(ds::DatasetStructure, i::Int)
     get_nanidxs(ds::DatasetStructure, idxs::Vector{Int})
 
-Returns the indices of `NaN` values. If an index `i` is provided, returns the `NaN` indices of column `i`.
-If a vector of indices is provided, returns a view of the NaN indices for those columns.
+Returns the indices of top-level `NaN` values. If an index `i` is provided,
+returns the `NaN` indices of column `i`. If a vector of indices is provided,
+returns a view of the NaN indices for those columns.
+
+See also [`get_hasnans`](@ref) for indices of array elements that internally contain `NaN`.
 """
 get_nanidxs(ds::DatasetStructure) = ds.nanidxs
 get_nanidxs(ds::DatasetStructure, i::Int) = ds.nanidxs[i]
@@ -271,8 +304,12 @@ get_nanidxs(ds::DatasetStructure, idxs::Vector{Int}) = @views ds.nanidxs[idxs]
     get_hasmissing(ds::DatasetStructure, i::Int)
     get_hasmissing(ds::DatasetStructure, idxs::Vector{Int})
 
-Returns the indices of elements containing `missing` values internally. If an index `i` is provided, 
-returns the indices for column `i`. If a vector of indices is provided, returns a view of the indices for those columns.
+Returns the indices of array elements that internally contain `missing` values
+(i.e., the element itself is a vector/matrix with `missing` inside it).
+If an index `i` is provided, returns the indices for column `i`.
+If a vector of indices is provided, returns a view of the indices for those columns.
+
+See also [`get_missingidxs`](@ref) for indices of top-level `missing` values.
 """
 get_hasmissing(ds::DatasetStructure) = ds.hasmissing
 get_hasmissing(ds::DatasetStructure, i::Int) = ds.hasmissing[i]
@@ -283,8 +320,12 @@ get_hasmissing(ds::DatasetStructure, idxs::Vector{Int}) = @views ds.hasmissing[i
     get_hasnans(ds::DatasetStructure, i::Int)
     get_hasnans(ds::DatasetStructure, idxs::Vector{Int})
 
-Returns the indices of elements containing `NaN` values internally. If an index `i` is provided, 
-returns the indices for column `i`. If a vector of indices is provided, returns a view of the indices for those columns.
+Returns the indices of array elements that internally contain `NaN` values
+(i.e., the element itself is a vector/matrix with `NaN` inside it).
+If an index `i` is provided, returns the indices for column `i`.
+If a vector of indices is provided, returns a view of the indices for those columns.
+
+See also [`get_nanidxs`](@ref) for indices of top-level `NaN` values.
 """
 get_hasnans(ds::DatasetStructure) = ds.hasnans
 get_hasnans(ds::DatasetStructure, i::Int) = ds.hasnans[i]
@@ -326,20 +367,28 @@ function Base.show(io::IO, ::MIME"text/plain", ds::DatasetStructure)
     structure = get_structure(ds)
     
     println(io, "DatasetStructure($(structure.ncols) columns)")
-    println(io, "├─ datatypes by columns:")
     
-    type_list = collect(structure.type_to_cols)
+    has_missing = !isempty(structure.cols_with_missing)
+    has_nans = !isempty(structure.cols_with_nans)
+    is_last_section_types = !has_missing && !has_nans
+
+    branch = is_last_section_types ? "└─" : "├─"
+    println(io, "$branch datatypes by columns:")
+    
+    type_list = sort(collect(structure.type_to_cols); by=first∘string)
     for (idx, (dtype, cols)) in enumerate(type_list)
         is_last_type = (idx == length(type_list))
-        prefix = is_last_type ? "│  └─" : "│  ├─"
+        continuation = is_last_section_types ? "   " : "│  "
+        prefix = is_last_type ? "$(continuation)└─" : "$(continuation)├─"
         println(io, "$prefix $dtype: $(cols)")
     end
     
-    if !isempty(structure.cols_with_missing)
-        println(io, "├─ missing at: columns $(structure.cols_with_missing)")
+    if has_missing
+        branch = has_nans ? "├─" : "└─"
+        println(io, "$branch missing at: columns $(structure.cols_with_missing)")
     end
     
-    if !isempty(structure.cols_with_nans)
+    if has_nans
         println(io, "└─ NaN at: columns $(structure.cols_with_nans)")
     end
 end
