@@ -16,11 +16,12 @@ makedocs(;
         assets=String[],
     ),
     pages=[
-        # "Home" => "index.md",
+        "Home" => "index.md",
         "Dataset Structure" => "dataset_structure.md",
         "DataTreatment" => "datatreatment.md",
         "Grouping" => "groupby.md",
         "Treatment Groups" => "treatment_group.md",
+        "Treatments" => "treatment.md",
         "Metadata" => "metadata.md",
         "Output Datasets" => "output_dataset.md",
         "FeatureSet" => "featureset.md",

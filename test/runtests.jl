@@ -14,15 +14,16 @@ end
 println("Julia version: ", VERSION)
 
 test_suites = [
-    ("Windowing",  ["windowing.jl",]),
-    ("FeatureSet", ["featureset.jl",]),
     ("Dataset Structure", ["dataset_structure.jl"]),
     ("DataTreatment", ["datatreatment.jl"]),
     ("Groupby", ["groupby.jl"]),
     ("Metadatas",  ["metadata.jl",]),
-    # ("Treatment Groups",  ["treatment_group.jl",]),
-    # ("Treatments",  ["treatment.jl",]),
+    ("Treatment Groups",  ["treatment_group.jl",]),
+    ("Treatments",  ["treatment.jl",]),
     ("Output Datasets",  ["output_dataset.jl",]),
+    ("Windowing",  ["windowing.jl",]),
+    ("FeatureSet", ["featureset.jl",]),
+    ("Usage Examples", ["usage_example.jl",]),
 ]
 
 @testset "DataTreatments.jl" begin

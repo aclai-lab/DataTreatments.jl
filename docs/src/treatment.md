@@ -1,64 +1,85 @@
 ```@meta
 CurrentModule = DataTreatments
 ```
-# [DataTreatment](@id datatreatment)
 
-```@setup doda
-import Random.seed!
-seed!(1234)
-using Statistics
+# [Treatment Functions](@id treatment)
+
+Treatment functions implement the core data transformations applied to
+multidimensional columns (time series, spectrograms, images, etc.) during
+[`DataTreatment`](@ref) processing. Two strategies are available:
+
+| Strategy | Function | Output |
+|----------|----------|--------|
+| **Tabularization** | [`aggregate`](@ref) | Flat scalar matrix — one column per (feature × window × source column) |
+| **Dimensionality reduction** | [`reducesize`](@ref) | Matrix of reduced-size arrays — same structure, fewer points |
+
+Both strategies rely on [windowing functions](@ref windowing) to partition each
+element into sub-ranges, and on [`safe_feat`](@ref) to robustly apply feature
+or reduction functions in the presence of `missing` and `NaN` values.
+
+---
+
+## Aggregate
+
+### Curried constructor
+
+```@docs
+aggregate(; win, features)
 ```
 
-## What is a data treatment?
+### Internal method
 
-**DataTreatments.jl** provides tools for manipulating and analyzing multidimensional datasets, meaning datasets whose elements are not single numbers but signals (e.g., audio or time-series sensor inputs) or higher‑dimensional structures (e.g., images and beyond).
+```@docs
+aggregate(X::AbstractArray, idx::AbstractVector{Vector{Int}}, float_type::Type; win, features)
+```
 
-### Why is data treatment necessary?
+---
 
-Multidimensional data such as audio or images often have very large sizes due to high resolution. In many cases, we cannot perform analysis or machine learning directly on such large data. Therefore, data‑compression algorithms are useful to reduce dimensionality while minimizing information loss.
+## Reduce Size
 
-One of the most widely used approaches is **windowing**.
+### Curried constructor
 
-### Two common scenarios
+```@docs
+reducesize(; win, reducefunc)
+```
 
-- **`reducesize`**  
-  The output dataset keeps the same overall structure as the input, but with smaller elements.
+### Internal method
 
-  **Example (reducesize):**
+```@docs
+reducesize(X::AbstractArray, idx::AbstractVector{Vector{Int}}, float_type::DataType; win, reducefunc)
+```
 
-  ```@repl doda
-  using DataTreatments
+---
 
-  X = [rand(4) for _ in 1:3, _ in 1:2]
+## Utility Functions
 
-  vnames = [:ch1, :ch2];
-  win = splitwindow(nwindows=2);
-  features = (mean, maximum);
+### safe\_feat
 
-  dt_rs = DataTreatment(X, :reducesize; vnames, win, features);
+```@docs
+safe_feat
+```
 
-  get_dataset(dt_rs)
-  ```
+### get\_window\_ranges
 
-- **`aggregate`**  
-  The dataset is resized and also transformed into a tabular dataset, where windows become consecutive columns in the output.
+```julia
+get_window_ranges(intervals::Tuple, cartidx::CartesianIndex) -> Tuple{Vararg{UnitRange{Int}}}
+```
 
-  **Example (reducesize):**
-  ```@repl doda
-  using DataTreatments
+Extract window ranges from a tuple of interval vectors using a `CartesianIndex`.
+Returns a tuple where each element is `intervals[i][cartidx[i]]`.
 
-  X = [rand(4) for _ in 1:2, _ in 1:2]
+Used internally by [`aggregate`](@ref) and [`reducesize`](@ref) to map a
+multi-dimensional window index to the corresponding `UnitRange` per dimension.
 
-  vnames = [:ch1, :ch2];
-  win = splitwindow(nwindows=2);
-  features = (mean,);
+```julia
+intervals = ([1:3, 4:6], [1:5, 6:10])
+get_window_ranges(intervals, CartesianIndex(2, 1))  # → (4:6, 1:5)
+```
 
-  dt_ag = DataTreatment(X, :aggregate; vnames, win, features);
+---
 
-  get_dataset(dt_ag)
-  get_featureid(dt_ag)
-  ```
+## See Also
 
-### Note
-
-Windowing is especially useful for normalizing datasets whose elements have different sizes (common with audio files). By using a fixed number of windows, object sizes are normalized and subsequent analysis becomes more reliable.
+- [Windowing](@ref windowing) — window functions used by `aggregate` and `reducesize`.
+- [`TreatmentGroup`](@ref) — configuration object where `aggrfunc` is specified.
+- [Output Datasets](@ref output_dataset) — dataset types produced after treatment.
