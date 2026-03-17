@@ -32,9 +32,9 @@ df = DataFrame(
     img4 = [i == 3 ? missing : create_image(i+30) for i in 1:5]
 )
 
-# ============================================================================ #
+# ---------------------------------------------------------------------------- #
 #                            discrete_encode                                   #
-# ============================================================================ #
+# ---------------------------------------------------------------------------- #
 @testset "discrete_encode" begin
     @testset "Matrix overload" begin
         X = Matrix{Any}(hcat(
@@ -94,9 +94,9 @@ df = DataFrame(
     end
 end
 
-# ============================================================================ #
+# ---------------------------------------------------------------------------- #
 #                           _reindex_groups                                    #
-# ============================================================================ #
+# ---------------------------------------------------------------------------- #
 @testset "_reindex_groups" begin
     @testset "Nothing input" begin
         @test DT._reindex_groups(nothing, [1, 2, 3]) === nothing
@@ -129,9 +129,9 @@ end
     end
 end
 
-# ============================================================================ #
+# ---------------------------------------------------------------------------- #
 #                            _callable_name                                    #
-# ============================================================================ #
+# ---------------------------------------------------------------------------- #
 @testset "_callable_name" begin
     @testset "Named function" begin
         @test DT._callable_name(maximum) == "maximum"
@@ -155,9 +155,9 @@ end
     end
 end
 
-# ============================================================================ #
+# ---------------------------------------------------------------------------- #
 #                            DiscreteDataset                                   #
-# ============================================================================ #
+# ---------------------------------------------------------------------------- #
 @testset "DiscreteDataset" begin
     # Build a DiscreteDataset via direct constructor
     codes_mat = Union{Missing,Int}[missing 1; 1 2; 2 3; 3 2; 1 missing]
@@ -267,9 +267,9 @@ end
     end
 end
 
-# ============================================================================ #
+# ---------------------------------------------------------------------------- #
 #                          ContinuousDataset                                   #
-# ============================================================================ #
+# ---------------------------------------------------------------------------- #
 @testset "ContinuousDataset" begin
     data_cont = Union{Missing,Float64}[
         NaN     2.5   3.2   4.1   5.0;
@@ -359,11 +359,53 @@ end
         @test !occursin("columns with missing", str)
         @test !occursin("columns with NaN", str)
     end
+
+    @testset "Base.view" begin
+        sub = @view ds[1]
+        @test sub isa DT.ContinuousDataset
+        @test length(sub) == 1
+
+        sub2 = @view ds[1:3]
+        @test sub2 isa DT.ContinuousDataset
+        @test length(sub2) == 3
+        @test DT.get_vnames(sub2) == ["V1", "V2", "V3"]
+
+        sub3 = @view ds[[2, 4]]
+        @test sub3 isa DT.ContinuousDataset
+        @test length(sub3) == 2
+        @test DT.get_vnames(sub3) == ["V2", "V4"]
+
+        sub4 = @view ds[:]
+        @test length(sub4) == 5
+    end
+
+    @testset "Getter methods" begin
+        @test DT.get_data(ds) === data_cont
+        @test DT.get_info(ds) === info_cont
+        @test DT.get_nrows(ds) == 5
+        @test DT.get_ncols(ds) == 5
+        @test DT.get_vnames(ds) == ["V1", "V2", "V3", "V4", "V5"]
+        @test DT.get_idxs(ds) == [[1], [2], [3], [4], [5]]
+    end
+
+    @testset "get_info - vector of indices" begin
+        sub_info = DT.get_info(ds, [1, 3, 5])
+        @test length(sub_info) == 3
+        @test DT.get_vname(sub_info[1]) == "V1"
+        @test DT.get_vname(sub_info[2]) == "V3"
+        @test DT.get_vname(sub_info[3]) == "V5"
+    end
+
+    @testset "get_idxs - vector of indices" begin
+        sub_idxs = DT.get_idxs(ds, [2, 4])
+        @test length(sub_idxs) == 2
+        @test sub_idxs == [[2], [4]]
+    end
 end
 
-# ============================================================================ #
+# ---------------------------------------------------------------------------- #
 #                          MultidimDataset (Aggregate)                         #
-# ============================================================================ #
+# ---------------------------------------------------------------------------- #
 @testset "MultidimDataset - Aggregate" begin
     # Simulate an aggregated dataset: 2 original columns, 2 features, 3 windows each = 12 columns
     nrows = 5
@@ -519,11 +561,42 @@ end
         @test occursin("columns with internal missing", str)
         @test occursin("columns with internal NaN", str)
     end
+
+    @testset "Base.view" begin
+        sub = @view ds[1]
+        @test sub isa DT.MultidimDataset
+        @test length(sub) == 1
+
+        sub2 = @view ds[1:6]
+        @test sub2 isa DT.MultidimDataset
+        @test length(sub2) == 6
+
+        sub3 = @view ds[[1, 7]]
+        @test sub3 isa DT.MultidimDataset
+        @test length(sub3) == 2
+
+        sub4 = @view ds[:]
+        @test length(sub4) == 12
+    end
+
+    @testset "get_info - vector of indices" begin
+        sub_info = DT.get_info(ds, [1, 7])
+        @test length(sub_info) == 2
+        @test DT.get_vname(sub_info[1]) == "ts1"
+        @test DT.get_vname(sub_info[2]) == "ts2"
+    end
+
+    @testset "get_idxs - vector of indices" begin
+        sub_idxs = DT.get_idxs(ds, [1, 12])
+        @test length(sub_idxs) == 2
+        @test sub_idxs[1] == [1, 1]
+        @test sub_idxs[2] == [1, 12]
+    end
 end
 
-# ============================================================================ #
+# ---------------------------------------------------------------------------- #
 #                          MultidimDataset (Reduce)                            #
-# ============================================================================ #
+# ---------------------------------------------------------------------------- #
 @testset "MultidimDataset - Reduce" begin
     reduce_fn = x -> x[1:2:end]
 
@@ -604,9 +677,9 @@ end
     end
 end
 
-# ============================================================================ #
+# ---------------------------------------------------------------------------- #
 #                     MultidimDataset - 2D (images)                            #
-# ============================================================================ #
+# ---------------------------------------------------------------------------- #
 @testset "MultidimDataset - 2D Aggregate" begin
     nrows = 5
     ncols_agg = 8  # 2 columns × 2 features × 2 windows
@@ -654,9 +727,9 @@ end
     end
 end
 
-# ============================================================================ #
+# ---------------------------------------------------------------------------- #
 #                     MultidimDataset - mixed dims                             #
-# ============================================================================ #
+# ---------------------------------------------------------------------------- #
 @testset "MultidimDataset - mixed dims show" begin
     data_mix = rand(Float64, 5, 2)
     info_mix = [
@@ -673,9 +746,9 @@ end
     end
 end
 
-# ============================================================================ #
+# ---------------------------------------------------------------------------- #
 #                     _callable_name edge cases                                #
-# ============================================================================ #
+# ---------------------------------------------------------------------------- #
 @testset "_callable_name edge cases" begin
     @testset "do-block anonymous" begin
         f = function(x) x^2 end

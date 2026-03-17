@@ -21,9 +21,8 @@ test_suites = [
     ("Groupby", ["groupby.jl"]),
     ("Metadatas",  ["metadata.jl",]),
     # ("Treatment Groups",  ["treatment_group.jl",]),
-    ("Output Datasets",  ["output_dataset.jl",]),
     # ("Treatments",  ["treatment.jl",]),
-
+    ("Output Datasets",  ["output_dataset.jl",]),
 ]
 
 @testset "DataTreatments.jl" begin

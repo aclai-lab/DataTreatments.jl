@@ -166,7 +166,12 @@ Returns the `groupby` tuple of symbols used to partition output features.
 """
 get_groupby(tg::TreatmentGroup) = tg.groupby
 
-has_groupby(tg::TreatmentGroup) = isnothing(tg.groupby) ? false : true
+"""
+    has_groupby(tg::TreatmentGroup)
+
+Returns `true` if a `groupby` specification is set for this group.
+"""
+has_groupby(tg::TreatmentGroup) = !isnothing(tg.groupby)
 
 
 # ---------------------------------------------------------------------------- #
@@ -193,7 +198,7 @@ function get_idxs(tgs::Vector{<:TreatmentGroup})
     end)
 
     any(isempty.(no_intersect_groups)) &&
-        @warn "One or more TreatmentGroups have no columns after resolving overlaps" *
+        @warn "One or more TreatmentGroups have no columns after resolving overlaps " *
         "(all their indices were claimed by later groups)"
 
     return no_intersect_groups
@@ -213,14 +218,17 @@ function Base.show(io::IO, ::MIME"text/plain", tg::TreatmentGroup{T}) where {T}
     n_selected = length(tg.idxs)
     dims_str = tg.dims == -1 ? "all" : string(tg.dims)
 
-    # safer label for anonymous callables/closures
-    ftype_name = String(Base.unwrap_unionall(typeof(tg.aggrfunc)).name.name)
-    aggr_label = startswith(ftype_name, "#") ? "anonymous callable" : ftype_name
+    aggr_label = try
+        ftype_name = String(Base.unwrap_unionall(typeof(tg.aggrfunc)).name.name)
+        startswith(ftype_name, "#") ? "anonymous callable" : ftype_name
+    catch
+        string(typeof(tg.aggrfunc))
+    end
 
     println(io, "TreatmentGroup{$T}($n_selected columns selected)")
     println(io, "├─ dims filter: $dims_str")
 
-    if tg.dims > 0
+    if tg.dims != 0
         println(io, "├─ selected indices: $(tg.idxs)")
         println(io, "├─ aggregation function: $aggr_label")
         print(io,   "└─ groupby: $(tg.groupby)")
