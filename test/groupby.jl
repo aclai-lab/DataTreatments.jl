@@ -11,7 +11,7 @@ function create_image(seed::Int; n=6)
     rand(Float64, n, n)
 end
 
-const DF = DataFrame(
+df = DataFrame(
     V1 = [1.0, 2.0, 3.0, 4.0, 5.0],
     ts1 = [collect(1.0:6.0), collect(2.0:7.0), collect(3.0:8.0), collect(4.0:9.0), collect(5.0:10.0)],
     ts2 = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), collect(5.0:0.5:8.5)],
@@ -19,10 +19,10 @@ const DF = DataFrame(
     img2 = [create_image(i+10) for i in 1:5],
 )
 
-const DT_OBJ = DataTreatment(DF)
+dt = DataTreatment(df)
 
 @testset "_split_md_by_dims" begin
-    mds = filter(d -> d isa MultidimDataset, get_dataset(DT_OBJ))
+    mds = filter(d -> d isa MultidimDataset, get_dataset(dt))
     @test length(mds) >= 2
     for md in mds
         @test length(unique(get_dims(md))) == 1
@@ -30,7 +30,7 @@ const DT_OBJ = DataTreatment(DF)
 end
 
 @testset "groupby :vname" begin
-    ds = get_dataset(DT_OBJ,
+    ds = get_dataset(dt,
         TreatmentGroup(dims=1, aggrfunc=DT.aggregate(features=(mean,)), groupby=:vname),
         groupby_split=true, leftover_ds=false, dataframe=true)
     @test length(ds) == 2  # ts1, ts2
@@ -38,7 +38,7 @@ end
 end
 
 @testset "groupby :feat" begin
-    ds = get_dataset(DT_OBJ,
+    ds = get_dataset(dt,
         TreatmentGroup(dims=1, aggrfunc=DT.aggregate(features=(mean, maximum)), groupby=:feat),
         groupby_split=true, leftover_ds=false, dataframe=true)
     @test length(ds) == 2  # mean, maximum
@@ -46,7 +46,7 @@ end
 end
 
 @testset "groupby (:vname, :feat)" begin
-    ds = get_dataset(DT_OBJ,
+    ds = get_dataset(dt,
         TreatmentGroup(dims=1, aggrfunc=DT.aggregate(features=(mean, maximum)), groupby=(:vname, :feat)),
         groupby_split=true, leftover_ds=false, dataframe=true)
     @test length(ds) == 4  # 2 vnames × 2 feats
@@ -55,8 +55,8 @@ end
 
 @testset "groupby_split=false preserves column count" begin
     treat = TreatmentGroup(dims=1, aggrfunc=DT.aggregate(features=(mean,)), groupby=:vname)
-    ds_split = get_dataset(DT_OBJ, treat, groupby_split=true, leftover_ds=false, matrix=true)
-    ds_flat  = get_dataset(DT_OBJ, treat, leftover_ds=false)
+    ds_split = get_dataset(dt, treat, groupby_split=true, leftover_ds=false, matrix=true)
+    ds_flat  = get_dataset(dt, treat, leftover_ds=false)
     mds = filter(d -> d isa MultidimDataset, ds_flat)
     @test sum(size(m, 2) for m in ds_split) == sum(length(md) for md in mds)
 end
