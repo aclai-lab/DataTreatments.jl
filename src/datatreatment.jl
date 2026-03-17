@@ -85,7 +85,6 @@ struct DataTreatment
     data::Matrix
     target::Union{Nothing,TargetStructure}
     ds_struct::DatasetStructure
-    # t_groups::Union{Nothing,Vector{TreatmentGroup}}
     float_type::Type
 
     function DataTreatment(
@@ -228,7 +227,6 @@ function _build_datasets(
     ds_struct::DatasetStructure,
     idxs::Vector{Int},
     aggrfunc::Base.Callable;
-    grps::Union{Nothing,Tuple{Vararg{<:Symbol}}}=nothing,
     float_type::Type=Float64
 )
     valtype = get_datatype(ds_struct)
@@ -246,11 +244,6 @@ function _build_datasets(
     ds_md = isempty(md_cols) ?
         nothing :
         MultidimDataset(id, data, ds_struct, md_cols, aggrfunc, float_type)
-
-    # if !isnothing(grps) && !isnothing(ds_md)
-    #     grouped_idxs = _groupby(ds_md, grps)
-    #     @show [ds_md[idxs] for idxs in grouped_idxs]
-    # end
 
     return ds_td, ds_tc, ds_md
 end
@@ -312,7 +305,6 @@ See also: [`DataTreatment`](@ref), [`TreatmentGroup`](@ref),
 [`_build_datasets`](@ref), [`_split_md_by_dims`](@ref)
 """
 function _get_treatments_datasets(dt::DataTreatment, treats::Vector{<:TreatmentGroup})
-    # treats = get_t_groups(dt)
     idxs = get_idxs(treats)
 
     data = get_data(dt)
@@ -395,7 +387,6 @@ See also: [`DataTreatment`](@ref), [`_get_treatments_datasets`](@ref),
 [`get_datasets`](@ref), [`_build_datasets`](@ref), [`_split_md_by_dims`](@ref)
 """
 function _get_leftover_datasets(dt::DataTreatment, treats::Vector{<:TreatmentGroup})
-    # treats = get_t_groups(dt)
     idxs = setdiff(collect(eachindex(dt)), reduce(vcat, get_idxs(treats)))
 
     data = get_data(dt)
@@ -486,6 +477,7 @@ function get_dataset(
     treatments::Base.Callable...=TreatmentGroup(aggrfunc=DefaultAggrFunc,);
     treatment_ds::Bool=true,
     leftover_ds::Bool=true,
+    groupby_split::Bool=false,
     matrix::Bool=false,
     dataframe::Bool=false
 )
@@ -497,7 +489,7 @@ function get_dataset(
 
     isempty(ds) && return
 
-    matrix && return reduce(vcat, get_data.(ds))
-    dataframe && return DataFrame(reduce(vcat, get_data.(ds)), reduce(vcat, get_vnames.(ds)))
+    matrix && return get_data.(ds)
+    dataframe && return DataFrame.(get_data.(ds), get_vnames.(ds))
     return ds
 end
