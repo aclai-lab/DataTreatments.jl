@@ -1,3 +1,7 @@
+<div align="center">
+    <img src="logo.png" alt="DataTreatments" width="600">
+</div>
+
 # DataTreatments.jl
 
 [![dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://PasoStudio73.github.io/DataTreatments.jl/)
@@ -8,13 +12,13 @@ A Julia package for processing datasets containing multidimensional elements thr
 
 ## Overview
 
-**DataTreatments.jl** provides tools for working with matrices, or DataFrames where each element is itself a multidimensional object (vectors, matrices, or higher-dimensional arrays). It offers:
+**DataTreatments.jl** provides tools for working with matrices or DataFrames where each element is itself a multidimensional object (vectors, matrices, or higher-dimensional arrays). It offers:
 
 - **Windowing functions** for partitioning multidimensional data
 - **Dimensionality reduction** using feature extraction together with windowing
 - **Tabular transformation** through feature extraction to convert complex multidimensional datasets into flat feature matrices suitable for standard machine learning models
-- **Data normalization** with multiple methods (z-score, min-max, sigmoid, etc.) for preprocessing
 - **Group-wise operations** via `groupby` for consistent processing across related features
+- **Lazy processing** — `DataTreatment` stores only raw data and metadata; all transformations happen on demand through `get_dataset`
 - **Complete reproducibility** by storing all processing parameters and feature metadata
 
 This package is particularly useful when you need to apply traditional ML algorithms that require tabular input to datasets containing structured multidimensional elements like images, spectrograms, or time series segments.
@@ -26,176 +30,210 @@ using Pkg
 Pkg.add("DataTreatments")
 ```
 
-# Quick Start
+## Quick Start
 
-## Basic Usage with Matrix
+### 1. Create a `DataTreatment` container
+
+`DataTreatment` is a lightweight container that stores the raw dataset and its metadata. No processing happens at construction time.
+
 ```julia
-using DataTreatments
+using DataTreatments, DataFrames, Statistics, CategoricalArrays
 
-# Create a dataset with multidimensional elements
-Xmatrix = [rand(1:100, 4, 2) for _ in 1:10, _ in 1:5]  # 10×5 dataset where each element is a 4×2 matrix
-vnames = Symbol.("auto", 1:5)
-
-# Define processing parameters
-win = splitwindow(nwindows=2)
-features = (mean, std, maximum, minimum)
-norm = ZScore
-reducefunc = median
-
-# Process for propositional analysis
-result = DataTreatment(Xmatrix, :aggregate; vnames, win, features, norm)
-
-# Process for modal analysis
-result = DataTreatment(Xmatrix, :reducesize; vnames, win, features, reducefunc, norm)
-```
-
-## Basic Usage with DataFrame
-```julia
-using DataTreatments
-using DataFrames
-
-# Create dataset with multidimensional elements
 df = DataFrame(
-    channel1 = [rand(200, 120) for _ in 1:1000],
-    channel2 = [rand(200, 120) for _ in 1:1000],
-    channel3 = [rand(200, 120) for _ in 1:1000]
+    str_col  = [missing, "blue", "green", "red", "blue"],
+    sym_col  = [:circle, :square, :triangle, :square, missing],
+    cat_col  = categorical(["small", "medium", missing, "small", "large"]),
+    int_col  = Int[10, 20, 30, 40, 50],
+    V1       = [NaN, missing, 3.0, 4.0, 5.6],
+    V2       = [2.5, missing, 4.5, 5.5, NaN],
+    ts1      = [NaN, collect(2.0:7.0), missing, collect(4.0:9.0), collect(5.0:10.0)],
+    ts2      = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), NaN],
+    img1     = [rand(6, 6) for _ in 1:5],
+    img2     = [rand(6, 6) for _ in 1:5],
 )
 
-# Define processing parameters
-win = adaptivewindow(nwindows=6, overlap=0.15)
-features = (mean, std, maximum, minimum, median)
-norm = PNorm(p=1)
-reducefunc = median
+dt = DataTreatment(df)
+```
 
-# Process for propositional analysis
-result = DataTreatment(df, :aggregate; win, features, norm)
+### 2. Extract processed datasets with `get_dataset`
 
-# Process for modal analysis
-result = DataTreatment(df, :reducesize; win, features, reducefunc, norm)
+All transformations are applied lazily when you call `get_dataset`. You pass one or more `TreatmentGroup` directives to control how columns are filtered, windowed, and aggregated.
 
-# Access processed data
-X_flat = get_dataset(result)        # Flat feature matrix
-feature_ids = get_featureid(result) # Feature metadata
+```julia
+# Default: aggregate all columns with max, min, mean over a whole window
+result = get_dataset(dt)
+
+# Return as matrices
+result = get_dataset(dt, matrix=true)
+
+# Return as DataFrames
+result = get_dataset(dt, dataframe=true)
+```
+
+### 3. Custom treatment groups
+
+Use `TreatmentGroup` to specify which columns to process and how:
+
+```julia
+# Aggregate 1D columns with custom features and windowing
+result = get_dataset(
+    dt,
+    TreatmentGroup(
+        dims=1,
+        aggrfunc=aggregate(
+            features=(mean, maximum),
+            win=(adaptivewindow(nwindows=5, overlap=0.4),)
+        )
+    ),
+    dataframe=true
+)
+```
+
+### 4. Multiple treatment groups
+
+Apply different processing to different dimensionalities:
+
+```julia
+result = get_dataset(
+    dt,
+    TreatmentGroup(
+        dims=1,
+        aggrfunc=aggregate(
+            features=(mean, maximum),
+            win=(adaptivewindow(nwindows=5, overlap=0.4),)
+        )
+    ),
+    TreatmentGroup(
+        dims=2,
+        aggrfunc=reducesize(
+            reducefunc=minimum,
+            win=(splitwindow(nwindows=3),)
+        )
+    ),
+    dataframe=true
+)
+```
+
+### 5. Filter columns by name
+
+Use `name_expr` to select columns matching a regex pattern. Set `leftover_ds=false` to exclude unmatched columns:
+
+```julia
+result = get_dataset(
+    dt,
+    TreatmentGroup(name_expr=r"^(V|i)"),
+    leftover_ds=false,
+    dataframe=true
+)
+```
+
+### 6. Groupby and split
+
+Group output columns by metadata (e.g., variable name, feature function) and optionally split the result:
+
+```julia
+result = get_dataset(
+    dt,
+    TreatmentGroup(
+        dims=2,
+        aggrfunc=aggregate(
+            features=(mean, maximum),
+            win=(adaptivewindow(nwindows=5, overlap=0.4),)
+        ),
+        groupby=:vname,
+    ),
+    groupby_split=true,
+    dataframe=true
+)
 ```
 
 ## Core Concepts
 
+### Lazy Architecture
+
+`DataTreatment` is intentionally a **passive container**:
+
+- **Construction** (`DataTreatment(df)`) only stores the raw data matrix and computes lightweight metadata (column types, dimensions, missing/NaN indices).
+- **Processing** happens entirely inside `get_dataset`, which accepts `TreatmentGroup` directives specifying how to filter, window, aggregate, or reduce each subset of columns.
+- This design maximizes flexibility — you can extract different views of the same dataset without rebuilding the container.
+
 ### Windowing Functions
 
-DataTreatments provides several windowing strategies:
+DataTreatments provides several windowing strategies for partitioning multidimensional data:
 
-#### `splitwindow` - Equal Non-Overlapping Windows
-```julia
-win = splitwindow(nwindows=3)
-# Divides data into 3 equal, non-overlapping segments
-```
+| Function | Description |
+|---|---|
+| `splitwindow(nwindows=3)` | Equal non-overlapping windows |
+| `movingwindow(winsize=50, winstep=25)` | Fixed-size sliding windows |
+| `adaptivewindow(nwindows=5, overlap=0.2)` | Windows with controlled overlap |
+| `wholewindow()` | Single window covering the entire dimension |
 
-#### `movingwindow` - Fixed-Size Sliding Windows
-```julia
-win = movingwindow(winsize=50, winstep=25)
-# Creates overlapping windows of size 50, advancing by 25 points
-```
-
-#### `adaptivewindow` - Windows with Controlled Overlap
-```julia
-win = adaptivewindow(nwindows=5, overlap=0.2)
-# Creates 5 windows with 20% overlap between consecutive windows
-```
-
-#### `wholewindow` - Single Window (Entire Dimension)
-```julia
-win = wholewindow()
-# Creates a single window covering the entire dimension
-```
-
-### Multi-Dimensional Windowing
-
-Use the `@evalwindow` macro to apply window functions to each dimension:
+Use the `@evalwindow` macro to apply window functions to each dimension of an array:
 
 ```julia
 X = rand(200, 120)
 
-# Apply same windowing to all dimensions
+# Same windowing on all dimensions
 intervals = @evalwindow X splitwindow(nwindows=4)
 
-# Apply different windowing per dimension
+# Different windowing per dimension
 intervals = @evalwindow X splitwindow(nwindows=4) movingwindow(winsize=40, winstep=20)
 ```
 
-## Normalization
+### Processing Modes
 
-`DataTreatments.jl` uses **Normalization.jl** as its normalization backend.
+#### `aggregate` — Tabular Feature Extraction
 
-- Core normalization algorithms are provided by `Normalization.jl`.
-- `DataTreatments.jl` re-exports `fit`, `fit!`, `normalize`, and `normalize!`.
-- `DataTreatments.jl` adds integration for nested/multidimensional dataset elements in `ext/NormalizationExt.jl`.
-
-We thank the maintainers and contributors of **Normalization.jl** for their work and for making this integration possible.
-
-### Grouping Functions
-
-Grouping lets you partition related feature columns (e.g., by variable name, window, or feature) so that operations like normalization are applied with shared coefficients across each group instead of per-column.
-This preserves consistent scaling for semantically related parts of the dataset.
+Flattens multidimensional elements into scalar columns by applying feature functions to each window. Produces a flat feature matrix suitable for standard ML.
 
 ```julia
-dt = DataFrame([rand(1:100, 4, 2) for _ in 1:10, _ in 1:5], :auto)
-win = splitwindow(nwindows=2)
-
-grp1 = [:x1, :x2]
-
-groups = DataTreatments.groupby(dt, grp1)
-
-dt_norm = DataTreatment(dt, :aggregate; win, features, groups=(:vname,), norm=Scale)
-```
-
-## Data Structures
-
-### `FeatureId` - Feature Metadata
-
-A metadata container that stores information about each feature column for reproducibility and feature selection:
-
-```julia
-# Created automatically by DataTreatment
-dt = DataTreatment(df, :reducesize; win=(win,), features=(mean, std, maximum))
-
-# Access feature metadata
-feature_ids = get_featureid(dt)
-
-# Each FeatureId contains:
-# - vname: Source variable name
-# - feat: Feature function applied
-# - nwin: Window number
-```
-
-### `DataTreatment` - Complete Processing Container
-
-A comprehensive container that stores processed data along with all parameters for full reproducibility:
-
-```julia
-# Create dataset
-df = DataFrame(
-    channel1 = [rand(200, 120) for _ in 1:1000],
-    channel2 = [rand(200, 120) for _ in 1:1000],
-    channel3 = [rand(200, 120) for _ in 1:1000]
+aggrfunc = aggregate(
+    features=(mean, std, maximum, minimum),
+    win=(splitwindow(nwindows=3),)
 )
-
-# Process with full parameter storage
-win = adaptivewindow(nwindows=6, overlap=0.15)
-features = (mean, std, maximum, minimum, median)
-
-dt = DataTreatment(df, :aggregate; win, features, norm=MinMax)
-
-# Access processed data
-X_flat = get_dataset(dt)        # Flat feature matrix
-feature_ids = get_featureid(dt) # Feature metadata
-
-# All parameters are stored for reproducibility
-aggrtype = get_aggrtype(dt)     # :aggregate
-reduction = get_reducefunc(dt)   # mean (default)
-var_names = get_vnames(dt)       # [:channel1, :channel2, :channel3]
-feat_funcs = get_features(dt)    # (mean, std, maximum, minimum, median)
-n_windows = get_nwindows(dt)     # 36
 ```
+
+#### `reducesize` — Dimensionality Reduction
+
+Reduces the size of each multidimensional element while preserving its array structure. Useful for modal analysis and downstream tasks that expect array-valued data.
+
+```julia
+aggrfunc = reducesize(
+    reducefunc=median,
+    win=(adaptivewindow(nwindows=5, overlap=0.2),)
+)
+```
+
+### TreatmentGroup
+
+A `TreatmentGroup` specifies which columns to select and how to process them:
+
+| Parameter | Description |
+|---|---|
+| `dims` | Filter columns by dimensionality (`0` = scalar, `1` = vector, `2` = matrix, etc.) |
+| `name_expr` | Filter columns by regex on column name |
+| `aggrfunc` | Processing function (`aggregate(...)` or `reducesize(...)`) |
+| `groupby` | Group output columns by metadata (`:vname`, `:feat`, `:nwin`, or a tuple) |
+
+### `get_dataset` Options
+
+| Keyword | Default | Description |
+|---|---|---|
+| `treatment_ds` | `true` | Include datasets defined by treatment groups |
+| `leftover_ds` | `true` | Include columns not assigned to any treatment group |
+| `groupby_split` | `false` | Split multidimensional datasets by group |
+| `matrix` | `false` | Return results as matrices |
+| `dataframe` | `false` | Return results as DataFrames |
+
+### Output Dataset Types
+
+`get_dataset` returns a `Vector{AbstractDataset}` containing:
+
+- **`DiscreteDataset`** — Categorical/discrete columns, integer-encoded
+- **`ContinuousDataset`** — Scalar numeric columns
+- **`MultidimDataset`** — Array-valued columns, processed via `aggregate` or `reducesize`
+
+Each dataset carries rich metadata (`DiscreteFeat`, `ContinuousFeat`, `AggregateFeat`, `ReduceFeat`) for full traceability.
 
 ## Use Cases
 
