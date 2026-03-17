@@ -1,5 +1,6 @@
 using Test
 using DataTreatments
+const DT = DataTreatments
 
 using DataFrames
 using Random
@@ -8,6 +9,139 @@ using CategoricalArrays
 function create_image(seed::Int; n=6)
     Random.seed!(seed)
     rand(Float64, n, n)
+end
+
+@testset "TargetStructure" begin
+    # ------------------------------------------------------------------ #
+    #                     regression (Float target)                        #
+    # ------------------------------------------------------------------ #
+    @testset "Regression - Float64 target" begin
+        y = [1.0, 2.5, 3.7, 4.2, 5.0]
+        ts = DT.TargetStructure(y)
+
+        @test DT.get_values(ts) == y
+        @test DT.get_labels(ts) === nothing
+    end
+
+    @testset "Regression - Float32 target" begin
+        y = Float32[1.0, 2.5, 3.7, 4.2, 5.0]
+        ts = DT.TargetStructure(y)
+
+        @test DT.get_values(ts) == y
+        
+        @test eltype(DT.get_values(ts)) == Float32
+        @test DT.get_labels(ts) === nothing
+    end
+
+    # ------------------------------------------------------------------ #
+    #                 classification (non-Float target)                    #
+    # ------------------------------------------------------------------ #
+    @testset "Classification - String target" begin
+        y = ["cat", "dog", "cat", "bird", "dog"]
+        ts = DT.TargetStructure(y)
+
+        vals = DT.get_values(ts)
+        labels = DT.get_labels(ts)
+
+        # values should be integer-encoded
+        @test eltype(vals) <: Int
+        @test length(vals) == 5
+
+        # labels should be a CategoricalVector
+        @test labels isa CategoricalArrays.CategoricalVector
+        @test length(labels) == length(unique(y))
+
+        # same class should map to same integer
+        @test vals[1] == vals[3]  # both "cat"
+        @test vals[2] == vals[5]  # both "dog"
+        @test vals[1] != vals[2]  # "cat" != "dog"
+        @test vals[1] != vals[4]  # "cat" != "bird"
+    end
+
+    @testset "Classification - Symbol target" begin
+        y = [:a, :b, :a, :c, :b]
+        ts = DT.TargetStructure(y)
+
+        vals = DT.get_values(ts)
+        labels = DT.get_labels(ts)
+
+        @test eltype(vals) <: Int
+        @test length(vals) == 5
+        @test labels isa CategoricalArrays.CategoricalVector
+        @test length(labels) == 3
+
+        # same class should map to same integer
+        @test vals[1] == vals[3]  # both :a
+        @test vals[2] == vals[5]  # both :b
+    end
+
+    @testset "Classification - Int target" begin
+        y = [1, 2, 3, 1, 2]
+        ts = DT.TargetStructure(y)
+
+        vals = DT.get_values(ts)
+        labels = DT.get_labels(ts)
+
+        @test eltype(vals) <: Int
+        @test length(vals) == 5
+        @test labels isa CategoricalArrays.CategoricalVector
+
+        # same class should map to same integer
+        @test vals[1] == vals[4]  # both 1
+        @test vals[2] == vals[5]  # both 2
+    end
+
+    @testset "Classification - CategoricalVector target" begin
+        y = categorical(["small", "medium", "large", "small", "medium"])
+        ts = DT.TargetStructure(y)
+
+        vals = DT.get_values(ts)
+        labels = DT.get_labels(ts)
+
+        @test eltype(vals) <: Int
+        @test length(vals) == 5
+        @test labels isa CategoricalArrays.CategoricalVector
+
+        # same class should map to same integer
+        @test vals[1] == vals[4]  # both "small"
+        @test vals[2] == vals[5]  # both "medium"
+    end
+
+    # ------------------------------------------------------------------ #
+    #                          edge cases                                  #
+    # ------------------------------------------------------------------ #
+    @testset "Single element - regression" begin
+        y = [3.14]
+        ts = DT.TargetStructure(y)
+
+        @test DT.get_values(ts) == [3.14]
+        @test DT.get_labels(ts) === nothing
+    end
+
+    @testset "Single element - classification" begin
+        y = ["only_class"]
+        ts = DT.TargetStructure(y)
+
+        @test length(DT.get_values(ts)) == 1
+        @test DT.get_labels(ts) isa CategoricalArrays.CategoricalVector
+        @test length(DT.get_labels(ts)) == 1
+    end
+
+    @testset "Binary classification" begin
+        y = ["yes", "no", "yes", "no", "yes"]
+        ts = DT.TargetStructure(y)
+
+        vals = DT.get_values(ts)
+        labels = DT.get_labels(ts)
+
+        @test length(unique(vals)) == 2
+        @test length(labels) == 2
+
+        # consistent encoding
+        @test vals[1] == vals[3] == vals[5]  # all "yes"
+        @test vals[2] == vals[4]              # all "no"
+        @test vals[1] != vals[2]              # "yes" != "no"
+    end
 end
 
 @testset "DatasetStructure" begin

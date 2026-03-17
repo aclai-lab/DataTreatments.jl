@@ -30,14 +30,18 @@ If `eltype(y) <: AbstractFloat`, stores `y` directly as values with `labels = no
 Otherwise, calls `discrete_encode(y)` to produce integer-encoded values 
 and the corresponding categorical labels (classification).
 """
-struct TargetStructure
-    values::Vector{Union{<:Int,<:AbstractFloat}}
+struct TargetStructure{T}
+    values::Vector{T}
     labels::Union{Nothing,CategoricalArrays.CategoricalVector}
 
     function TargetStructure(y::AbstractVector)
-        eltype(y) <: AbstractFloat ?
-            new(y, nothing) :
-            new(discrete_encode(y)...)
+        T = eltype(y)
+        if T <: AbstractFloat 
+            new{T}(y, nothing)
+        else
+            y, l = discrete_encode(y)
+            new{eltype(y)}(y, l)
+        end
     end
 end
 
