@@ -1,4 +1,7 @@
-# Metadata
+```@meta
+CurrentModule = DataTreatments
+```
+# [Metadata](@id metadata)
 
 The metadata module defines the core types used to describe individual columns
 (features) inside a [`DataTreatment`](@ref). Each struct captures **what kind of

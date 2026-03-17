@@ -20,8 +20,11 @@ makedocs(;
         "Dataset Structure" => "dataset_structure.md",
         "DataTreatment" => "datatreatment.md",
         "Grouping" => "groupby.md",
-        "FeatureSet" => "featureset.md",
+        "Treatment Groups" => "treatment_group.md",
         "Metadata" => "metadata.md",
+        "Output Datasets" => "output_dataset.md",
+        "FeatureSet" => "featureset.md",
+        "Windowing" => "windowing.md",
     ],
     warnonly=:true,
 )
