@@ -1,8 +1,6 @@
 <div align="center">
-    <img src="banner.png" alt="DataTreatments" width="600">
+    <img src="banner.png" alt="DataTreatments" width="800">
 </div>
-
-# DataTreatments.jl
 
 [![dev](https://img.shields.io/badge/docs-dev-blue.svg)](https://PasoStudio73.github.io/DataTreatments.jl/)
 [![Build Status](https://github.com/PasoStudio73/DataTreatments.jl/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/PasoStudio73/DataTreatments.jl/actions/workflows/ci.yml?query=branch%3Amain)
