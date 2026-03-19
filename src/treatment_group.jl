@@ -112,48 +112,6 @@ struct TreatmentGroup{T}
         TreatmentGroup(DatasetStructure(df); kwargs...)
 end
 
-@doc raw"""
-    TreatmentGroup{T}
-
-A configuration object for selecting and processing columns in a dataset passed to `DataTreatment`.
-
-The type parameter `T` is the `typejoin` of the data types of all selected columns.
-
-## Selection Parameters
-
-Columns are selected based on:
-- **`dims::Int`**: Dimensionality filter (`-1` selects all dimensions)
-- **`name_expr`**: Column name filter, can be:
-  - `Regex`: matches column names against the pattern
-  - `Function`: predicate function applied to column names
-  - `Vector{String}`: explicit list of column names to include
-- **`datatype::Type`**: Filter columns by data type (default: `Any` means no filter)
-
-## Processing Parameters (for multidimensional columns)
-
-- **`aggrfunc::Base.Callable`**: Aggregation function applied to multidimensional elements:
-  - `aggregate`: tabularizes multidimensional data into a flat matrix
-  - `reducesize`: resizes multidimensional data while preserving dimensionality
-
-- **`groupby::Tuple{Vararg{Symbol}}`**: Further partitioning of output features from multidimensional processing.
-  Possible grouping keys include `:vname` (column name), window index, or feature type applied.
-
-## Fields
-
-- `idxs::Vector{Int}`: Column indices selected by this group
-- `dims::Int`: Dimensionality filter used
-- `vnames::Vector{String}`: Names of selected columns
-- `aggrfunc::Base.Callable`: Aggregation function for multidimensional columns
-- `groupby::Tuple{Vararg{Symbol}}`: Grouping specification for output features
-
-## Constructors
-
-    TreatmentGroup(ds_struct::DatasetStructure; kwargs...)
-    TreatmentGroup(ds::Matrix, vnames::Vector{String}; kwargs...)
-    TreatmentGroup(df::DataFrame; kwargs...)
-    TreatmentGroup(; kwargs...)  # curried form, returns a callable
-""" TreatmentGroup
-
 TreatmentGroup(; kwargs...) = x -> TreatmentGroup(x; kwargs...)
 
 # ---------------------------------------------------------------------------- #
