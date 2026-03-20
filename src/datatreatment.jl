@@ -557,9 +557,11 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", dt::DataTreatment)
     nrows, ncols = size(dt.data)
+    target_info = isnothing(dt.target) ? "Unsupervised" : "Supervised"
+
     println(io, "DataTreatment")
     println(io, "  Data size:    $(nrows) × $(ncols)")
-    println(io, "  Target:       ", isnothing(dt.target) ? "none" : "$(length(dt.target)) labels")
+    println(io, "  Target:       ", target_info)
     println(io, "  Float type:   $(dt.float_type)")
     print(io,   "  DS structure: $(dt.ds_struct)")
 end
