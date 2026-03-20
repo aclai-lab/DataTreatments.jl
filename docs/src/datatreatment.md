@@ -66,10 +66,10 @@ ds = get_dataset(dt,
 ds = get_dataset(dt, TreatmentGroup(dims=1); treatment_ds=false)
 
 # As matrices
-ds = get_dataset(dt; matrix=true)
+ds = get_dataset(dt; output_type=matrix)
 
 # As DataFrames
-ds = get_dataset(dt; dataframe=true)
+ds = get_dataset(dt; output_type=dataframe)
 ```
 
 ## Getters
@@ -102,8 +102,7 @@ get_dataset(
         treatment_ds::Bool,
         leftover_ds::Bool,
         groupby_split::Bool,
-        matrix::Bool,
-        dataframe::Bool
+        output_type::Base.Callable
     )
 get_data(dt::DataTreatment)
 get_target(dt::DataTreatment)

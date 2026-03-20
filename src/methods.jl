@@ -36,13 +36,36 @@ end
 # ---------------------------------------------------------------------------- #
 #                             get tabular method                               #
 # ---------------------------------------------------------------------------- #
-function get_tabular()
+# args:
+# treatments::Vararg{Base.Callable}=TreatmentGroup(aggrfunc=DefaultAggrFunc,)
 
+function get_tabular(
+    dt::DataTreatment,
+    args...;
+    leftover_ds::Bool=false,
+    groupby_split::Bool=false,
+    output_type::Symbol=:standard # :standard, :matrix, :dataframe
+) # ::Vector{Union{AbstractDataset,AbstractMatrix,DataFrame}}
+    data = get_dataset(
+        dt::DataTreatment,
+        args...;
+        treatment_ds::Bool=true,
+        leftover_ds::Bool=true,
+        groupby_split::Bool=false,
+        output_type::Base.Callable
+    )
 end
 
 # ---------------------------------------------------------------------------- #
 #                            get multidim method                               #
 # ---------------------------------------------------------------------------- #
-function get_multidim()
+function get_multidim(
+    dt::DataTreatment,
+    treatments::Vararg{Base.Callable}=TreatmentGroup(aggrfunc=DefaultAggrFunc,);
+    # treatment_ds::Bool=true,
+    leftover_ds::Bool=true,
+    # groupby_split::Bool=false,
+    output_type::Symbol=:standard # :standard, :matrix, :dataframe
+) # ::Vector{Union{AbstractDataset,AbstractMatrix,DataFrame}}
 
 end

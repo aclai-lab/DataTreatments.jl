@@ -61,6 +61,7 @@ export get_data, get_target, get_ds_struct, get_t_groups, get_float_type
 export get_nrows, get_ncols
 export get_dataset
 export get_treatments_datasets, get_leftover_datasets
+export standard, matrix, dataframe
 include("datatreatment.jl")
 
 # export get_tabular, get_multidim

@@ -49,7 +49,7 @@ ds = get_dataset(dt,
         groupby=:vname,
     ),
     groupby_split=true,
-    dataframe=true
+    output_type=dataframe
 )
 # Returns 2 DataFrames: one for ts1, one for ts2
 
@@ -60,7 +60,7 @@ ds = get_dataset(dt,
         groupby=:feat,
     ),
     groupby_split=true,
-    dataframe=true
+    output_type=dataframe
 )
 # Returns 2 DataFrames: one for mean columns, one for maximum columns
 ```
@@ -77,7 +77,7 @@ ds = get_dataset(dt,
         groupby=(:vname, :feat),
     ),
     groupby_split=true,
-    dataframe=true
+    output_type=dataframe
 )
 # Returns 4 DataFrames: (ts1, mean), (ts1, maximum), (ts2, mean), (ts2, maximum)
 ```
@@ -103,7 +103,7 @@ ds = get_dataset(dt,
     ),
     groupby_split=true,
     leftover_ds=false,
-    dataframe=true
+    output_type=dataframe
 )
 ```
 

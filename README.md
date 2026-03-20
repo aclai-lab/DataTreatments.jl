@@ -62,10 +62,10 @@ All transformations are applied lazily when you call `get_dataset`. You pass one
 result = get_dataset(dt)
 
 # Return as matrices
-result = get_dataset(dt, matrix=true)
+result = get_dataset(dt, output_type=matrix)
 
 # Return as DataFrames
-result = get_dataset(dt, dataframe=true)
+result = get_dataset(dt, output_type=dataframe)
 ```
 
 ### 3. Custom treatment groups
@@ -83,7 +83,7 @@ result = get_dataset(
             win=(adaptivewindow(nwindows=5, overlap=0.4),)
         )
     ),
-    dataframe=true
+    output_type=dataframe
 )
 ```
 
@@ -108,7 +108,7 @@ result = get_dataset(
             win=(splitwindow(nwindows=3),)
         )
     ),
-    dataframe=true
+    output_type=dataframe
 )
 ```
 
@@ -121,7 +121,7 @@ result = get_dataset(
     dt,
     TreatmentGroup(name_expr=r"^(V|i)"),
     leftover_ds=false,
-    dataframe=true
+    output_type=dataframe
 )
 ```
 
@@ -141,7 +141,7 @@ result = get_dataset(
         groupby=:vname,
     ),
     groupby_split=true,
-    dataframe=true
+    output_type=dataframe
 )
 ```
 

@@ -32,7 +32,7 @@ end
 @testset "groupby :vname" begin
     ds = get_dataset(dt,
         TreatmentGroup(dims=1, aggrfunc=DT.aggregate(features=(mean,)), groupby=:vname),
-        groupby_split=true, leftover_ds=false, dataframe=true)
+        groupby_split=true, leftover_ds=false, output_type=dataframe)
     @test length(ds) == 2  # ts1, ts2
     @test all(d -> nrow(d) == 5, ds)
 end
@@ -40,7 +40,7 @@ end
 @testset "groupby :feat" begin
     ds = get_dataset(dt,
         TreatmentGroup(dims=1, aggrfunc=DT.aggregate(features=(mean, maximum)), groupby=:feat),
-        groupby_split=true, leftover_ds=false, dataframe=true)
+        groupby_split=true, leftover_ds=false, output_type=dataframe)
     @test length(ds) == 2  # mean, maximum
     @test all(d -> nrow(d) == 5, ds)
 end
@@ -48,14 +48,14 @@ end
 @testset "groupby (:vname, :feat)" begin
     ds = get_dataset(dt,
         TreatmentGroup(dims=1, aggrfunc=DT.aggregate(features=(mean, maximum)), groupby=(:vname, :feat)),
-        groupby_split=true, leftover_ds=false, dataframe=true)
+        groupby_split=true, leftover_ds=false, output_type=dataframe)
     @test length(ds) == 4  # 2 vnames × 2 feats
     @test all(d -> nrow(d) == 5 && ncol(d) >= 1, ds)
 end
 
 @testset "groupby_split=false preserves column count" begin
     treat = TreatmentGroup(dims=1, aggrfunc=DT.aggregate(features=(mean,)), groupby=:vname)
-    ds_split = get_dataset(dt, treat, groupby_split=true, leftover_ds=false, matrix=true)
+    ds_split = get_dataset(dt, treat, groupby_split=true, leftover_ds=false, output_type=matrix)
     ds_flat  = get_dataset(dt, treat, leftover_ds=false)
     mds = filter(d -> d isa MultidimDataset, ds_flat)
     @test sum(size(m, 2) for m in ds_split) == sum(length(md) for md in mds)

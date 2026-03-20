@@ -49,14 +49,14 @@ end
         @test !isempty(result)
     end
 
-    @testset "Example 2: get_dataset matrix=true" begin
-        result = get_dataset(dt, matrix=true)
+    @testset "Example 2: get_dataset output_type=matrix" begin
+        result = get_dataset(dt, output_type=matrix)
         @test !isnothing(result)
         @test !isempty(result)
     end
 
-    @testset "Example 3: get_dataset dataframe=true" begin
-        result = get_dataset(dt, dataframe=true)
+    @testset "Example 3: get_dataset output_type=dataframe" begin
+        result = get_dataset(dt, output_type=dataframe)
         @test !isnothing(result)
         @test !isempty(result)
     end
@@ -69,7 +69,7 @@ end
                     features=(mean, maximum),
                     win=(DT.adaptivewindow(nwindows=5, overlap=0.4),)
                 )),
-            dataframe=true
+           output_type= dataframe
         )
         @test !isnothing(result)
         @test !isempty(result)
@@ -88,7 +88,7 @@ end
                     features=(mean, maximum),
                     win=(DT.adaptivewindow(nwindows=5, overlap=0.4),)
                 )),
-            dataframe=true
+           output_type= dataframe
         )
         @test !isnothing(result)
         @test !isempty(result)
@@ -109,7 +109,7 @@ end
                     features=(minimum,),
                     win=(DT.splitwindow(nwindows=3,),)
                 )),
-            dataframe=true
+           output_type= dataframe
         )
         @test !isnothing(result)
         @test !isempty(result)
@@ -130,7 +130,7 @@ end
                     reducefunc=minimum,
                     win=(DT.splitwindow(nwindows=3,),)
                 )),
-            dataframe=true
+           output_type= dataframe
         )
         @test !isnothing(result)
         @test !isempty(result)
@@ -143,7 +143,7 @@ end
                 name_expr=r"^(V|i)"
             ),
             leftover_ds=false,
-            dataframe=true
+           output_type= dataframe
         )
         @test !isnothing(result)
         @test !isempty(result)
@@ -173,7 +173,7 @@ end
             ),
             groupby_split=true,
             leftover_ds=false,
-            dataframe=true
+           output_type= dataframe
         )
         @test !isnothing(result)
         @test !isempty(result)
@@ -195,7 +195,7 @@ end
                 groupby=:vname,
             ),
             groupby_split=true,
-            dataframe=true
+           output_type= dataframe
         )
         @test !isnothing(result)
         @test !isempty(result)
@@ -205,8 +205,8 @@ end
     end
 
     @testset "Consistency: matrix vs dataframe output have same observations" begin
-        mat_result = get_dataset(dt, matrix=true)
-        df_result = get_dataset(dt, dataframe=true)
+        mat_result = get_dataset(dt, output_type=matrix)
+        df_result = get_dataset(dt, output_type=dataframe)
         # Both should represent 5 observations
         if mat_result isa AbstractMatrix
             @test size(mat_result, 1) == 5
@@ -217,7 +217,7 @@ end
     end
 
     @testset "Edge case: empty TreatmentGroup defaults" begin
-        result = get_dataset(dt, TreatmentGroup(), dataframe=true)
+        result = get_dataset(dt, TreatmentGroup(),output_type= dataframe)
         @test !isnothing(result)
         @test !isempty(result)
     end

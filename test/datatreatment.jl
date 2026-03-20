@@ -933,14 +933,14 @@ end
         @test all(d -> d isa DT.AbstractDataset, ds)
     end
 
-    @testset "matrix=true returns vector of matrices" begin
-        ds = get_dataset(dt; matrix=true)
+    @testset "output_type=matrix returns vector of matrices" begin
+        ds = get_dataset(dt; output_type=matrix)
         @test ds isa Vector
         @test all(d -> d isa AbstractMatrix, ds)
     end
 
-    @testset "dataframe=true returns vector of DataFrames" begin
-        ds = get_dataset(dt; dataframe=true)
+    @testset "output_type=dataframe returns vector of DataFrames" begin
+        ds = get_dataset(dt; output_type=dataframe)
         @test ds isa Vector
         @test all(d -> d isa DataFrame, ds)
 
@@ -1116,14 +1116,14 @@ end
 
     @testset "Output as matrix" begin
         dt = DataTreatment(df)
-        ds = get_dataset(dt; matrix=true)
+        ds = get_dataset(dt; output_type=matrix)
         @test ds isa Vector
         @test all(d -> d isa AbstractMatrix, ds)
     end
 
     @testset "Output as DataFrame" begin
         dt = DataTreatment(df)
-        ds = get_dataset(dt; dataframe=true)
+        ds = get_dataset(dt; output_type=dataframe)
         @test ds isa Vector
         @test all(d -> d isa DataFrame, ds)
 
