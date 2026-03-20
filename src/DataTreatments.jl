@@ -64,7 +64,8 @@ export get_treatments_datasets, get_leftover_datasets
 export standard, matrix, dataframe
 include("datatreatment.jl")
 
-# export get_tabular, get_multidim
-# include("methods.jl")
+export get_discrete, get_continuous, get_multidim, get_aggregated, get_reduced
+export get_tabular, get_multidim
+include("methods.jl")
 
 end

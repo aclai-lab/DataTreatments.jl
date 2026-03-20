@@ -37,6 +37,13 @@ dt = DataTreatment(df; float_type=Float32)
 Processed datasets are obtained lazily via [`get_dataset`](@ref). Treatment groups
 control which columns are selected and how multidimensional data is aggregated or reduced.
 
+### Entry Points
+
+- [`get_tabular`](@ref): Collects all tabular-like datasets, including discrete, continuous, and aggregated multidimensional data. Especially useful for heterogeneous datasets with both tabular and multidimensional columns, where you want to aggregate multidimensional data into tabular form.
+- [`get_multidim`](@ref): Collects all reduced multidimensional datasets, focusing on features that remain multidimensional after treatment.
+
+### Examples
+
 ```julia
 df = DataFrame(
     str_col  = [missing, "blue", "green", "red", "blue"],
@@ -70,6 +77,36 @@ ds = get_dataset(dt; output_type=matrix)
 
 # As DataFrames
 ds = get_dataset(dt; output_type=dataframe)
+
+# Default treatment (aggregate with max, min, mean over whole window)
+tabular_ds = get_tabular(dt)
+
+# Custom treatment groups for tabular extraction
+tabular_ds = get_tabular(dt,
+    TreatmentGroup(dims=0),
+    TreatmentGroup(dims=1, aggrfunc=aggregate(
+        win=(splitwindow(nwindows=3),),
+        features=(mean, std)
+    )),
+)
+
+# Only leftover columns (not assigned to any treatment group)
+tabular_ds = get_tabular(dt, TreatmentGroup(dims=1); treatment_ds=false)
+
+# As matrices
+tabular_ds = get_tabular(dt; output_type=matrix)
+
+# As DataFrames
+tabular_ds = get_tabular(dt; output_type=dataframe)
+
+# Extract only reduced multidimensional datasets
+multidim_ds = get_multidim(dt)
+
+# Custom treatment groups for multidimensional extraction
+multidim_ds = get_multidim(dt, TreatmentGroup(dims=1, aggrfunc=reducesize()))
+
+# As matrices
+multidim_ds = get_multidim(dt; output_type=matrix)
 ```
 
 ## Getters
@@ -96,6 +133,22 @@ ds = get_dataset(dt; output_type=dataframe)
 
 ```@docs
 DataTreatment
+
+get_tabular(
+    dt::DataTreatment,
+    args...;
+    groupby_split::Bool=true,
+    output_type::Base.Callable=standard,
+    kwargs...
+)
+
+get_multidim(
+    dt::DataTreatment,
+    args...;
+    output_type::Base.Callable=standard,
+    kwargs...
+)
+
 get_dataset(
         dt::DataTreatment,
         treatments::Vararg{Base.Callable};
