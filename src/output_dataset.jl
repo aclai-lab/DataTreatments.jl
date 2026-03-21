@@ -120,7 +120,7 @@ from `data`, encodes them categorically, and builds the corresponding
 
 See also: [`ContinuousDataset`](@ref), [`MultidimDataset`](@ref), [`DiscreteFeat`](@ref)
 """
-struct DiscreteDataset <: AbstractDataset
+mutable struct DiscreteDataset <: AbstractDataset
     data::AbstractMatrix
     info::Vector{<:DiscreteFeat}
 
@@ -187,7 +187,7 @@ and builds the corresponding [`ContinuousFeat`](@ref) metadata from `ds_struct`.
 
 See also: [`DiscreteDataset`](@ref), [`MultidimDataset`](@ref), [`ContinuousFeat`](@ref)
 """
-struct ContinuousDataset{T} <: AbstractDataset
+mutable struct ContinuousDataset{T} <: AbstractDataset
     data::AbstractMatrix
     info::Vector{<:ContinuousFeat}
 
@@ -288,7 +288,7 @@ The constructor inspects `aggrfunc` to decide the output format:
 See also: [`DiscreteDataset`](@ref), [`ContinuousDataset`](@ref),
 [`AggregateFeat`](@ref), [`ReduceFeat`](@ref), [`aggregate`](@ref), [`reducesize`](@ref)
 """
-struct MultidimDataset{T} <: AbstractDataset
+mutable struct MultidimDataset{T} <: AbstractDataset
     data::AbstractArray
     info::Vector{<:Union{AggregateFeat,ReduceFeat}}
     groups::Union{Nothing,Vector{Vector{Int}}}
