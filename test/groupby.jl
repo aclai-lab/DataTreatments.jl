@@ -34,7 +34,7 @@ df = DataFrame(
 dt = DataTreatment(df)
 
 @testset "_split_md_by_dims" begin
-    mds = filter(d -> d isa MultidimDataset, get_dataset(dt))
+    mds = filter(d -> d isa MultidimDataset, first(get_dataset(dt)))
     @test length(mds) >= 2
     for md in mds
         @test length(unique(get_dims(md))) == 1
@@ -42,7 +42,7 @@ dt = DataTreatment(df)
 end
 
 @testset "groupby :vname" begin
-    ds = get_dataset(dt,
+    ds, _ = get_dataset(dt,
         TreatmentGroup(dims=1, aggrfunc=DT.aggregate(features=(mean,)), groupby=:vname),
         leftover_ds=false)
     @test get_ncols(ds[1]) == 2  # ts1, ts2
@@ -50,7 +50,7 @@ end
 end
 
 @testset "groupby :feat" begin
-    ds = get_dataset(dt,
+    ds, _ = get_dataset(dt,
         TreatmentGroup(dims=1, aggrfunc=DT.aggregate(features=(mean, maximum)), groupby=:feat),
         leftover_ds=false)
     @test get_ncols(ds[1]) == 4  # mean, maximum * ts1, ts2
@@ -58,7 +58,7 @@ end
 end
 
 @testset "groupby (:vname, :feat)" begin
-    ds = get_dataset(dt,
+    ds, _ = get_dataset(dt,
         TreatmentGroup(dims=1, aggrfunc=DT.aggregate(features=(mean, maximum)), groupby=(:vname, :feat)),
         leftover_ds=false)
     groups = get_groups(ds[1])

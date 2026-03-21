@@ -35,44 +35,6 @@ df = DataFrame(
 ds_struct = DT.DatasetStructure(df)
 
 # ---------------------------------------------------------------------------- #
-#                     TreatmentGroup - DataFrame constructor                   #
-# ---------------------------------------------------------------------------- #
-@testset "TreatmentGroup - DataFrame constructor" begin
-    @testset "Default kwargs (all columns)" begin
-        tg = TreatmentGroup(df)
-        @test tg isa TreatmentGroup
-        @test length(tg) == ncol(df)
-        @test DT.get_dims(tg) == -1
-    end
-
-    @testset "dims=0 selects scalar columns" begin
-        tg = TreatmentGroup(df; dims=0)
-        @test DT.get_dims(tg) == 0
-        # scalar columns: str_col, sym_col, cat_col, uint_col, int_col, V1..V5 = 10
-        @test length(tg) == 10
-        @test all(n -> n in DT.get_vnames(tg),
-            ["str_col", "sym_col", "cat_col", "uint_col", "int_col",
-             "V1", "V2", "V3", "V4", "V5"])
-    end
-
-    @testset "dims=1 selects 1D columns" begin
-        tg = TreatmentGroup(df; dims=1)
-        @test DT.get_dims(tg) == 1
-        # 1D columns: ts1, ts2, ts3, ts4
-        @test length(tg) == 4
-        @test all(n -> n in DT.get_vnames(tg), ["ts1", "ts2", "ts3", "ts4"])
-    end
-
-    @testset "dims=2 selects 2D columns" begin
-        tg = TreatmentGroup(df; dims=2)
-        @test DT.get_dims(tg) == 2
-        # 2D columns: img1, img2, img3, img4
-        @test length(tg) == 4
-        @test all(n -> n in DT.get_vnames(tg), ["img1", "img2", "img3", "img4"])
-    end
-end
-
-# ---------------------------------------------------------------------------- #
 #                  TreatmentGroup - DatasetStructure constructor                #
 # ---------------------------------------------------------------------------- #
 @testset "TreatmentGroup - DatasetStructure constructor" begin
@@ -95,55 +57,55 @@ end
 # ---------------------------------------------------------------------------- #
 @testset "TreatmentGroup - name_expr filtering" begin
     @testset "Regex filter" begin
-        tg = TreatmentGroup(df; name_expr=r"^V")
+        tg = TreatmentGroup(ds_struct; name_expr=r"^V")
         @test length(tg) == 5
         @test all(n -> startswith(n, "V"), DT.get_vnames(tg))
     end
 
     @testset "Regex filter - ts columns" begin
-        tg = TreatmentGroup(df; name_expr=r"^ts")
+        tg = TreatmentGroup(ds_struct; name_expr=r"^ts")
         @test length(tg) == 4
         @test all(n -> startswith(n, "ts"), DT.get_vnames(tg))
     end
 
     @testset "Regex filter - img columns" begin
-        tg = TreatmentGroup(df; name_expr=r"^img")
+        tg = TreatmentGroup(ds_struct; name_expr=r"^img")
         @test length(tg) == 4
         @test all(n -> startswith(n, "img"), DT.get_vnames(tg))
     end
 
     @testset "Vector{String} filter" begin
-        tg = TreatmentGroup(df; name_expr=["V1", "V3", "V5"])
+        tg = TreatmentGroup(ds_struct; name_expr=["V1", "V3", "V5"])
         @test length(tg) == 3
         @test DT.get_vnames(tg) == ["V1", "V3", "V5"]
     end
 
     @testset "Function filter" begin
-        tg = TreatmentGroup(df; name_expr=n -> endswith(n, "col"))
+        tg = TreatmentGroup(ds_struct; name_expr=n -> endswith(n, "col"))
         @test length(tg) == 5
         @test all(n -> endswith(n, "col"), DT.get_vnames(tg))
     end
 
     @testset "Regex matching nothing" begin
-        tg = TreatmentGroup(df; name_expr=r"^ZZZZZ")
+        tg = TreatmentGroup(ds_struct; name_expr=r"^ZZZZZ")
         @test length(tg) == 0
         @test isempty(DT.get_idxs(tg))
     end
 
     @testset "Vector{String} with nonexistent names" begin
-        tg = TreatmentGroup(df; name_expr=["nonexistent1", "nonexistent2"])
+        tg = TreatmentGroup(ds_struct; name_expr=["nonexistent1", "nonexistent2"])
         @test length(tg) == 0
     end
 
     @testset "Combined dims + name_expr" begin
-        tg = TreatmentGroup(df; dims=0, name_expr=r"^V")
+        tg = TreatmentGroup(ds_struct; dims=0, name_expr=r"^V")
         @test length(tg) == 5
         @test all(n -> startswith(n, "V"), DT.get_vnames(tg))
     end
 
     @testset "Combined dims + name_expr - no overlap" begin
         # V columns are dims=0, so dims=1 + V regex → empty
-        tg = TreatmentGroup(df; dims=1, name_expr=r"^V")
+        tg = TreatmentGroup(ds_struct; dims=1, name_expr=r"^V")
         @test length(tg) == 0
     end
 end
@@ -153,7 +115,7 @@ end
 # ---------------------------------------------------------------------------- #
 @testset "TreatmentGroup - datatype filtering" begin
     @testset "Float64 filter" begin
-        tg = TreatmentGroup(df; datatype=Float64)
+        tg = TreatmentGroup(ds_struct; datatype=Float64)
         @test length(tg) > 0
         @test all(n -> n in ["V1", "V2", "V3", "V4", "V5",
                              "ts1", "ts2", "ts3", "ts4",
@@ -162,25 +124,25 @@ end
     end
 
     @testset "Int filter" begin
-        tg = TreatmentGroup(df; datatype=Int)
+        tg = TreatmentGroup(ds_struct; datatype=Int)
         @test length(tg) >= 1
         @test "int_col" in DT.get_vnames(tg)
     end
 
     @testset "UInt32 filter" begin
-        tg = TreatmentGroup(df; datatype=UInt32)
+        tg = TreatmentGroup(ds_struct; datatype=UInt32)
         @test length(tg) >= 1
         @test "uint_col" in DT.get_vnames(tg)
     end
 
     @testset "Combined dims + datatype" begin
-        tg = TreatmentGroup(df; dims=0, datatype=Float64)
+        tg = TreatmentGroup(ds_struct; dims=0, datatype=Float64)
         @test length(tg) == 5
         @test all(n -> n in ["V1", "V2", "V3", "V4", "V5"], DT.get_vnames(tg))
     end
 
     @testset "Nonexistent datatype" begin
-        tg = TreatmentGroup(df; datatype=Complex{Float64})
+        tg = TreatmentGroup(ds_struct; datatype=Complex{Float64})
         @test length(tg) == 0
     end
 end
@@ -190,23 +152,23 @@ end
 # ---------------------------------------------------------------------------- #
 @testset "TreatmentGroup - type parameter T" begin
     @testset "Float64 columns" begin
-        tg = TreatmentGroup(df; dims=0, name_expr=r"^V")
+        tg = TreatmentGroup(ds_struct; dims=0, name_expr=r"^V")
         @test tg isa TreatmentGroup{Float64}
     end
 
     @testset "Int columns" begin
-        tg = TreatmentGroup(df; name_expr=["int_col"])
+        tg = TreatmentGroup(ds_struct; name_expr=["int_col"])
         @test tg isa TreatmentGroup{Int64}
     end
 
     @testset "Mixed types → typejoin" begin
-        tg = TreatmentGroup(df; dims=0)
+        tg = TreatmentGroup(ds_struct; dims=0)
         # Mixing String, Symbol, CategoricalValue, UInt32, Int, Float64 → broader type
         @test tg isa TreatmentGroup{T} where T
     end
 
     @testset "Empty selection → Any" begin
-        tg = TreatmentGroup(df; name_expr=r"^ZZZZZ")
+        tg = TreatmentGroup(ds_struct; name_expr=r"^ZZZZZ")
         @test tg isa TreatmentGroup{Any}
     end
 end
@@ -216,30 +178,45 @@ end
 # ---------------------------------------------------------------------------- #
 @testset "TreatmentGroup - aggrfunc and groupby" begin
     @testset "Default aggrfunc" begin
-        tg = TreatmentGroup(df; dims=1)
+        tg = TreatmentGroup(ds_struct; dims=1)
         @test DT.get_aggrfunc(tg) isa Base.Callable
     end
 
     @testset "Custom aggrfunc" begin
         custom_agg = aggregate(win=(wholewindow(),), features=(sum,))
-        tg = TreatmentGroup(df; dims=1, aggrfunc=custom_agg)
+        tg = TreatmentGroup(ds_struct; dims=1, aggrfunc=custom_agg)
         @test DT.get_aggrfunc(tg) === custom_agg
     end
 
+    @testset "Default grouped is false" begin
+        tg = TreatmentGroup(ds_struct)
+        @test DT.get_grouped(tg) == false
+    end
+
+    @testset "Explicit grouped=true" begin
+        tg = TreatmentGroup(ds_struct; grouped=true)
+        @test DT.get_grouped(tg) == true
+    end
+
+    @testset "Explicit grouped=false" begin
+        tg = TreatmentGroup(ds_struct; grouped=false)
+        @test DT.get_grouped(tg) == false
+    end
+
     @testset "Default groupby is nothing" begin
-        tg = TreatmentGroup(df; dims=1)
+        tg = TreatmentGroup(ds_struct; dims=1)
         @test DT.get_groupby(tg) === nothing
         @test DT.has_groupby(tg) == false
     end
 
     @testset "Symbol groupby is wrapped in tuple" begin
-        tg = TreatmentGroup(df; dims=1, groupby=:vname)
+        tg = TreatmentGroup(ds_struct; dims=1, groupby=:vname)
         @test DT.get_groupby(tg) == (:vname,)
         @test DT.has_groupby(tg) == true
     end
 
     @testset "Tuple groupby" begin
-        tg = TreatmentGroup(df; dims=1, groupby=(:vname, :feature))
+        tg = TreatmentGroup(ds_struct; dims=1, groupby=(:vname, :feature))
         @test DT.get_groupby(tg) == (:vname, :feature)
         @test DT.has_groupby(tg) == true
     end
@@ -278,34 +255,10 @@ end
 end
 
 # ---------------------------------------------------------------------------- #
-#                    TreatmentGroup - Matrix constructor                        #
-# ---------------------------------------------------------------------------- #
-@testset "TreatmentGroup - Matrix constructor" begin
-    mat = Matrix{Any}(hcat(
-        [1.0, 2.0, 3.0],
-        [4.0, 5.0, 6.0],
-        ["a", "b", "c"]
-    ))
-    vnames = ["col1", "col2", "col3"]
-
-    @testset "Basic construction" begin
-        tg = TreatmentGroup(mat, vnames)
-        @test tg isa TreatmentGroup
-        @test length(tg) == 3
-    end
-
-    @testset "With name_expr" begin
-        tg = TreatmentGroup(mat, vnames; name_expr=["col1", "col2"])
-        @test length(tg) == 2
-        @test DT.get_vnames(tg) == ["col1", "col2"]
-    end
-end
-
-# ---------------------------------------------------------------------------- #
 #                         Base methods                                         #
 # ---------------------------------------------------------------------------- #
 @testset "TreatmentGroup - Base methods" begin
-    tg = TreatmentGroup(df; dims=0, name_expr=r"^V")
+    tg = TreatmentGroup(ds_struct; dims=0, name_expr=r"^V")
 
     @testset "Base.length" begin
         @test length(tg) == 5
@@ -319,7 +272,7 @@ end
     end
 
     @testset "Base.iterate - empty" begin
-        tg_empty = TreatmentGroup(df; name_expr=r"^ZZZZZ")
+        tg_empty = TreatmentGroup(ds_struct; name_expr=r"^ZZZZZ")
         collected = collect(tg_empty)
         @test isempty(collected)
     end
@@ -335,7 +288,7 @@ end
 #                         Getter methods                                       #
 # ---------------------------------------------------------------------------- #
 @testset "TreatmentGroup - Getter methods" begin
-    tg = TreatmentGroup(df; dims=0, name_expr=["V1", "V2", "V3"])
+    tg = TreatmentGroup(ds_struct; dims=0, name_expr=["V1", "V2", "V3"])
 
     @testset "get_idxs()" begin
         idxs = DT.get_idxs(tg)
@@ -383,7 +336,7 @@ end
     end
 
     @testset "has_groupby() - true" begin
-        tg_gb = TreatmentGroup(df; dims=1, groupby=:vname)
+        tg_gb = TreatmentGroup(ds_struct; dims=1, groupby=:vname)
         @test DT.has_groupby(tg_gb) == true
     end
 end
@@ -393,8 +346,8 @@ end
 # ---------------------------------------------------------------------------- #
 @testset "TreatmentGroup - get_idxs overlap resolution" begin
     @testset "No overlap" begin
-        tg1 = TreatmentGroup(df; dims=0, name_expr=r"^V")
-        tg2 = TreatmentGroup(df; dims=1)
+        tg1 = TreatmentGroup(ds_struct; dims=0, name_expr=r"^V")
+        tg2 = TreatmentGroup(ds_struct; dims=1)
         result = DT.get_idxs([tg1, tg2])
         @test length(result) == 2
         @test !isempty(result[1])
@@ -403,8 +356,8 @@ end
     end
 
     @testset "Full overlap - later group wins" begin
-        tg1 = TreatmentGroup(df; dims=0, name_expr=r"^V")
-        tg2 = TreatmentGroup(df; dims=0, name_expr=r"^V")
+        tg1 = TreatmentGroup(ds_struct; dims=0, name_expr=r"^V")
+        tg2 = TreatmentGroup(ds_struct; dims=0, name_expr=r"^V")
         result = DT.get_idxs([tg1, tg2])
         @test length(result) == 2
         # tg2 (later) should keep all indices, tg1 should be empty
@@ -413,8 +366,8 @@ end
     end
 
     @testset "Partial overlap" begin
-        tg1 = TreatmentGroup(df; dims=0, name_expr=["V1", "V2", "V3"])
-        tg2 = TreatmentGroup(df; dims=0, name_expr=["V3", "V4", "V5"])
+        tg1 = TreatmentGroup(ds_struct; dims=0, name_expr=["V1", "V2", "V3"])
+        tg2 = TreatmentGroup(ds_struct; dims=0, name_expr=["V3", "V4", "V5"])
         result = DT.get_idxs([tg1, tg2])
         @test length(result) == 2
         # V3 should be in tg2 (later wins), not in tg1
@@ -424,21 +377,21 @@ end
     end
 
     @testset "Three groups with cascading overlap" begin
-        tg1 = TreatmentGroup(df; dims=0)  # all scalar
-        tg2 = TreatmentGroup(df; dims=0, name_expr=r"^V")  # V1..V5
-        tg3 = TreatmentGroup(df; dims=0, name_expr=["V1"])  # just V1
+        tg1 = TreatmentGroup(ds_struct; dims=0)  # all scalar
+        tg2 = TreatmentGroup(ds_struct; dims=0, name_expr=r"^V")  # V1..V5
+        tg3 = TreatmentGroup(ds_struct; dims=0, name_expr=["V1"])  # just V1
         result = DT.get_idxs([tg1, tg2, tg3])
         @test length(result) == 3
         # V1 should only be in tg3
-        idxs_V1 = DT.get_idxs(TreatmentGroup(df; name_expr=["V1"]))[1]
+        idxs_V1 = DT.get_idxs(TreatmentGroup(ds_struct; name_expr=["V1"]))[1]
         @test idxs_V1 ∉ result[1]
         @test idxs_V1 ∉ result[2]
         @test idxs_V1 ∈ result[3]
     end
 
     @testset "Warning on fully consumed group" begin
-        tg1 = TreatmentGroup(df; dims=0, name_expr=["V1"])
-        tg2 = TreatmentGroup(df; dims=0, name_expr=["V1"])
+        tg1 = TreatmentGroup(ds_struct; dims=0, name_expr=["V1"])
+        tg2 = TreatmentGroup(ds_struct; dims=0, name_expr=["V1"])
         @test_logs (:warn, r"no columns") DT.get_idxs([tg1, tg2])
     end
 end
@@ -448,39 +401,39 @@ end
 # ---------------------------------------------------------------------------- #
 @testset "TreatmentGroup - Base.show" begin
     @testset "One-line show - dims=all" begin
-        tg = TreatmentGroup(df)
+        tg = TreatmentGroup(ds_struct)
         str = sprint(show, tg)
         @test occursin("TreatmentGroup", str)
         @test occursin("dims=all", str)
-        @test occursin("$(ncol(df)) cols", str)
+        @test occursin("$(length(ds_struct)) cols", str)
     end
 
     @testset "One-line show - dims=0" begin
-        tg = TreatmentGroup(df; dims=0)
+        tg = TreatmentGroup(ds_struct; dims=0)
         str = sprint(show, tg)
         @test occursin("dims=0", str)
     end
 
     @testset "One-line show - dims=1" begin
-        tg = TreatmentGroup(df; dims=1)
+        tg = TreatmentGroup(ds_struct; dims=1)
         str = sprint(show, tg)
         @test occursin("dims=1", str)
     end
 
     @testset "One-line show - dims=2" begin
-        tg = TreatmentGroup(df; dims=2)
+        tg = TreatmentGroup(ds_struct; dims=2)
         str = sprint(show, tg)
         @test occursin("dims=2", str)
     end
 
     @testset "One-line show - empty" begin
-        tg = TreatmentGroup(df; name_expr=r"^ZZZZZ")
+        tg = TreatmentGroup(ds_struct; name_expr=r"^ZZZZZ")
         str = sprint(show, tg)
         @test occursin("0 cols", str)
     end
 
     @testset "Multi-line show - dims=0 (scalar)" begin
-        tg = TreatmentGroup(df; dims=0, name_expr=r"^V")
+        tg = TreatmentGroup(ds_struct; dims=0, name_expr=r"^V")
         str = sprint(show, MIME("text/plain"), tg)
         @test occursin("TreatmentGroup", str)
         @test occursin("5 columns selected", str)
@@ -492,7 +445,7 @@ end
     end
 
     @testset "Multi-line show - dims=1 (multidim)" begin
-        tg = TreatmentGroup(df; dims=1)
+        tg = TreatmentGroup(ds_struct; dims=1)
         str = sprint(show, MIME("text/plain"), tg)
         @test occursin("TreatmentGroup", str)
         @test occursin("4 columns selected", str)
@@ -503,14 +456,14 @@ end
     end
 
     @testset "Multi-line show - dims=2 (multidim)" begin
-        tg = TreatmentGroup(df; dims=2)
+        tg = TreatmentGroup(ds_struct; dims=2)
         str = sprint(show, MIME("text/plain"), tg)
         @test occursin("dims filter: 2", str)
         @test occursin("aggregation function", str)
     end
 
     @testset "Multi-line show - dims=-1 (all)" begin
-        tg = TreatmentGroup(df)
+        tg = TreatmentGroup(ds_struct)
         str = sprint(show, MIME("text/plain"), tg)
         @test occursin("dims filter: all", str)
         # dims=-1 != 0, so should show aggrfunc/groupby
@@ -519,7 +472,7 @@ end
     end
 
     @testset "Multi-line show - with groupby" begin
-        tg = TreatmentGroup(df; dims=1, groupby=(:vname, :feature))
+        tg = TreatmentGroup(ds_struct; dims=1, groupby=(:vname, :feature))
         str = sprint(show, MIME("text/plain"), tg)
         @test occursin("groupby", str)
         @test occursin("vname", str)
@@ -527,13 +480,13 @@ end
     end
 
     @testset "Multi-line show - type parameter displayed" begin
-        tg = TreatmentGroup(df; dims=0, name_expr=r"^V")
+        tg = TreatmentGroup(ds_struct; dims=0, name_expr=r"^V")
         str = sprint(show, MIME("text/plain"), tg)
         @test occursin("Float64", str)
     end
 
     @testset "Multi-line show - empty group" begin
-        tg = TreatmentGroup(df; name_expr=r"^ZZZZZ")
+        tg = TreatmentGroup(ds_struct; name_expr=r"^ZZZZZ")
         str = sprint(show, MIME("text/plain"), tg)
         @test occursin("0 columns selected", str)
     end
@@ -544,23 +497,23 @@ end
 # ---------------------------------------------------------------------------- #
 @testset "TreatmentGroup - edge cases" begin
     @testset "All filters combined - matching" begin
-        tg = TreatmentGroup(df; dims=0, name_expr=r"^V", datatype=Float64)
+        tg = TreatmentGroup(ds_struct; dims=0, name_expr=r"^V", datatype=Float64)
         @test length(tg) == 5
     end
 
     @testset "All filters combined - no match" begin
-        tg = TreatmentGroup(df; dims=1, name_expr=r"^V", datatype=Float64)
+        tg = TreatmentGroup(ds_struct; dims=1, name_expr=r"^V", datatype=Float64)
         @test length(tg) == 0
     end
 
     @testset "Single column selection" begin
-        tg = TreatmentGroup(df; name_expr=["V1"])
+        tg = TreatmentGroup(ds_struct; name_expr=["V1"])
         @test length(tg) == 1
         @test DT.get_vnames(tg) == ["V1"]
     end
 
     @testset "Iteration protocol consistency" begin
-        tg = TreatmentGroup(df; dims=0, name_expr=r"^V")
+        tg = TreatmentGroup(ds_struct; dims=0, name_expr=r"^V")
         # iterate should yield same as get_idxs
         iterated = Int[]
         for idx in tg
@@ -570,7 +523,7 @@ end
     end
 
     @testset "eachindex matches length" begin
-        tg = TreatmentGroup(df; dims=1)
+        tg = TreatmentGroup(ds_struct; dims=1)
         @test length(eachindex(tg)) == length(tg)
     end
 end

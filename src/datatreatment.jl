@@ -401,7 +401,7 @@ end
         treatments::Base.Callable...;
         treatment_ds=true,
         leftover_ds=true,
-    )
+    ) -> (Vector{AbstractDataset}, Vector{TreatmentGroup})
 
 The core function of the DataTreatments package.
 Lazily extracts processed datasets from a `DataTreatment` object according to user-specified 
@@ -439,7 +439,9 @@ Each element is one of:
 
 # Returns
 
-- The output is a `Vector{AbstractDataset}` of processed datasets.
+A tuple:
+- `Vector{AbstractDataset}`: The processed datasets (discrete, continuous, multidimensional).
+- `Vector{TreatmentGroup}`: The instantiated treatment groups used for extraction.
 
 # Example
 
@@ -463,17 +465,20 @@ dt = DataTreatment(df; float_type=Float32)
 
 ```@example
 # With default treatment (aggregate with max, min, mean over whole window)
-ds = get_dataset(dt)
+datasets, treats = get_dataset(dt)
 ```
 
 ```@example
 # With custom treatment groups
-ds = get_dataset(dt, TreatmentGroup(dims=0), TreatmentGroup(dims=1, aggrfunc=aggregate(features=(mean, std))))
+datasets, treats = get_dataset(dt, 
+    TreatmentGroup(dims=0), 
+    TreatmentGroup(dims=1, aggrfunc=aggregate(features=(mean, std)))
+)
 ```
 
 ```@example
 # Only leftover columns
-ds = get_dataset(dt, TreatmentGroup(dims=1); treatment_ds=false)
+datasets, treats = get_dataset(dt, TreatmentGroup(dims=1); treatment_ds=false)
 ```
 
 See also: [`DataTreatment`](@ref), [`TreatmentGroup`](@ref), [`DatasetStructure`](@ref),

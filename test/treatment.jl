@@ -121,7 +121,7 @@ end
 #                     aggregate — 1D time series                               #
 # ---------------------------------------------------------------------------- #
 @testset "aggregate — 1D time series" begin
-    tg1d = TreatmentGroup(df; dims=1)
+    tg1d = TreatmentGroup(ds_struct; dims=1)
 
     @testset "wholewindow + 3 features" begin
         X, idx = _build_Xidx(tg1d)
@@ -177,7 +177,7 @@ end
 #                     aggregate — 2D images                                    #
 # ---------------------------------------------------------------------------- #
 @testset "aggregate — 2D images" begin
-    tg2d = TreatmentGroup(df; dims=2)
+    tg2d = TreatmentGroup(ds_struct; dims=2)
 
     @testset "wholewindow + 3 features" begin
         X, idx = _build_Xidx(tg2d)
@@ -350,7 +350,7 @@ end
 # ---------------------------------------------------------------------------- #
 @testset "reducesize — multiple columns & types" begin
     @testset "all 1D columns" begin
-        tg = TreatmentGroup(df; dims=1)
+        tg = TreatmentGroup(ds_struct; dims=1)
         X, idx = _build_Xidx(tg)
         Xr, unused = reducesize(win=(splitwindow(nwindows=3),), reducefunc=mean)(X, idx, Float64)
 

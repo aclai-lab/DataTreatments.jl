@@ -107,11 +107,6 @@ struct TreatmentGroup{T}
 
         new{T}(idxs, dims, vnames[idxs], aggrfunc, grouped, groupby)
     end
-
-    # TreatmentGroup(ds::Matrix, vnames::Vector{String}; kwargs...) =
-    #     TreatmentGroup(DatasetStructure(ds, vnames); kwargs...)
-    # TreatmentGroup(df::DataFrame; kwargs...) =
-    #     TreatmentGroup(DatasetStructure(df); kwargs...)
 end
 
 TreatmentGroup(; kwargs...) = x -> TreatmentGroup(x; kwargs...)

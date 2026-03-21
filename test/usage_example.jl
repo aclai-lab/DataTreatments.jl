@@ -43,14 +43,14 @@ end
         @test dt isa DataTreatment
     end
 
-    @testset "Example 1: get_dataset default (no kwargs)" begin
-        result = get_dataset(dt)
+    @testset "Example , treats1: get_dataset default (no kwargs)" begin
+        result, treats = get_dataset(dt)
         @test !isnothing(result)
         @test !isempty(result)
     end
 
     @testset "Example 4: aggregate with adaptive window (all dims)" begin
-        result = get_dataset(
+        result, treats = get_dataset(
             dt,
             TreatmentGroup(
                 aggrfunc=DT.aggregate(
@@ -63,7 +63,7 @@ end
     end
 
     @testset "Example 5: aggregate dims=1 with adaptive window" begin
-        result = get_dataset(
+        result, treats = get_dataset(
             dt,
             TreatmentGroup(
                 dims=1,
@@ -77,7 +77,7 @@ end
     end
 
     @testset "Example 6: two TreatmentGroups (dims=1 aggregate + dims=2 aggregate)" begin
-        result = get_dataset(
+        result, treats = get_dataset(
             dt,
             TreatmentGroup(
                 dims=1,
@@ -97,7 +97,7 @@ end
     end
 
     @testset "Example 7: dims=1 aggregate + dims=2 reducesize" begin
-        result = get_dataset(
+        result, treats = get_dataset(
             dt,
             TreatmentGroup(
                 dims=1,
@@ -117,7 +117,7 @@ end
     end
 
     @testset "Example 8: name_expr filter with leftover_ds=false" begin
-        result = get_dataset(
+        result, treats = get_dataset(
             dt,
             TreatmentGroup(
                 name_expr=r"^(V|i)"
@@ -135,7 +135,7 @@ end
     end
 
     @testset "Example 9: reducesize + aggregate with groupby_split" begin
-        result = get_dataset(
+        result, treats = get_dataset(
             dt,
             TreatmentGroup(
                 dims=2,
@@ -161,7 +161,7 @@ end
     end
 
     @testset "Example 10: dims=2 aggregate with groupby + groupby_split" begin
-        result = get_dataset(
+        result, treats = get_dataset(
             dt,
             TreatmentGroup(
                 dims=2,
@@ -180,7 +180,7 @@ end
     end
 
     @testset "Edge case: empty TreatmentGroup defaults" begin
-        result = get_dataset(dt, TreatmentGroup())
+        result, treats = get_dataset(dt, TreatmentGroup())
         @test !isnothing(result)
         @test !isempty(result)
     end

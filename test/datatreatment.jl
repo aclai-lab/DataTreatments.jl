@@ -34,9 +34,12 @@ find_multidim(ds::Vector) = filter(d -> d isa MultidimDataset, ds)
         )
 
         dt = DataTreatment(df)
-        datasets = get_dataset(dt)
+        datasets, treats = get_dataset(dt)
 
         @test !isempty(datasets)
+        @test treats isa Vector
+        @test all(t -> t isa TreatmentGroup, treats)
+        @test length(treats) == 1
 
         dds = find_discrete(datasets)
         cds = find_continuous(datasets)
@@ -72,7 +75,11 @@ find_multidim(ds::Vector) = filter(d -> d isa MultidimDataset, ds)
         )
 
         dt = DataTreatment(df)
-        datasets = get_dataset(dt)
+        datasets, treats = get_dataset(dt)
+
+        @test !isempty(datasets)
+        @test treats isa Vector
+        @test all(t -> t isa TreatmentGroup, treats)
 
         dds = find_discrete(datasets)
         @test length(dds) >= 1
@@ -97,7 +104,11 @@ end
         )
 
         dt = DataTreatment(df)
-        datasets = get_dataset(dt)
+        datasets, treats = get_dataset(dt)
+
+        @test !isempty(datasets)
+        @test treats isa Vector
+        @test all(t -> t isa TreatmentGroup, treats)
 
         dds = find_discrete(datasets)
         cds = find_continuous(datasets)
@@ -125,7 +136,11 @@ end
         )
 
         dt = DataTreatment(df; float_type=Float32)
-        datasets = get_dataset(dt)
+        datasets, treats = get_dataset(dt)
+
+        @test !isempty(datasets)
+        @test treats isa Vector
+        @test all(t -> t isa TreatmentGroup, treats)
 
         cds = find_continuous(datasets)
         @test length(cds) >= 1
@@ -145,7 +160,12 @@ end
         )
 
         dt = DataTreatment(df)
-        datasets = get_dataset(dt)
+        datasets, treats = get_dataset(dt)
+
+        @test !isempty(datasets)
+        @test treats isa Vector
+        @test all(t -> t isa TreatmentGroup, treats)
+
         cds = find_continuous(datasets)
         @test length(cds) >= 1
 
@@ -163,7 +183,12 @@ end
         )
 
         dt = DataTreatment(df)
-        datasets = get_dataset(dt)
+        datasets, treats = get_dataset(dt)
+
+        @test !isempty(datasets)
+        @test treats isa Vector
+        @test all(t -> t isa TreatmentGroup, treats)
+
         cds = find_continuous(datasets)
         cd = first(cds)
 
@@ -184,7 +209,12 @@ end
         )
 
         dt = DataTreatment(df)
-        datasets = get_dataset(dt)
+        datasets, treats = get_dataset(dt)
+
+        @test !isempty(datasets)
+        @test treats isa Vector
+        @test all(t -> t isa TreatmentGroup, treats)
+
         cds = find_continuous(datasets)
         cd = first(cds)
 
@@ -233,7 +263,11 @@ end
         @testset "DataFrame: $df_name" begin
             @testset "Default aggregate" begin
                 dt = DataTreatment(df)
-                datasets = get_dataset(dt)
+                datasets, treats = get_dataset(dt)
+
+                @test !isempty(datasets)
+                @test treats isa Vector
+                @test all(t -> t isa TreatmentGroup, treats)
 
                 @test !isempty(datasets)
                 mds = find_multidim(datasets)
@@ -248,7 +282,12 @@ end
 
             @testset "Float32 aggregate" begin
                 dt = DataTreatment(df; float_type=Float32)
-                datasets = get_dataset(dt)
+                datasets, treats = get_dataset(dt)
+
+                @test !isempty(datasets)
+                @test treats isa Vector
+                @test all(t -> t isa TreatmentGroup, treats)
+
                 mds = find_multidim(datasets)
                 @test length(mds) >= 1
 
@@ -260,7 +299,7 @@ end
 
             @testset "Reducesize" begin
                 dt = DataTreatment(df)
-                datasets = get_dataset(dt,
+                datasets, _ = get_dataset(dt,
                     TreatmentGroup(aggrfunc=reducesize()))
                 mds = find_multidim(datasets)
                 @test length(mds) >= 1
@@ -273,7 +312,7 @@ end
 
             @testset "Reducesize + Float32" begin
                 dt = DataTreatment(df; float_type=Float32)
-                datasets = get_dataset(dt,
+                datasets, _ = get_dataset(dt,
                     TreatmentGroup(aggrfunc=reducesize()))
                 mds = find_multidim(datasets)
                 @test length(mds) >= 1
@@ -286,7 +325,7 @@ end
 
             @testset "Custom features (mean only)" begin
                 dt = DataTreatment(df)
-                datasets = get_dataset(dt,
+                datasets, _ = get_dataset(dt,
                     TreatmentGroup(aggrfunc=aggregate(features=(mean,))))
                 mds = find_multidim(datasets)
                 @test length(mds) >= 1
@@ -334,7 +373,12 @@ end
         @testset "DataFrame: $df_name" begin
             @testset "Default aggregate" begin
                 dt = DataTreatment(df)
-                datasets = get_dataset(dt)
+                datasets, treats = get_dataset(dt)
+
+                @test !isempty(datasets)
+                @test treats isa Vector
+                @test all(t -> t isa TreatmentGroup, treats)
+
                 mds = find_multidim(datasets)
                 @test length(mds) >= 1
 
@@ -349,7 +393,7 @@ end
 
             @testset "Reducesize" begin
                 dt = DataTreatment(df)
-                datasets = get_dataset(dt,
+                datasets, _ = get_dataset(dt,
                     TreatmentGroup(aggrfunc=reducesize()))
                 mds = find_multidim(datasets)
                 @test length(mds) >= 1
@@ -362,7 +406,12 @@ end
 
             @testset "Float32" begin
                 dt = DataTreatment(df; float_type=Float32)
-                datasets = get_dataset(dt)
+                datasets, treats = get_dataset(dt)
+
+                @test !isempty(datasets)
+                @test treats isa Vector
+                @test all(t -> t isa TreatmentGroup, treats)
+
                 mds = find_multidim(datasets)
                 for md in mds
                     @test md isa MultidimDataset{AggregateFeat{Float32}}
@@ -399,7 +448,11 @@ end
 
     @testset "Default aggregate - all three dataset types present" begin
         dt = DataTreatment(df_clean)
-        datasets = get_dataset(dt)
+        datasets, treats = get_dataset(dt)
+
+        @test !isempty(datasets)
+        @test treats isa Vector
+        @test all(t -> t isa TreatmentGroup, treats)
 
         dds = find_discrete(datasets)
         cds = find_continuous(datasets)
@@ -430,7 +483,12 @@ end
 
     @testset "Dimension splitting" begin
         dt = DataTreatment(df_clean)
-        datasets = get_dataset(dt)
+        datasets, treats = get_dataset(dt)
+
+        @test !isempty(datasets)
+        @test treats isa Vector
+        @test all(t -> t isa TreatmentGroup, treats)
+
         mds = find_multidim(datasets)
 
         # each MultidimDataset should have homogeneous dims
@@ -442,7 +500,11 @@ end
 
     @testset "Float32 conversion" begin
         dt = DataTreatment(df_clean; float_type=Float32)
-        datasets = get_dataset(dt)
+        datasets, treats = get_dataset(dt)
+
+        @test !isempty(datasets)
+        @test treats isa Vector
+        @test all(t -> t isa TreatmentGroup, treats)
 
         cds = find_continuous(datasets)
         for cd in cds
@@ -457,7 +519,7 @@ end
 
     @testset "Reducesize mode" begin
         dt = DataTreatment(df_clean)
-        datasets = get_dataset(dt,
+        datasets, _ = get_dataset(dt,
             TreatmentGroup(aggrfunc=reducesize()))
         mds = find_multidim(datasets)
         @test length(mds) >= 1
@@ -470,7 +532,7 @@ end
 
     @testset "Custom features (mean only)" begin
         dt = DataTreatment(df_clean)
-        datasets = get_dataset(dt,
+        datasets, _ = get_dataset(dt,
             TreatmentGroup(aggrfunc=aggregate(features=(mean,))))
         mds = find_multidim(datasets)
 
@@ -502,7 +564,11 @@ end
         )
 
         dt = DataTreatment(df_miss)
-        datasets = get_dataset(dt)
+        datasets, treats = get_dataset(dt)
+
+        @test !isempty(datasets)
+        @test treats isa Vector
+        @test all(t -> t isa TreatmentGroup, treats)
 
         @test !isempty(datasets)
         dds = find_discrete(datasets)
@@ -537,7 +603,11 @@ end
         )
 
         dt = DataTreatment(df_mix)
-        datasets = get_dataset(dt)
+        datasets, treats = get_dataset(dt)
+
+        @test !isempty(datasets)
+        @test treats isa Vector
+        @test all(t -> t isa TreatmentGroup, treats)
 
         @test !isempty(datasets)
         dds = find_discrete(datasets)
@@ -572,9 +642,9 @@ end
     @testset "Default (single treatment group covers everything)" begin
         dt = DataTreatment(df)
 
-        treat_ds = get_dataset(dt; leftover_ds=false)
-        left_ds = get_dataset(dt; treatment_ds=false)
-        all_ds = get_dataset(dt)
+        treat_ds, _ = get_dataset(dt; leftover_ds=false)
+        left_ds, _ = get_dataset(dt; treatment_ds=false)
+        all_ds, _ = get_dataset(dt)
 
         @test !isempty(treat_ds)
         @test length(all_ds) == length(treat_ds) + length(left_ds)
@@ -584,13 +654,13 @@ end
         dt = DataTreatment(df)
 
         # Only treat 1D arrays — scalars, discrete, and 2D become leftovers
-        treat_only = get_dataset(dt,
+        treat_only, _ = get_dataset(dt,
             TreatmentGroup(dims=1);
             leftover_ds=false)
-        left_only = get_dataset(dt,
+        left_only, _ = get_dataset(dt,
             TreatmentGroup(dims=1);
             treatment_ds=false)
-        all_ds = get_dataset(dt,
+        all_ds, _ = get_dataset(dt,
             TreatmentGroup(dims=1))
 
         @test length(all_ds) == length(treat_only) + length(left_only)
@@ -608,7 +678,7 @@ end
     @testset "Multiple treatment groups" begin
         dt = DataTreatment(df)
 
-        datasets = get_dataset(dt,
+        datasets, _ = get_dataset(dt,
             TreatmentGroup(dims=0),
             TreatmentGroup(dims=1, aggrfunc=aggregate(
                 win=(splitwindow(nwindows=3),),
@@ -631,7 +701,7 @@ end
 
     @testset "get_dataset returns all column types" begin
         dt = DataTreatment(df)
-        all_ds = get_dataset(dt)
+        all_ds, _ = get_dataset(dt)
 
         dds = find_discrete(all_ds)
         cds = find_continuous(all_ds)
@@ -657,7 +727,12 @@ end
     )
 
     dt = DataTreatment(df)
-    datasets = get_dataset(dt)
+    datasets, treats = get_dataset(dt)
+
+    @test !isempty(datasets)
+    @test treats isa Vector
+    @test all(t -> t isa TreatmentGroup, treats)
+
     cds = find_continuous(datasets)
     cd = first(cds)
 
@@ -702,7 +777,12 @@ end
     )
 
     dt = DataTreatment(df)
-    datasets = get_dataset(dt)
+    datasets, treats = get_dataset(dt)
+
+    @test !isempty(datasets)
+    @test treats isa Vector
+    @test all(t -> t isa TreatmentGroup, treats)
+
     mds = find_multidim(datasets)
     md = first(mds)
 
@@ -727,7 +807,12 @@ end
     )
 
     dt = DataTreatment(df)
-    datasets = get_dataset(dt)
+    datasets, treats = get_dataset(dt)
+
+    @test !isempty(datasets)
+    @test treats isa Vector
+    @test all(t -> t isa TreatmentGroup, treats)
+
     dds = find_discrete(datasets)
     dd = first(dds)
 
@@ -769,7 +854,12 @@ end
     )
 
     dt = DataTreatment(df)
-    datasets = get_dataset(dt)
+    datasets, treats = get_dataset(dt)
+
+    @test !isempty(datasets)
+    @test treats isa Vector
+    @test all(t -> t isa TreatmentGroup, treats)
+
     mds = find_multidim(datasets)
 
     # should have been split into 1D and 2D
@@ -803,7 +893,12 @@ end
 
     @testset "Scalar features are preserved" begin
         dt = DataTreatment(df)
-        datasets = get_dataset(dt)
+        datasets, treats = get_dataset(dt)
+
+        @test !isempty(datasets)
+        @test treats isa Vector
+        @test all(t -> t isa TreatmentGroup, treats)
+
         cds = find_continuous(datasets)
         @test length(cds) >= 1
 
@@ -816,7 +911,7 @@ end
 
     @testset "Aggregate mean correctness" begin
         dt = DataTreatment(df)
-        datasets = get_dataset(dt,
+        datasets, _ = get_dataset(dt,
             TreatmentGroup(aggrfunc=aggregate(features=(mean,))))
         mds = find_multidim(datasets)
         @test length(mds) >= 1
@@ -837,7 +932,7 @@ end
 
     @testset "Multiple features (mean, maximum, minimum)" begin
         dt = DataTreatment(df)
-        datasets = get_dataset(dt,
+        datasets, _ = get_dataset(dt,
             TreatmentGroup(aggrfunc=aggregate(features=(mean, maximum, minimum))))
         mds = find_multidim(datasets)
         md = first(mds)
@@ -859,10 +954,10 @@ end
         dt_f64 = DataTreatment(df)
         dt_f32 = DataTreatment(df; float_type=Float32)
 
-        mds_f64 = find_multidim(get_dataset(dt_f64,
-            TreatmentGroup(aggrfunc=aggregate(features=(mean,)))))
-        mds_f32 = find_multidim(get_dataset(dt_f32,
-            TreatmentGroup(aggrfunc=aggregate(features=(mean,)))))
+        datasets_f64, _ = get_dataset(dt_f64, TreatmentGroup(aggrfunc=aggregate(features=(mean,))))
+        mds_f64 = find_multidim(datasets_f64)
+        datasets_f32, _ = get_dataset(dt_f32, TreatmentGroup(aggrfunc=aggregate(features=(mean,))))
+        mds_f32 = find_multidim(datasets_f32)
 
         mat_f64 = get_data(first(mds_f64))
         mat_f32 = get_data(first(mds_f32))
@@ -896,7 +991,12 @@ end
 
     @testset "Default aggregate" begin
         dt = DataTreatment(df)
-        datasets = get_dataset(dt)
+        datasets, treats = get_dataset(dt)
+
+        @test !isempty(datasets)
+        @test treats isa Vector
+        @test all(t -> t isa TreatmentGroup, treats)
+
         mds = find_multidim(datasets)
 
         @test length(mds) >= 2  # split by dims: 1D and 2D
@@ -910,7 +1010,7 @@ end
 
     @testset "Reducesize" begin
         dt = DataTreatment(df)
-        datasets = get_dataset(dt,
+        datasets, _ = get_dataset(dt,
             TreatmentGroup(aggrfunc=reducesize()))
         mds = find_multidim(datasets)
         @test length(mds) >= 2
@@ -929,7 +1029,12 @@ end
         )
 
         dt = DataTreatment(df_miss)
-        datasets = get_dataset(dt)
+        datasets, treats = get_dataset(dt)
+
+        @test !isempty(datasets)
+        @test treats isa Vector
+        @test all(t -> t isa TreatmentGroup, treats)
+
         @test !isempty(datasets)
     end
 
@@ -942,7 +1047,12 @@ end
         )
 
         dt = DataTreatment(df_mix)
-        datasets = get_dataset(dt)
+        datasets, treats = get_dataset(dt)
+
+        @test !isempty(datasets)
+        @test treats isa Vector
+        @test all(t -> t isa TreatmentGroup, treats)
+
         @test !isempty(datasets)
     end
 end
@@ -964,7 +1074,7 @@ end
     dt = DataTreatment(df)
 
     @testset "Default returns Vector{AbstractDataset}" begin
-        ds = get_dataset(dt)
+        ds, _ = get_dataset(dt)
         @test ds isa Vector
         @test all(d -> d isa DT.AbstractDataset, ds)
     end
@@ -1025,7 +1135,11 @@ end
 
     @testset "Default get_dataset" begin
         dt = DataTreatment(df)
-        datasets = get_dataset(dt)
+        datasets, treats = get_dataset(dt, TreatmentGroup(dims=0), TreatmentGroup(dims=1))
+
+        @test length(treats) == 2
+        @test treats[1].dims == 0
+        @test treats[2].dims == 1
 
         @test !isempty(datasets)
 
@@ -1058,7 +1172,7 @@ end
 
     @testset "Custom treatment groups: dims=0 and dims=1" begin
         dt = DataTreatment(df)
-        datasets = get_dataset(dt,
+        datasets, _ = get_dataset(dt,
             TreatmentGroup(dims=0),
             TreatmentGroup(dims=1, aggrfunc=aggregate(
                 win=(splitwindow(nwindows=3),),
@@ -1080,7 +1194,7 @@ end
 
     @testset "Only treatments (no leftovers)" begin
         dt = DataTreatment(df)
-        datasets = get_dataset(dt,
+        datasets, _ = get_dataset(dt,
             TreatmentGroup(dims=1);
             leftover_ds=false)
 
@@ -1099,7 +1213,7 @@ end
 
     @testset "Only leftovers" begin
         dt = DataTreatment(df)
-        datasets = get_dataset(dt,
+        datasets, _ = get_dataset(dt,
             TreatmentGroup(dims=1);
             treatment_ds=false)
 
@@ -1122,7 +1236,7 @@ end
 
     @testset "Reducesize" begin
         dt = DataTreatment(df)
-        datasets = get_dataset(dt,
+        datasets, _ = get_dataset(dt,
             TreatmentGroup(aggrfunc=reducesize()))
         mds = find_multidim(datasets)
         @test length(mds) >= 1
@@ -1135,7 +1249,7 @@ end
 
     @testset "Float32" begin
         dt = DataTreatment(df; float_type=Float32)
-        datasets = get_dataset(dt)
+        datasets, _ = get_dataset(dt)
 
         cds = find_continuous(datasets)
         for cd in cds
@@ -1181,7 +1295,7 @@ end
     end
 
     @testset "AbstractDataset show methods" begin
-        datasets = get_dataset(dt)
+        datasets, _ = get_dataset(dt)
 
         for ds in datasets
             io = IOBuffer()
@@ -1255,7 +1369,7 @@ end
         df = DataFrame(V1 = [1.0, 2.0, 3.0])
         dt = DataTreatment(df)
 
-        ds = get_dataset(dt; treatment_ds=false, leftover_ds=false)
+        ds, _ = get_dataset(dt; treatment_ds=false, leftover_ds=false)
         @test ds isa Vector
         @test isempty(ds)
     end
@@ -1263,7 +1377,7 @@ end
     @testset "Single column dataset" begin
         df = DataFrame(V1 = [1.0, 2.0, 3.0, 4.0, 5.0])
         dt = DataTreatment(df)
-        ds = get_dataset(dt)
+        ds, _ = get_dataset(dt)
         @test !isempty(ds)
         @test length(ds) == 1
         @test first(ds) isa ContinuousDataset
@@ -1276,7 +1390,7 @@ end
             str = ["hello"],
         )
         dt = DataTreatment(df)
-        ds = get_dataset(dt)
+        ds, _ = get_dataset(dt)
         @test !isempty(ds)
         for d in ds
             @test size(d, 1) == 1

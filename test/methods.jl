@@ -38,7 +38,7 @@ df = build_test_df()
 dt = DataTreatment(df)
 
 @testset "get_tabular and get_multidim" begin
-    tabular_result = get_tabular(
+    tabular_result, treats = get_tabular(
         dt,
         TreatmentGroup(
             name_expr=["V3", "V4", "V5"]
@@ -61,8 +61,10 @@ dt = DataTreatment(df)
     @test any(x -> x isa DT.DiscreteDataset, tabular_result)
     @test any(x -> x isa DT.ContinuousDataset, tabular_result)
     @test any(x -> x isa DT.MultidimDataset, tabular_result)
+    @test isa(treats, Vector{<:DT.TreatmentGroup})
+    @test length(treats) == 3
 
-    multidim_result = get_multidim(
+    multidim_result, treats = get_multidim(
         dt,
         TreatmentGroup(
             name_expr=["V3", "V4", "V5"]
@@ -83,32 +85,21 @@ dt = DataTreatment(df)
     @test isa(multidim_result, Vector{<:DT.AbstractDataset})
     @test all(x -> x isa DT.MultidimDataset, multidim_result)
     @test all(x -> eltype(getfield(x, :info)) <: DT.ReduceFeat || eltype(getfield(x, :info)) <: DT.AggregateFeat, multidim_result)
+    @test isa(treats, Vector{<:DT.TreatmentGroup})
+    @test length(treats) == 3
 end
 
 @testset "get_tabular and get_multidim" begin
     # Test empty DataTreatment
     empty_df = DataFrame()
     empty_dt = DataTreatment(empty_df)
-    empty_tabular = get_tabular(empty_dt)
+    empty_tabular, treats = get_tabular(empty_dt)
     @test isa(empty_tabular, Vector{<:DT.AbstractDataset})
     @test isempty(empty_tabular)
+    @test isa(treats, Vector{<:DT.TreatmentGroup})
 
-    empty_multidim = get_multidim(empty_dt)
+    empty_multidim, treats = get_multidim(empty_dt)
     @test isa(empty_multidim, Vector{<:DT.AbstractDataset})
     @test isempty(empty_multidim)
-end
-
-@testset "get_multidim getter on Vector{<:DT.AbstractDataset}" begin
-    # Use the output from get_tabular or get_dataset
-    tabular_result = get_tabular(dt)
-    multidim_only = get_multidim(tabular_result)
-    @test isa(multidim_only, Vector)
-    @test all(x -> x isa DT.MultidimDataset, multidim_only)
-    # Should be a subset of tabular_result
-    @test all(x -> x in tabular_result, multidim_only)
-
-    # Also test on empty input
-    empty = DT.get_multidim(DT.AbstractDataset[])
-    @test isa(empty, Vector)
-    @test isempty(empty)
+    @test isa(treats, Vector{<:DT.TreatmentGroup})
 end
