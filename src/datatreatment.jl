@@ -2,31 +2,6 @@
 #                                     types                                    #
 # ---------------------------------------------------------------------------- #
 const DefaultAggrFunc = aggregate(win=(wholewindow(),), features=(maximum, minimum, mean))
-# const TreatmentOutput = Vector{Union{DataFrame, AbstractDataset, AbstractMatrix}}
-
-# ---------------------------------------------------------------------------- #
-#                                 output funcs                                 #
-# ---------------------------------------------------------------------------- #
-# standard = (ds, _) -> ds
-
-# matrix = (ds, groupby_split) -> begin
-#     return reduce(vcat, [elem isa AbstractVector && eltype(elem) <: AbstractMatrix ?
-#         elem :
-#         [elem] for elem in get_data.(ds; groupby_split)]
-#     )
-# end
-
-# dataframe = (ds, groupby_split) -> begin
-#     data = reduce(vcat, [elem isa AbstractVector && eltype(elem) <: AbstractMatrix ?
-#         elem :
-#         [elem] for elem in get_data.(ds; groupby_split)]
-#     )
-#     cnames = reduce(vcat, [elem isa AbstractVector && eltype(elem) <: AbstractVector ?
-#         elem :
-#         [elem] for elem in get_vnames.(ds; groupby_split)]
-#     )
-#     return DataFrame.(data, cnames)
-# end
 
 # ---------------------------------------------------------------------------- #
 #                             DataTreatment struct                             #
@@ -517,7 +492,7 @@ function get_dataset(
     treatment_ds && append!(ds, _get_treatments_datasets(dt, treats))
     leftover_ds && append!(ds, _get_leftover_datasets(dt, treats))
 
-    return ds
+    return ds, treats
 end
 
 # ---------------------------------------------------------------------------- #

@@ -66,6 +66,7 @@ struct TreatmentGroup{T}
     dims::Int
     vnames::Vector{String}
     aggrfunc::Base.Callable
+    grouped::Bool
     groupby::Union{Nothing,Tuple{Vararg{Symbol}}}
 
     function TreatmentGroup(
@@ -74,6 +75,7 @@ struct TreatmentGroup{T}
         name_expr::Union{Regex,Base.Callable,Vector{String}}=r".*",
         datatype::Type=Any,
         aggrfunc::Base.Callable=aggregate(win=(wholewindow(),), features=(maximum, minimum, mean)),
+        grouped::Bool=false,
         groupby::Union{Nothing,Symbol,Tuple{Vararg{Symbol}}}=nothing
     )
         vnames = get_vnames(ds_struct)
@@ -103,13 +105,13 @@ struct TreatmentGroup{T}
         col_types = get_datatype(ds_struct, idxs)
         T = isempty(col_types) ? Any : mapreduce(identity, typejoin, col_types)
 
-        new{T}(idxs, dims, vnames[idxs], aggrfunc, groupby)
+        new{T}(idxs, dims, vnames[idxs], aggrfunc, grouped, groupby)
     end
 
-    TreatmentGroup(ds::Matrix, vnames::Vector{String}; kwargs...) =
-        TreatmentGroup(DatasetStructure(ds, vnames); kwargs...)
-    TreatmentGroup(df::DataFrame; kwargs...) =
-        TreatmentGroup(DatasetStructure(df); kwargs...)
+    # TreatmentGroup(ds::Matrix, vnames::Vector{String}; kwargs...) =
+    #     TreatmentGroup(DatasetStructure(ds, vnames); kwargs...)
+    # TreatmentGroup(df::DataFrame; kwargs...) =
+    #     TreatmentGroup(DatasetStructure(df); kwargs...)
 end
 
 TreatmentGroup(; kwargs...) = x -> TreatmentGroup(x; kwargs...)
@@ -158,6 +160,13 @@ get_vnames(tg::TreatmentGroup, idxs::Vector{Int}) = @views tg.vnames[idxs]
 Returns the aggregation function used by this group.
 """
 get_aggrfunc(tg::TreatmentGroup) = tg.aggrfunc
+
+"""
+    get_grouped(tg::TreatmentGroup)
+
+Returns the `grouped` setting: if `true`, datas must be processed together, not columwise.
+"""
+get_grouped(tg::TreatmentGroup) = tg.grouped
 
 """
     get_groupby(tg::TreatmentGroup)

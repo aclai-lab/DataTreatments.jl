@@ -44,9 +44,9 @@ See also: [`get_multidim`](@ref), [`get_dataset`](@ref)
     args...;
     kwargs...
 )
-    data = get_dataset(dt::DataTreatment, args...; kwargs...)
+    data, treats = get_dataset(dt::DataTreatment, args...; kwargs...)
     
-    return vcat(get_discrete(data), get_continuous(data), get_aggregated(data))
+    return vcat(get_discrete(data), get_continuous(data), get_aggregated(data)), treats
 end
 
 # ---------------------------------------------------------------------------- #
@@ -82,7 +82,7 @@ See also: [`get_tabular`](@ref), [`get_dataset`](@ref)
     args...;
     kwargs...
 )
-    data = get_dataset(dt::DataTreatment, args...; kwargs...)
+    data, treats = get_dataset(dt::DataTreatment, args...; kwargs...)
 
-    return get_reduced(data)
+    return get_reduced(data), treats
 end

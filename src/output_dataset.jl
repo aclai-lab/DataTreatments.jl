@@ -514,6 +514,17 @@ get_idxs(ds::AbstractDataset, idxs::Vector{Int}) = [get_id(ds.info[i]) for i in 
 # ---------------------------------------------------------------------------- #
 #                               show methods                                   #
 # ---------------------------------------------------------------------------- #
+function _callable_name(f)
+    if f isa Function
+        n = nameof(f)
+        # anonymous closures have names like #3, #foo#5, etc.
+        startswith(string(n), "#") ? string(f) : string(n)
+    else
+        # callable struct / functor — use type name
+        string(nameof(typeof(f)))
+    end
+end
+
 # one-line
 function Base.show(io::IO, ds::DiscreteDataset)
     nrows = size(ds, 1)
@@ -608,23 +619,5 @@ function Base.show(io::IO, ::MIME"text/plain", ds::MultidimDataset{T}) where T
         print(io, "└─ windows: $(join(string.(unique_nwins), ", "))")
     else
         print(io, "└─ reduce function: $(_callable_name(get_reducefunc(ds.info[1])))")
-    end
-end
-
-"""
-    _callable_name(f) -> String
-
-Return a human-readable name for a callable. Uses `nameof` for named functions,
-the type name for callable structs / functors, and a fallback `string`
-representation for anonymous closures.
-"""
-function _callable_name(f)
-    if f isa Function
-        n = nameof(f)
-        # anonymous closures have names like #3, #foo#5, etc.
-        startswith(string(n), "#") ? string(f) : string(n)
-    else
-        # callable struct / functor — use type name
-        string(nameof(typeof(f)))
     end
 end
