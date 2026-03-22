@@ -59,12 +59,6 @@ You pass one or more `TreatmentGroup` directives to control how columns are filt
 ```julia
 # Default: aggregate all columns with max, min, mean over a whole window
 result = get_dataset(dt)
-
-# Return as matrices
-result = get_dataset(dt, matrix=true)
-
-# Return as DataFrames
-result = get_dataset(dt, dataframe=true)
 ```
 
 ### 3. Custom treatment groups
@@ -81,8 +75,7 @@ result = get_dataset(
             features=(mean, maximum),
             win=(adaptivewindow(nwindows=5, overlap=0.4),)
         )
-    ),
-    dataframe=true
+    )
 )
 ```
 
@@ -106,8 +99,7 @@ result = get_dataset(
             reducefunc=minimum,
             win=(splitwindow(nwindows=3),)
         )
-    ),
-    dataframe=true
+    )
 )
 ```
 
@@ -120,8 +112,7 @@ Set `leftover_ds=false` to exclude unmatched columns:
 result = get_dataset(
     dt,
     TreatmentGroup(name_expr=r"^(V|i)"),
-    leftover_ds=false,
-    dataframe=true
+    leftover_ds=false
 )
 ```
 
@@ -141,8 +132,7 @@ result = get_dataset(
         ),
         groupby=:vname,
     ),
-    groupby_split=true,
-    dataframe=true
+    groupby_split=true
 )
 ```
 

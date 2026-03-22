@@ -75,7 +75,7 @@ end
 
 # work on Datatreatment objects
 for dt in datatreatments
-    data = get_dataset(dt, TreatmentGroup(dims=0))
+    data, treat = get_dataset(dt, TreatmentGroup(dims=0))
     target = get_target(dt)
 
     # do stuff with SoleXplorer

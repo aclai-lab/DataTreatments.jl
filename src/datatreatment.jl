@@ -2,6 +2,8 @@
 #                                     types                                    #
 # ---------------------------------------------------------------------------- #
 const DefaultAggrFunc = aggregate(win=(wholewindow(),), features=(maximum, minimum, mean))
+const DefaultGrouped = false
+const DefaultTreatmentGroup = TreatmentGroup(aggrfunc=DefaultAggrFunc, grouped=DefaultGrouped)
 
 # ---------------------------------------------------------------------------- #
 #                             DataTreatment struct                             #
@@ -401,10 +403,7 @@ end
         treatments::Base.Callable...;
         treatment_ds=true,
         leftover_ds=true,
-        groupby_split=false,
-        matrix=false,
-        dataframe=false
-    )
+    ) -> (Vector{AbstractDataset}, Vector{TreatmentGroup})
 
 The core function of the DataTreatments package.
 Lazily extracts processed datasets from a `DataTreatment` object according to user-specified 
@@ -439,15 +438,12 @@ Each element is one of:
   with the default aggregation function (`maximum`, `minimum`, `mean` over the whole window).
 - `treatment_ds::Bool=true`: If `true`, include datasets defined by the treatment groups.
 - `leftover_ds::Bool=true`: If `true`, include datasets for columns not assigned to any treatment group.
-- `groupby_split::Bool=false`: If `true`, split multidimensional datasets by group.
-- `matrix::Bool=false`: If `true`, return the concatenated data as a vector of matrices.
-- `dataframe::Bool=false`: If `true`, return the concatenated data as a vector of DataFrames.
 
 # Returns
 
-- By default, returns a `Vector{AbstractDataset}` of processed datasets.
-- If `matrix=true`, returns a vector of matrices of all selected data.
-- If `dataframe=true`, returns a vector of DataFrames of all selected data.
+A tuple:
+- `Vector{AbstractDataset}`: The processed datasets (discrete, continuous, multidimensional).
+- `Vector{TreatmentGroup}`: The instantiated treatment groups used for extraction.
 
 # Example
 
@@ -471,27 +467,20 @@ dt = DataTreatment(df; float_type=Float32)
 
 ```@example
 # With default treatment (aggregate with max, min, mean over whole window)
-ds = get_dataset(dt)
+datasets, treats = get_dataset(dt)
 ```
 
 ```@example
 # With custom treatment groups
-ds = get_dataset(dt, TreatmentGroup(dims=0), TreatmentGroup(dims=1, aggrfunc=aggregate(features=(mean, std))))
+datasets, treats = get_dataset(dt, 
+    TreatmentGroup(dims=0), 
+    TreatmentGroup(dims=1, aggrfunc=aggregate(features=(mean, std)))
+)
 ```
 
 ```@example
 # Only leftover columns
-ds = get_dataset(dt, TreatmentGroup(dims=1); treatment_ds=false)
-```
-
-```@example
-# As matrices
-ds = get_dataset(dt; matrix=true)
-```
-
-```@example
-# As dataframe
-ds = get_dataset(dt; dataframe=true)
+datasets, treats = get_dataset(dt, TreatmentGroup(dims=1); treatment_ds=false)
 ```
 
 See also: [`DataTreatment`](@ref), [`TreatmentGroup`](@ref), [`DatasetStructure`](@ref),
@@ -499,13 +488,10 @@ See also: [`DataTreatment`](@ref), [`TreatmentGroup`](@ref), [`DatasetStructure`
 """
 function get_dataset(
     dt::DataTreatment,
-    treatments::Vararg{Base.Callable}=TreatmentGroup(aggrfunc=DefaultAggrFunc,);
+    treatments::Vararg{Base.Callable}=DefaultTreatmentGroup;
     treatment_ds::Bool=true,
     leftover_ds::Bool=true,
-    groupby_split::Bool=false,
-    matrix::Bool=false,
-    dataframe::Bool=false
-)::Vector{Union{AbstractDataset,AbstractMatrix,DataFrame}}
+)
     treats = [treat(get_ds_struct(dt)) for treat in treatments]
 
     ds = AbstractDataset[]
@@ -513,28 +499,7 @@ function get_dataset(
     treatment_ds && append!(ds, _get_treatments_datasets(dt, treats))
     leftover_ds && append!(ds, _get_leftover_datasets(dt, treats))
 
-    isempty(ds) && return ds
-
-    if matrix
-        return reduce(vcat, [elem isa AbstractVector && eltype(elem) <: AbstractMatrix ?
-            elem :
-            [elem] for elem in get_data.(ds; groupby_split)]
-        )
-    end
-
-    if dataframe
-        data = reduce(vcat, [elem isa AbstractVector && eltype(elem) <: AbstractMatrix ?
-            elem :
-            [elem] for elem in get_data.(ds; groupby_split)]
-        )
-        cnames = reduce(vcat, [elem isa AbstractVector && eltype(elem) <: AbstractVector ?
-            elem :
-            [elem] for elem in get_vnames.(ds; groupby_split)]
-        )
-        return DataFrame.(data, cnames)
-    end
-
-    return ds
+    return ds, treats
 end
 
 # ---------------------------------------------------------------------------- #
@@ -548,9 +513,11 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", dt::DataTreatment)
     nrows, ncols = size(dt.data)
+    target_info = isnothing(dt.target) ? "Unsupervised" : "Supervised"
+
     println(io, "DataTreatment")
     println(io, "  Data size:    $(nrows) × $(ncols)")
-    println(io, "  Target:       ", isnothing(dt.target) ? "none" : "$(length(dt.target)) labels")
+    println(io, "  Target:       ", target_info)
     println(io, "  Float type:   $(dt.float_type)")
     print(io,   "  DS structure: $(dt.ds_struct)")
 end

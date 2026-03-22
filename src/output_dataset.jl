@@ -58,16 +58,13 @@ end
 Re-map group indices from the original column space to the new subset `idxs`.
 Only groups that have at least one member in `idxs` are kept.
 """
-function _reindex_groups(groups::Nothing, idxs::AbstractVector{Int})
-    return nothing
-end
-
 function _reindex_groups(groups::Vector{Vector{Int}}, idxs::AbstractVector{Int})
     idx_set = Set(idxs)
     # Build reverse mapping: old index -> new index
     old_to_new = Dict(old => new for (new, old) in enumerate(idxs))
     
     new_groups = Vector{Vector{Int}}()
+
     for grp in groups
         new_grp = [old_to_new[i] for i in grp if i in idx_set]
         if !isempty(new_grp)
@@ -77,6 +74,8 @@ function _reindex_groups(groups::Vector{Vector{Int}}, idxs::AbstractVector{Int})
     
     return isempty(new_groups) ? nothing : new_groups
 end
+
+_reindex_groups(groups::Nothing, idxs::AbstractVector{Int}) = nothing # Vector{Vector{Int}}()
 
 # ---------------------------------------------------------------------------- #
 #                               dataset structs                                #
@@ -120,7 +119,7 @@ from `data`, encodes them categorically, and builds the corresponding
 
 See also: [`ContinuousDataset`](@ref), [`MultidimDataset`](@ref), [`DiscreteFeat`](@ref)
 """
-struct DiscreteDataset <: AbstractDataset
+mutable struct DiscreteDataset <: AbstractDataset
     data::AbstractMatrix
     info::Vector{<:DiscreteFeat}
 
@@ -187,7 +186,7 @@ and builds the corresponding [`ContinuousFeat`](@ref) metadata from `ds_struct`.
 
 See also: [`DiscreteDataset`](@ref), [`MultidimDataset`](@ref), [`ContinuousFeat`](@ref)
 """
-struct ContinuousDataset{T} <: AbstractDataset
+mutable struct ContinuousDataset{T} <: AbstractDataset
     data::AbstractMatrix
     info::Vector{<:ContinuousFeat}
 
@@ -288,7 +287,7 @@ The constructor inspects `aggrfunc` to decide the output format:
 See also: [`DiscreteDataset`](@ref), [`ContinuousDataset`](@ref),
 [`AggregateFeat`](@ref), [`ReduceFeat`](@ref), [`aggregate`](@ref), [`reducesize`](@ref)
 """
-struct MultidimDataset{T} <: AbstractDataset
+mutable struct MultidimDataset{T} <: AbstractDataset
     data::AbstractArray
     info::Vector{<:Union{AggregateFeat,ReduceFeat}}
     groups::Union{Nothing,Vector{Vector{Int}}}
@@ -514,6 +513,17 @@ get_idxs(ds::AbstractDataset, idxs::Vector{Int}) = [get_id(ds.info[i]) for i in 
 # ---------------------------------------------------------------------------- #
 #                               show methods                                   #
 # ---------------------------------------------------------------------------- #
+function _callable_name(f)
+    if f isa Function
+        n = nameof(f)
+        # anonymous closures have names like #3, #foo#5, etc.
+        startswith(string(n), "#") ? string(f) : string(n)
+    else
+        # callable struct / functor — use type name
+        string(nameof(typeof(f)))
+    end
+end
+
 # one-line
 function Base.show(io::IO, ds::DiscreteDataset)
     nrows = size(ds, 1)
@@ -608,23 +618,5 @@ function Base.show(io::IO, ::MIME"text/plain", ds::MultidimDataset{T}) where T
         print(io, "└─ windows: $(join(string.(unique_nwins), ", "))")
     else
         print(io, "└─ reduce function: $(_callable_name(get_reducefunc(ds.info[1])))")
-    end
-end
-
-"""
-    _callable_name(f) -> String
-
-Return a human-readable name for a callable. Uses `nameof` for named functions,
-the type name for callable structs / functors, and a fallback `string`
-representation for anonymous closures.
-"""
-function _callable_name(f)
-    if f isa Function
-        n = nameof(f)
-        # anonymous closures have names like #3, #foo#5, etc.
-        startswith(string(n), "#") ? string(f) : string(n)
-    else
-        # callable struct / functor — use type name
-        string(nameof(typeof(f)))
     end
 end

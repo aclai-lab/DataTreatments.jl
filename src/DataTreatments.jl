@@ -39,7 +39,7 @@ export get_dataset_structure
 include("dataset_structure.jl")
 
 export TreatmentGroup
-export get_idxs, get_dims, get_vnames, get_aggrfunc, get_groupby, has_groupby
+export get_idxs, get_dims, get_vnames, get_aggrfunc, get_grouped, get_groupby, has_groupby
 include("treatment_group.jl")
 
 export DiscreteFeat, ContinuousFeat, AggregateFeat, ReduceFeat
@@ -55,12 +55,17 @@ export has_groups, get_groups
 include("output_dataset.jl")
 include("groupby.jl")
 
-export DataTreatment
+export DataTreatment, TreatmentOutput
 export groupby
 export get_data, get_target, get_ds_struct, get_t_groups, get_float_type
 export get_nrows, get_ncols
 export get_dataset
 export get_treatments_datasets, get_leftover_datasets
+export standard, matrix, dataframe
 include("datatreatment.jl")
+
+export get_discrete, get_continuous, get_multidim, get_aggregated, get_reduced
+export get_tabular, get_multidim
+include("methods.jl")
 
 end

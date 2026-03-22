@@ -37,6 +37,13 @@ dt = DataTreatment(df; float_type=Float32)
 Processed datasets are obtained lazily via [`get_dataset`](@ref). Treatment groups
 control which columns are selected and how multidimensional data is aggregated or reduced.
 
+### Entry Points
+
+- [`get_tabular`](@ref): Collects all tabular-like datasets, including discrete, continuous, and aggregated multidimensional data. Especially useful for heterogeneous datasets with both tabular and multidimensional columns, where you want to aggregate multidimensional data into tabular form.
+- [`get_multidim`](@ref): Collects all reduced multidimensional datasets, focusing on features that remain multidimensional after treatment.
+
+### Examples
+
 ```julia
 df = DataFrame(
     str_col  = [missing, "blue", "green", "red", "blue"],
@@ -65,11 +72,17 @@ ds = get_dataset(dt,
 # Only leftover columns (not assigned to any treatment group)
 ds = get_dataset(dt, TreatmentGroup(dims=1); treatment_ds=false)
 
-# As matrices
-ds = get_dataset(dt; matrix=true)
+# Default treatment (aggregate with max, min, mean over whole window)
+tabular_ds = get_tabular(dt)
 
-# As DataFrames
-ds = get_dataset(dt; dataframe=true)
+# Custom treatment groups for tabular extraction
+tabular_ds = get_tabular(dt,
+    TreatmentGroup(dims=0),
+    TreatmentGroup(dims=1, aggrfunc=aggregate(
+        win=(splitwindow(nwindows=3),),
+        features=(mean, std)
+    )),
+)
 ```
 
 ## Getters
@@ -96,14 +109,24 @@ ds = get_dataset(dt; dataframe=true)
 
 ```@docs
 DataTreatment
+
+get_tabular(
+    dt::DataTreatment,
+    args...;
+    kwargs...
+)
+
+get_multidim(
+    dt::DataTreatment,
+    args...;
+    kwargs...
+)
+
 get_dataset(
         dt::DataTreatment,
         treatments::Vararg{Base.Callable};
         treatment_ds::Bool,
         leftover_ds::Bool,
-        groupby_split::Bool,
-        matrix::Bool,
-        dataframe::Bool
     )
 get_data(dt::DataTreatment)
 get_target(dt::DataTreatment)

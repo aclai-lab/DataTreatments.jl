@@ -163,12 +163,6 @@ the `groups` field consistent with the new column subset.
   (`1:length(idxs)`), drops empty groups, and returns `nothing` if all groups
   are eliminated.
 
-### \_callable\_name
-
-```@docs
-_callable_name
-```
-
 ---
 
 ## Display
@@ -233,6 +227,3 @@ MultidimDataset{ReduceFeat{...}}(5 rows × 4 columns)
 ├─ vnames: ["ts1", "ts2", "ts3", "ts4"]
 └─ reduce function: my_reduce_func
 ```
-
-In reducesize mode, the reduce function name is obtained via [`_callable_name`](@ref)
-from the first feature's metadata.

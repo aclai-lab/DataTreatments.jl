@@ -45,6 +45,8 @@ struct TargetStructure{T}
     end
 end
 
+Base.length(ts::TargetStructure) = length(ts.values)
+
 # ---------------------------------------------------------------------------- #
 #                               getter methods                                 #
 # ---------------------------------------------------------------------------- #

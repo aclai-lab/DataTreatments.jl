@@ -48,8 +48,7 @@ ds = get_dataset(dt,
         aggrfunc=aggregate(features=(mean, maximum)),
         groupby=:vname,
     ),
-    groupby_split=true,
-    dataframe=true
+    groupby_split=true
 )
 # Returns 2 DataFrames: one for ts1, one for ts2
 
@@ -59,8 +58,7 @@ ds = get_dataset(dt,
         aggrfunc=aggregate(features=(mean, maximum)),
         groupby=:feat,
     ),
-    groupby_split=true,
-    dataframe=true
+    groupby_split=true
 )
 # Returns 2 DataFrames: one for mean columns, one for maximum columns
 ```
@@ -76,8 +74,7 @@ ds = get_dataset(dt,
         aggrfunc=aggregate(features=(mean, maximum)),
         groupby=(:vname, :feat),
     ),
-    groupby_split=true,
-    dataframe=true
+    groupby_split=true
 )
 # Returns 4 DataFrames: (ts1, mean), (ts1, maximum), (ts2, mean), (ts2, maximum)
 ```
@@ -102,8 +99,7 @@ ds = get_dataset(dt,
         groupby=(:vname, :feat),
     ),
     groupby_split=true,
-    leftover_ds=false,
-    dataframe=true
+    leftover_ds=false
 )
 ```
 

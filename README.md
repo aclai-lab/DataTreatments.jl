@@ -58,14 +58,14 @@ dt = DataTreatment(df)
 All transformations are applied lazily when you call `get_dataset`. You pass one or more `TreatmentGroup` directives to control how columns are filtered, windowed, and aggregated.
 
 ```julia
-# Default: aggregate all columns with max, min, mean over a whole window
+# get_dataset: aggregate all columns with max, min, mean over a whole window
 result = get_dataset(dt)
 
-# Return as matrices
-result = get_dataset(dt, matrix=true)
+# get_tabular: returns only tabular part of the dataset
+result = get_tabular(dt)
 
-# Return as DataFrames
-result = get_dataset(dt, dataframe=true)
+# get_multidim: returns only multidimensional part of the dataset
+result = get_multidim(dt)
 ```
 
 ### 3. Custom treatment groups
@@ -82,8 +82,7 @@ result = get_dataset(
             features=(mean, maximum),
             win=(adaptivewindow(nwindows=5, overlap=0.4),)
         )
-    ),
-    dataframe=true
+    )
 )
 ```
 
@@ -107,21 +106,19 @@ result = get_dataset(
             reducefunc=minimum,
             win=(splitwindow(nwindows=3),)
         )
-    ),
-    dataframe=true
+    )
 )
 ```
 
 ### 5. Filter columns by name
 
-Use `name_expr` to select columns matching a regex pattern. Set `leftover_ds=false` to exclude unmatched columns:
+Use `vnames` to select columns matching a regex pattern. Set `leftover_ds=false` to exclude unmatched columns:
 
 ```julia
 result = get_dataset(
     dt,
-    TreatmentGroup(name_expr=r"^(V|i)"),
+    TreatmentGroup(vnames=r"^(V|i)"),
     leftover_ds=false,
-    dataframe=true
 )
 ```
 
@@ -140,8 +137,7 @@ result = get_dataset(
         ),
         groupby=:vname,
     ),
-    groupby_split=true,
-    dataframe=true
+    groupby_split=true
 )
 ```
 
@@ -209,7 +205,7 @@ A `TreatmentGroup` specifies which columns to select and how to process them:
 | Parameter | Description |
 |---|---|
 | `dims` | Filter columns by dimensionality (`0` = scalar, `1` = vector, `2` = matrix, etc.) |
-| `name_expr` | Filter columns by regex on column name |
+| `vnames` | Filter columns by regex on column name |
 | `aggrfunc` | Processing function (`aggregate(...)` or `reducesize(...)`) |
 | `groupby` | Group output columns by metadata (`:vname`, `:feat`, `:nwin`, or a tuple) |
 

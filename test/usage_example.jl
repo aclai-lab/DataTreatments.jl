@@ -43,59 +43,41 @@ end
         @test dt isa DataTreatment
     end
 
-    @testset "Example 1: get_dataset default (no kwargs)" begin
-        result = get_dataset(dt)
-        @test !isnothing(result)
-        @test !isempty(result)
-    end
-
-    @testset "Example 2: get_dataset matrix=true" begin
-        result = get_dataset(dt, matrix=true)
-        @test !isnothing(result)
-        @test !isempty(result)
-    end
-
-    @testset "Example 3: get_dataset dataframe=true" begin
-        result = get_dataset(dt, dataframe=true)
+    @testset "Example , treats1: get_dataset default (no kwargs)" begin
+        result, treats = get_dataset(dt)
         @test !isnothing(result)
         @test !isempty(result)
     end
 
     @testset "Example 4: aggregate with adaptive window (all dims)" begin
-        result = get_dataset(
+        result, treats = get_dataset(
             dt,
             TreatmentGroup(
                 aggrfunc=DT.aggregate(
                     features=(mean, maximum),
                     win=(DT.adaptivewindow(nwindows=5, overlap=0.4),)
-                )),
-            dataframe=true
+                ))
         )
         @test !isnothing(result)
         @test !isempty(result)
-        # Should be a DataFrame or collection of DataFrames
-        if result isa DataFrame
-            @test nrow(result) == 5
-        end
     end
 
     @testset "Example 5: aggregate dims=1 with adaptive window" begin
-        result = get_dataset(
+        result, treats = get_dataset(
             dt,
             TreatmentGroup(
                 dims=1,
                 aggrfunc=DT.aggregate(
                     features=(mean, maximum),
                     win=(DT.adaptivewindow(nwindows=5, overlap=0.4),)
-                )),
-            dataframe=true
+                ))
         )
         @test !isnothing(result)
         @test !isempty(result)
     end
 
     @testset "Example 6: two TreatmentGroups (dims=1 aggregate + dims=2 aggregate)" begin
-        result = get_dataset(
+        result, treats = get_dataset(
             dt,
             TreatmentGroup(
                 dims=1,
@@ -108,15 +90,14 @@ end
                 aggrfunc=DT.aggregate(
                     features=(minimum,),
                     win=(DT.splitwindow(nwindows=3,),)
-                )),
-            dataframe=true
+                ))
         )
         @test !isnothing(result)
         @test !isempty(result)
     end
 
     @testset "Example 7: dims=1 aggregate + dims=2 reducesize" begin
-        result = get_dataset(
+        result, treats = get_dataset(
             dt,
             TreatmentGroup(
                 dims=1,
@@ -129,21 +110,19 @@ end
                 aggrfunc=DT.reducesize(
                     reducefunc=minimum,
                     win=(DT.splitwindow(nwindows=3,),)
-                )),
-            dataframe=true
+                ))
         )
         @test !isnothing(result)
         @test !isempty(result)
     end
 
     @testset "Example 8: name_expr filter with leftover_ds=false" begin
-        result = get_dataset(
+        result, treats = get_dataset(
             dt,
             TreatmentGroup(
                 name_expr=r"^(V|i)"
             ),
-            leftover_ds=false,
-            dataframe=true
+            leftover_ds=false
         )
         @test !isnothing(result)
         @test !isempty(result)
@@ -156,7 +135,7 @@ end
     end
 
     @testset "Example 9: reducesize + aggregate with groupby_split" begin
-        result = get_dataset(
+        result, treats = get_dataset(
             dt,
             TreatmentGroup(
                 dims=2,
@@ -171,9 +150,7 @@ end
                 ),
                 groupby=(:vname, :feat),
             ),
-            groupby_split=true,
-            leftover_ds=false,
-            dataframe=true
+            leftover_ds=false
         )
         @test !isnothing(result)
         @test !isempty(result)
@@ -184,7 +161,7 @@ end
     end
 
     @testset "Example 10: dims=2 aggregate with groupby + groupby_split" begin
-        result = get_dataset(
+        result, treats = get_dataset(
             dt,
             TreatmentGroup(
                 dims=2,
@@ -194,8 +171,6 @@ end
                 ),
                 groupby=:vname,
             ),
-            groupby_split=true,
-            dataframe=true
         )
         @test !isnothing(result)
         @test !isempty(result)
@@ -204,22 +179,9 @@ end
         end
     end
 
-    @testset "Consistency: matrix vs dataframe output have same observations" begin
-        mat_result = get_dataset(dt, matrix=true)
-        df_result = get_dataset(dt, dataframe=true)
-        # Both should represent 5 observations
-        if mat_result isa AbstractMatrix
-            @test size(mat_result, 1) == 5
-        end
-        if df_result isa DataFrame
-            @test nrow(df_result) == 5
-        end
-    end
-
     @testset "Edge case: empty TreatmentGroup defaults" begin
-        result = get_dataset(dt, TreatmentGroup(), dataframe=true)
+        result, treats = get_dataset(dt, TreatmentGroup())
         @test !isnothing(result)
         @test !isempty(result)
     end
-
 end

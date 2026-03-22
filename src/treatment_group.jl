@@ -23,7 +23,9 @@ Columns are selected based on:
 - **`aggrfunc::Base.Callable`**: Aggregation function applied to multidimensional elements:
   - `aggregate`: tabularizes multidimensional data into a flat matrix
   - `reducesize`: resizes multidimensional data while preserving dimensionality
-  
+
+- **`grouped::Bool`**: If `true`, further processing is performed on all selected columns together (jointly), rather than the default columnwise processing. If `false` (default), processing is applied to each column independently.
+
 - **`groupby::Tuple{Vararg{Symbol}}`**: Further partitioning of output features from multidimensional processing.
   Possible grouping keys include `:vname` (column name), window index, or feature type applied.
 
@@ -33,6 +35,7 @@ Columns are selected based on:
 - `dims::Int`: Dimensionality filter used
 - `vnames::Vector{String}`: Names of selected columns
 - `aggrfunc::Base.Callable`: Aggregation function for multidimensional columns
+- `grouped::Bool`: Whether to process all columns together (`true`) or columnwise (`false`)
 - `groupby::Tuple{Vararg{Symbol}}`: Grouping specification for output features
 
 ## Constructors
@@ -59,6 +62,9 @@ TreatmentGroup(ds_struct, name_expr=["col1", "col2"])
 
 # Select continuous columns with custom aggregation
 TreatmentGroup(ds_struct, datatype=Float64, aggrfunc=aggregate(...))
+
+# Process all selected columns together (joint processing)
+TreatmentGroup(ds_struct, grouped=true)
 ```
 """
 struct TreatmentGroup{T}
@@ -66,6 +72,7 @@ struct TreatmentGroup{T}
     dims::Int
     vnames::Vector{String}
     aggrfunc::Base.Callable
+    grouped::Bool
     groupby::Union{Nothing,Tuple{Vararg{Symbol}}}
 
     function TreatmentGroup(
@@ -74,6 +81,7 @@ struct TreatmentGroup{T}
         name_expr::Union{Regex,Base.Callable,Vector{String}}=r".*",
         datatype::Type=Any,
         aggrfunc::Base.Callable=aggregate(win=(wholewindow(),), features=(maximum, minimum, mean)),
+        grouped::Bool=false,
         groupby::Union{Nothing,Symbol,Tuple{Vararg{Symbol}}}=nothing
     )
         vnames = get_vnames(ds_struct)
@@ -103,13 +111,8 @@ struct TreatmentGroup{T}
         col_types = get_datatype(ds_struct, idxs)
         T = isempty(col_types) ? Any : mapreduce(identity, typejoin, col_types)
 
-        new{T}(idxs, dims, vnames[idxs], aggrfunc, groupby)
+        new{T}(idxs, dims, vnames[idxs], aggrfunc, grouped, groupby)
     end
-
-    TreatmentGroup(ds::Matrix, vnames::Vector{String}; kwargs...) =
-        TreatmentGroup(DatasetStructure(ds, vnames); kwargs...)
-    TreatmentGroup(df::DataFrame; kwargs...) =
-        TreatmentGroup(DatasetStructure(df); kwargs...)
 end
 
 TreatmentGroup(; kwargs...) = x -> TreatmentGroup(x; kwargs...)
@@ -158,6 +161,13 @@ get_vnames(tg::TreatmentGroup, idxs::Vector{Int}) = @views tg.vnames[idxs]
 Returns the aggregation function used by this group.
 """
 get_aggrfunc(tg::TreatmentGroup) = tg.aggrfunc
+
+"""
+    get_grouped(tg::TreatmentGroup)
+
+Returns the `grouped` setting: if `true`, datas must be processed together, not columwise.
+"""
+get_grouped(tg::TreatmentGroup) = tg.grouped
 
 """
     get_groupby(tg::TreatmentGroup)

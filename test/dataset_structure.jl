@@ -13,7 +13,7 @@ end
 
 @testset "TargetStructure" begin
     # ------------------------------------------------------------------ #
-    #                     regression (Float target)                        #
+    #                     regression (Float target)                      #
     # ------------------------------------------------------------------ #
     @testset "Regression - Float64 target" begin
         y = [1.0, 2.5, 3.7, 4.2, 5.0]
@@ -34,7 +34,7 @@ end
     end
 
     # ------------------------------------------------------------------ #
-    #                 classification (non-Float target)                    #
+    #                 classification (non-Float target)                  #
     # ------------------------------------------------------------------ #
     @testset "Classification - String target" begin
         y = ["cat", "dog", "cat", "bird", "dog"]
@@ -108,7 +108,7 @@ end
     end
 
     # ------------------------------------------------------------------ #
-    #                          edge cases                                  #
+    #                             edge cases                             #
     # ------------------------------------------------------------------ #
     @testset "Single element - regression" begin
         y = [3.14]
@@ -138,15 +138,15 @@ end
         @test length(labels) == 2
 
         # consistent encoding
-        @test vals[1] == vals[3] == vals[5]  # all "yes"
-        @test vals[2] == vals[4]              # all "no"
-        @test vals[1] != vals[2]              # "yes" != "no"
+        @test vals[1] == vals[3] == vals[5]
+        @test vals[2] == vals[4]
+        @test vals[1] != vals[2]
     end
 end
 
 @testset "DatasetStructure" begin
     # ------------------------------------------------------------------ #
-    #                        shared rich dataset                          #
+    #                        shared rich dataset                         #
     # ------------------------------------------------------------------ #
     df = DataFrame(
         str_col  = [missing, "blue", "green", "red", "blue"],
@@ -172,7 +172,7 @@ end
     ds_rich = DatasetStructure(df)
 
     # ------------------------------------------------------------------ #
-    #                           constructors                              #
+    #                           constructors                             #
     # ------------------------------------------------------------------ #
     @testset "Constructor - Matrix" begin
         dataset = Matrix{Any}(undef, 5, 3)
@@ -205,7 +205,7 @@ end
     end
 
     # ------------------------------------------------------------------ #
-    #                       size and length methods                        #
+    #                       size and length methods                      #
     # ------------------------------------------------------------------ #
     @testset "Size and length methods" begin
         @test size(ds_rich) == (18,)
@@ -215,7 +215,7 @@ end
     end
 
     # ------------------------------------------------------------------ #
-    #                  scalar columns - missing and NaN                    #
+    #                 scalar columns - missing and NaN                   #
     # ------------------------------------------------------------------ #
     @testset "Scalar columns - missing and NaN" begin
         # str_col (col 1): missing at row 1
@@ -280,7 +280,7 @@ end
     end
 
     # ------------------------------------------------------------------ #
-    #              array columns - dims, hasmissing, hasnans              #
+    #              array columns - dims, hasmissing, hasnans             #
     # ------------------------------------------------------------------ #
     @testset "Array columns - time series" begin
         # ts1 (col 11): NaN at row 1, missing at row 3, vectors at rows 2,4,5
@@ -357,7 +357,7 @@ end
     end
 
     # ------------------------------------------------------------------ #
-    #                        datatype inference                           #
+    #                        datatype inference                          #
     # ------------------------------------------------------------------ #
     @testset "Datatype inference" begin
         # str_col: String
@@ -392,7 +392,7 @@ end
     end
 
     # ------------------------------------------------------------------ #
-    #                    getter methods - full vectors                     #
+    #                    getter methods - full vectors                   #
     # ------------------------------------------------------------------ #
     @testset "Getter methods - full vectors" begin
         @test get_vnames(ds_rich) == names(df)
@@ -406,7 +406,7 @@ end
     end
 
     # ------------------------------------------------------------------ #
-    #                     getter methods - by index                       #
+    #                     getter methods - by index                      #
     # ------------------------------------------------------------------ #
     @testset "Getter methods - by index" begin
         @test get_vnames(ds_rich, 1) == "str_col"
@@ -430,7 +430,7 @@ end
     end
 
     # ------------------------------------------------------------------ #
-    #                         all clean dataset                           #
+    #                          all clean dataset                         #
     # ------------------------------------------------------------------ #
     @testset "All clean dataset" begin
         dataset = Matrix{Any}(undef, 3, 2)
@@ -450,7 +450,7 @@ end
     end
 
     # ------------------------------------------------------------------ #
-    #                           show methods                              #
+    #                           show methods                             #
     # ------------------------------------------------------------------ #
     @testset "show methods" begin
         # Test one-line show

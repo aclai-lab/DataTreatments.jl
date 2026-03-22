@@ -1,10 +1,11 @@
+using Test
 using DataTreatments
 const DT = DataTreatments
 
 using DataFrames
 using Random
 using CategoricalArrays
-using Test
+using Statistics
 
 function create_image(seed::Int; n=6)
     Random.seed!(seed)

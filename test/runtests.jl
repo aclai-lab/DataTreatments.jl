@@ -23,6 +23,7 @@ test_suites = [
     ("Output Datasets",  ["output_dataset.jl",]),
     ("Windowing",  ["windowing.jl",]),
     ("FeatureSet", ["featureset.jl",]),
+    ("Handy Methods", ["methods.jl",]),
     ("Usage Examples", ["usage_example.jl",]),
 ]
 
