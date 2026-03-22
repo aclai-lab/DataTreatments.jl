@@ -39,7 +39,7 @@ export get_dataset_structure
 include("dataset_structure.jl")
 
 export TreatmentGroup
-export get_idxs, get_dims, get_vnames, get_aggrfunc, get_groupby, has_groupby
+export get_idxs, get_dims, get_vnames, get_aggrfunc, get_grouped, get_groupby, has_groupby
 include("treatment_group.jl")
 
 export DiscreteFeat, ContinuousFeat, AggregateFeat, ReduceFeat

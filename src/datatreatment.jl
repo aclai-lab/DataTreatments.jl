@@ -2,6 +2,8 @@
 #                                     types                                    #
 # ---------------------------------------------------------------------------- #
 const DefaultAggrFunc = aggregate(win=(wholewindow(),), features=(maximum, minimum, mean))
+const DefaultGrouped = false
+const DefaultTreatmentGroup = TreatmentGroup(aggrfunc=DefaultAggrFunc, grouped=DefaultGrouped)
 
 # ---------------------------------------------------------------------------- #
 #                             DataTreatment struct                             #
@@ -486,7 +488,7 @@ See also: [`DataTreatment`](@ref), [`TreatmentGroup`](@ref), [`DatasetStructure`
 """
 function get_dataset(
     dt::DataTreatment,
-    treatments::Vararg{Base.Callable}=TreatmentGroup(aggrfunc=DefaultAggrFunc,);
+    treatments::Vararg{Base.Callable}=DefaultTreatmentGroup;
     treatment_ds::Bool=true,
     leftover_ds::Bool=true,
 )

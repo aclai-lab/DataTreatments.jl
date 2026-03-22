@@ -58,16 +58,13 @@ end
 Re-map group indices from the original column space to the new subset `idxs`.
 Only groups that have at least one member in `idxs` are kept.
 """
-function _reindex_groups(groups::Nothing, idxs::AbstractVector{Int})
-    return nothing
-end
-
 function _reindex_groups(groups::Vector{Vector{Int}}, idxs::AbstractVector{Int})
     idx_set = Set(idxs)
     # Build reverse mapping: old index -> new index
     old_to_new = Dict(old => new for (new, old) in enumerate(idxs))
     
     new_groups = Vector{Vector{Int}}()
+
     for grp in groups
         new_grp = [old_to_new[i] for i in grp if i in idx_set]
         if !isempty(new_grp)
@@ -77,6 +74,8 @@ function _reindex_groups(groups::Vector{Vector{Int}}, idxs::AbstractVector{Int})
     
     return isempty(new_groups) ? nothing : new_groups
 end
+
+_reindex_groups(groups::Nothing, idxs::AbstractVector{Int}) = nothing # Vector{Vector{Int}}()
 
 # ---------------------------------------------------------------------------- #
 #                               dataset structs                                #

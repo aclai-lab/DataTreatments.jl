@@ -23,7 +23,9 @@ Columns are selected based on:
 - **`aggrfunc::Base.Callable`**: Aggregation function applied to multidimensional elements:
   - `aggregate`: tabularizes multidimensional data into a flat matrix
   - `reducesize`: resizes multidimensional data while preserving dimensionality
-  
+
+- **`grouped::Bool`**: If `true`, further processing is performed on all selected columns together (jointly), rather than the default columnwise processing. If `false` (default), processing is applied to each column independently.
+
 - **`groupby::Tuple{Vararg{Symbol}}`**: Further partitioning of output features from multidimensional processing.
   Possible grouping keys include `:vname` (column name), window index, or feature type applied.
 
@@ -33,6 +35,7 @@ Columns are selected based on:
 - `dims::Int`: Dimensionality filter used
 - `vnames::Vector{String}`: Names of selected columns
 - `aggrfunc::Base.Callable`: Aggregation function for multidimensional columns
+- `grouped::Bool`: Whether to process all columns together (`true`) or columnwise (`false`)
 - `groupby::Tuple{Vararg{Symbol}}`: Grouping specification for output features
 
 ## Constructors
@@ -59,6 +62,9 @@ TreatmentGroup(ds_struct, name_expr=["col1", "col2"])
 
 # Select continuous columns with custom aggregation
 TreatmentGroup(ds_struct, datatype=Float64, aggrfunc=aggregate(...))
+
+# Process all selected columns together (joint processing)
+TreatmentGroup(ds_struct, grouped=true)
 ```
 """
 struct TreatmentGroup{T}
