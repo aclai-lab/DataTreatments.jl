@@ -27,7 +27,7 @@ data is handled (see [`TreatmentGroup`](@ref) and [`aggregate`](@ref) / [`reduce
     and processed only when extraction is needed.
 
 `DataTreatment` stores the **static metadata** about the dataset — retrieved
-via [`DatasetStructure`](@ref).
+via [`DataStructure`](@ref).
 
 ## Lazy Design
 
@@ -42,7 +42,7 @@ final processed datasets) are deferred until explicitly requested.
 
 - `data::Matrix`: The raw data matrix (features × samples).
 - `target::Union{Nothing,TargetStructure}`: The target vector or structure, if supervised.
-- `ds_struct::DatasetStructure`: Metadata about the dataset, such as types, dimensions, and missing values.
+- `ds_struct::DataStructure`: Metadata about the dataset, such as types, dimensions, and missing values.
 - `float_type::Type`: The floating-point type used for numeric processing.
 
 # Usage
@@ -101,12 +101,12 @@ datasets = get_dataset(dt,
 )
 ```
 
-See also: [`get_dataset`](@ref), [`TreatmentGroup`](@ref), [`DatasetStructure`](@ref)
+See also: [`get_dataset`](@ref), [`TreatmentGroup`](@ref), [`DataStructure`](@ref)
 """
 struct DataTreatment
     data::Matrix
     target::Union{Nothing,TargetStructure}
-    ds_struct::DatasetStructure
+    ds_struct::DataStructure
     float_type::Type
 
     function DataTreatment(
@@ -116,7 +116,7 @@ struct DataTreatment
         float_type::Type=Float64
     )
         isa(target, AbstractVector) && (target = TargetStructure(target))
-        ds_struct = DatasetStructure(data, vnames)
+        ds_struct = DataStructure(data, vnames)
 
         new(data, target, ds_struct, float_type)
     end
@@ -186,7 +186,7 @@ get_ncols(dt::DataTreatment) = size(dt.data, 2)
     _build_datasets(
         id::Vector,
         data::Matrix,
-        ds_struct::DatasetStructure,
+        ds_struct::DataStructure,
         idxs::Vector{Int},
         treat::TreatmentGroup;
         float_type::Type=Float64
@@ -212,8 +212,8 @@ Columns whose detected type is `nothing` are silently skipped.
 - `id::Vector`: An identifier tag for the dataset partition (e.g.,
   `[:treatment_group, 1]`), propagated to each sub-dataset for traceability.
 - `data::Matrix`: The raw data matrix.
-- `ds_struct::DatasetStructure`: Precomputed metadata about the dataset
-  (types, dimensions, validity indices). See [`DatasetStructure`](@ref).
+- `ds_struct::DataStructure`: Precomputed metadata about the dataset
+  (types, dimensions, validity indices). See [`DataStructure`](@ref).
 - `idxs::Vector{Int}`: Column indices to consider (typically from a
   [`TreatmentGroup`](@ref)).
 - `treat::TreatmentGroup`: The treatment group containing the aggregation or
@@ -237,7 +237,7 @@ See also: [`DataTreatment`](@ref), [`TreatmentGroup`](@ref),
 function _build_datasets(
     id::Vector,
     data::Matrix,
-    ds_struct::DatasetStructure,
+    ds_struct::DataStructure,
     idxs::Vector{Int},
     treat::TreatmentGroup;
     float_type::Type=Float64
@@ -483,7 +483,7 @@ datasets, treats = get_dataset(dt,
 datasets, treats = get_dataset(dt, TreatmentGroup(dims=1); treatment_ds=false)
 ```
 
-See also: [`DataTreatment`](@ref), [`TreatmentGroup`](@ref), [`DatasetStructure`](@ref),
+See also: [`DataTreatment`](@ref), [`TreatmentGroup`](@ref), [`DataStructure`](@ref),
 [`_get_treatments_datasets`](@ref), [`_get_leftover_datasets`](@ref)
 """
 function get_dataset(

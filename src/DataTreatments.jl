@@ -29,9 +29,9 @@ export @evalwindow
 include("windowing.jl")
 
 export aggregate, reducesize
-include("treatment.jl")
+include("multidim_treatment.jl")
 
-export DatasetStructure
+export DataStructure
 export get_vnames, get_datatype, get_dims
 export get_valididxs, get_missingidxs, get_nanidxs
 export get_hasmissing, get_hasnans

@@ -12,21 +12,21 @@ get_values
 get_labels
 ```
 
-## DatasetStructure
+## DataStructure
 
 ```@docs
-DatasetStructure
+DataStructure
 ```
 
 ### Getter methods
 
 ```@docs
-get_vnames(::DatasetStructure)
-get_datatype(::DatasetStructure)
-get_dims(::DatasetStructure)
-get_valididxs(::DatasetStructure)
-get_missingidxs(::DatasetStructure)
-get_nanidxs(::DatasetStructure)
-get_hasmissing(::DatasetStructure)
-get_hasnans(::DatasetStructure)
+get_vnames(::DataStructure)
+get_datatype(::DataStructure)
+get_dims(::DataStructure)
+get_valididxs(::DataStructure)
+get_missingidxs(::DataStructure)
+get_nanidxs(::DataStructure)
+get_hasmissing(::DataStructure)
+get_hasnans(::DataStructure)
 ```

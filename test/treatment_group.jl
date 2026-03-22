@@ -32,12 +32,12 @@ df = DataFrame(
     img4 = [i == 3 ? missing : create_image(i+30) for i in 1:5]
 )
 
-ds_struct = DT.DatasetStructure(df)
+ds_struct = DT.DataStructure(df)
 
 # ---------------------------------------------------------------------------- #
-#                  TreatmentGroup - DatasetStructure constructor                #
+#                  TreatmentGroup - DataStructure constructor                #
 # ---------------------------------------------------------------------------- #
-@testset "TreatmentGroup - DatasetStructure constructor" begin
+@testset "TreatmentGroup - DataStructure constructor" begin
     @testset "Basic construction" begin
         tg = TreatmentGroup(ds_struct)
         @test tg isa TreatmentGroup

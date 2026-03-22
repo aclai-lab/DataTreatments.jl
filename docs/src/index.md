@@ -144,7 +144,7 @@ result = get_dataset(
 
 - **Construction** (`DataTreatment(df)`) only stores the raw data matrix and computes
   lightweight metadata (column types, dimensions, missing/NaN indices) via
-  [`DatasetStructure`](@ref).
+  [`DataStructure`](@ref).
 - **Processing** happens entirely inside [`get_dataset`](@ref), which accepts
   [`TreatmentGroup`](@ref) directives specifying how to filter, window, aggregate,
   or reduce each subset of columns.
@@ -269,7 +269,7 @@ dt = DataTreatment(matrix, colnames)        # from Matrix + column names
 Access raw data and metadata:
 ```julia
 get_data(dt)        # raw data matrix
-get_ds_struct(dt)   # DatasetStructure with column metadata
+get_ds_struct(dt)   # DataStructure with column metadata
 get_float_type(dt)  # floating-point type
 get_nrows(dt)       # number of rows
 get_ncols(dt)       # number of columns

@@ -33,7 +33,7 @@ df = DataFrame(
     img4 = [i == 3 ? missing : create_image(i+30) for i in 1:5]
 )
 
-ds_struct = DT.DatasetStructure(df)
+ds_struct = DT.DataStructure(df)
 
 
 """Build X matrix and idx vector for the given column names."""

@@ -104,7 +104,7 @@ entry in `info`.
 
 Direct constructor from a pre-built matrix and metadata vector.
 
-    DiscreteDataset(id::Vector, data::AbstractMatrix, ds_struct::DatasetStructure, cols::Vector{Int})
+    DiscreteDataset(id::Vector, data::AbstractMatrix, ds_struct::DataStructure, cols::Vector{Int})
 
 Lazy constructor called internally by `DataTreatment`. Selects columns `cols`
 from `data`, encodes them categorically, and builds the corresponding
@@ -114,7 +114,7 @@ from `data`, encodes them categorically, and builds the corresponding
 - `id::Vector`: base identifier vector; each feature appends its local index to
   trace provenance back to the source `TreatmentGroup`.
 - `data::AbstractMatrix`: the full raw dataset matrix.
-- `ds_struct::DatasetStructure`: pre-computed dataset metadata.
+- `ds_struct::DataStructure`: pre-computed dataset metadata.
 - `cols::Vector{Int}`: column indices to include in this dataset.
 
 See also: [`ContinuousDataset`](@ref), [`MultidimDataset`](@ref), [`DiscreteFeat`](@ref)
@@ -128,7 +128,7 @@ mutable struct DiscreteDataset <: AbstractDataset
     function DiscreteDataset(
         id::Vector,
         data::AbstractMatrix, 
-        ds_struct::DatasetStructure,
+        ds_struct::DataStructure,
         cols::Vector{Int}
     )
         T = get_datatype(ds_struct, cols)
@@ -171,7 +171,7 @@ ready for downstream ML pipelines, and each column is described by a
 
 Direct constructor from a pre-built matrix and metadata vector.
 
-    ContinuousDataset(id::Vector, data::AbstractMatrix, ds_struct::DatasetStructure, cols::Vector{Int}, float_type::Type)
+    ContinuousDataset(id::Vector, data::AbstractMatrix, ds_struct::DataStructure, cols::Vector{Int}, float_type::Type)
 
 Lazy constructor called internally by `DataTreatment`. Selects columns `cols`
 from `data`, converts each element to `float_type` (preserving `missing`),
@@ -180,7 +180,7 @@ and builds the corresponding [`ContinuousFeat`](@ref) metadata from `ds_struct`.
 ## Arguments
 - `id::Vector`: base identifier vector; each feature appends its local index.
 - `data::AbstractMatrix`: the full raw dataset matrix.
-- `ds_struct::DatasetStructure`: pre-computed dataset metadata.
+- `ds_struct::DataStructure`: pre-computed dataset metadata.
 - `cols::Vector{Int}`: column indices to include in this dataset.
 - `float_type::Type`: target floating-point type for numeric conversion.
 
@@ -196,7 +196,7 @@ mutable struct ContinuousDataset{T} <: AbstractDataset
     function ContinuousDataset(
         id::Vector,
         data::AbstractMatrix, 
-        ds_struct::DatasetStructure,
+        ds_struct::DataStructure,
         cols::Vector{Int},
         float_type::Type
     )
@@ -262,7 +262,7 @@ operations or auditing the source of each derived feature.
 
 Direct constructors from a pre-built matrix and metadata vector.
 
-    MultidimDataset(id::Vector, data::AbstractMatrix, ds_struct::DatasetStructure, cols::Vector{Int}, aggrfunc::Base.Callable, float_type::Type, groups::Union{Nothing,Symbol,Tuple{Vararg{Symbol}}})
+    MultidimDataset(id::Vector, data::AbstractMatrix, ds_struct::DataStructure, cols::Vector{Int}, aggrfunc::Base.Callable, float_type::Type, groups::Union{Nothing,Symbol,Tuple{Vararg{Symbol}}})
 
 Lazy constructor called internally by `DataTreatment`. Selects columns `cols`
 from `data`, applies `aggrfunc` to transform the multidimensional elements,
@@ -277,7 +277,7 @@ The constructor inspects `aggrfunc` to decide the output format:
 ## Arguments
 - `id::Vector`: base identifier vector; each feature appends its local index.
 - `data::AbstractMatrix`: the full raw dataset matrix.
-- `ds_struct::DatasetStructure`: pre-computed dataset metadata.
+- `ds_struct::DataStructure`: pre-computed dataset metadata.
 - `cols::Vector{Int}`: column indices to include in this dataset.
 - `aggrfunc::Base.Callable`: the aggregation or reduction strategy.
 - `float_type::Type`: target floating-point type for numeric conversion.
@@ -307,7 +307,7 @@ mutable struct MultidimDataset{T} <: AbstractDataset
     function MultidimDataset(
         id::Vector,
         data::AbstractMatrix, 
-        ds_struct::DatasetStructure,
+        ds_struct::DataStructure,
         cols::Vector{Int},
         aggrfunc::Base.Callable,
         float_type::Type,

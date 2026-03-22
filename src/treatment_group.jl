@@ -40,13 +40,13 @@ Columns are selected based on:
 
 ## Constructors
 
-    TreatmentGroup(ds_struct::DatasetStructure; kwargs...)
+    TreatmentGroup(ds_struct::DataStructure; kwargs...)
     TreatmentGroup(ds::Matrix, vnames::Vector{String}; kwargs...)
     TreatmentGroup(df::DataFrame; kwargs...)
     TreatmentGroup(; kwargs...)  # curried form, returns a callable
 
 The curried form `TreatmentGroup(; kwargs...)` returns a function that accepts a
-`DatasetStructure` and forwards `kwargs`, useful for passing to `DataTreatment`.
+`DataStructure` and forwards `kwargs`, useful for passing to `DataTreatment`.
 
 ## Examples
 
@@ -76,7 +76,7 @@ struct TreatmentGroup{T}
     groupby::Union{Nothing,Tuple{Vararg{Symbol}}}
 
     function TreatmentGroup(
-        ds_struct::DatasetStructure;
+        ds_struct::DataStructure;
         dims::Int=-1,
         name_expr::Union{Regex,Base.Callable,Vector{String}}=r".*",
         datatype::Type=Any,

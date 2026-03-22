@@ -1337,7 +1337,7 @@ end
     @test get_nrows(dt) == 3
     @test get_ncols(dt) == 3
     @test get_data(dt) isa Matrix
-    @test get_ds_struct(dt) isa DT.DatasetStructure
+    @test get_ds_struct(dt) isa DT.DataStructure
     @test get_float_type(dt) == Float64
     @test isnothing(get_target(dt))
 

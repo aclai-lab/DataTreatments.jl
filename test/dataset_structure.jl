@@ -144,7 +144,7 @@ end
     end
 end
 
-@testset "DatasetStructure" begin
+@testset "DataStructure" begin
     # ------------------------------------------------------------------ #
     #                        shared rich dataset                         #
     # ------------------------------------------------------------------ #
@@ -169,7 +169,7 @@ end
         img4 = [i == 3 ? missing : create_image(i+30) for i in 1:5]
     )
 
-    ds_rich = DatasetStructure(df)
+    ds_rich = DataStructure(df)
 
     # ------------------------------------------------------------------ #
     #                           constructors                             #
@@ -181,7 +181,7 @@ end
         dataset[:, 3] = [collect(1.0:3.0), collect(2.0:4.0), collect(3.0:5.0), missing, NaN]
         col_names = ["a", "b", "c"]
 
-        ds = DatasetStructure(dataset, col_names)
+        ds = DataStructure(dataset, col_names)
 
         @test length(ds) == 3
         @test size(ds) == (3,)
@@ -199,7 +199,7 @@ end
         dataset[:, 1] = [1, 2, 3]
         dataset[:, 2] = [4.0, 5.0, 6.0]
 
-        ds = DatasetStructure(dataset)
+        ds = DataStructure(dataset)
 
         @test get_vnames(ds) == ["V1", "V2"]
     end
@@ -437,7 +437,7 @@ end
         dataset[:, 1] = [1, 2, 3]
         dataset[:, 2] = [4.0, 5.0, 6.0]
 
-        ds = DatasetStructure(dataset, ["a", "b"])
+        ds = DataStructure(dataset, ["a", "b"])
 
         @test get_missingidxs(ds, 1) == Int[]
         @test get_missingidxs(ds, 2) == Int[]
@@ -457,13 +457,13 @@ end
         io = IOBuffer()
         show(io, ds_rich)
         output = String(take!(io))
-        @test contains(output, "DatasetStructure(18 cols)")
+        @test contains(output, "DataStructure(18 cols)")
 
         # Test multi-line show (text/plain)
         io = IOBuffer()
         show(io, MIME"text/plain"(), ds_rich)
         output = String(take!(io))
-        @test contains(output, "DatasetStructure(18 columns)")
+        @test contains(output, "DataStructure(18 columns)")
         @test contains(output, "datatypes by columns:")
         @test contains(output, "missing at:")
         @test contains(output, "NaN at:")
@@ -474,12 +474,12 @@ end
         dataset[:, 1] = [1, 2, 3]
         dataset[:, 2] = [4.0, 5.0, 6.0]
 
-        ds = DatasetStructure(dataset, ["a", "b"])
+        ds = DataStructure(dataset, ["a", "b"])
 
         io = IOBuffer()
         show(io, MIME"text/plain"(), ds)
         output = String(take!(io))
-        @test contains(output, "DatasetStructure(2 columns)")
+        @test contains(output, "DataStructure(2 columns)")
         @test contains(output, "datatypes by columns:")
         @test !contains(output, "missing at:")
         @test !contains(output, "NaN at:")
@@ -490,7 +490,7 @@ end
         dataset[:, 1] = [1, missing, 3]
         dataset[:, 2] = ["a", "b", "c"]
 
-        ds = DatasetStructure(dataset, ["a", "b"])
+        ds = DataStructure(dataset, ["a", "b"])
 
         io = IOBuffer()
         show(io, MIME"text/plain"(), ds)
@@ -504,7 +504,7 @@ end
         dataset[:, 1] = [1.0, NaN, 3.0]
         dataset[:, 2] = [4.0, 5.0, 6.0]
 
-        ds = DatasetStructure(dataset, ["a", "b"])
+        ds = DataStructure(dataset, ["a", "b"])
 
         io = IOBuffer()
         show(io, MIME"text/plain"(), ds)

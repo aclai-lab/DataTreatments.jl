@@ -91,7 +91,7 @@ tabular_ds = get_tabular(dt,
 |---|---|
 | `get_data(dt)` | Raw data matrix |
 | `get_target(dt)` | Target vector (or `nothing`) |
-| `get_ds_struct(dt)` | [`DatasetStructure`](@ref) metadata |
+| `get_ds_struct(dt)` | [`DataStructure`](@ref) metadata |
 | `get_float_type(dt)` | Floating-point type used for processing |
 | `get_nrows(dt)` | Number of rows |
 | `get_ncols(dt)` | Number of columns |

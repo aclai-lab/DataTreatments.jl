@@ -26,14 +26,14 @@ TreatmentGroup
 
 ## Constructors
 
-### DatasetStructure constructor
+### DataStructure constructor
 
 ```julia
-TreatmentGroup(ds_struct::DatasetStructure; kwargs...)
+TreatmentGroup(ds_struct::DataStructure; kwargs...)
 ```
 
 The primary constructor. Selects columns from a pre-computed
-[`DatasetStructure`](@ref) using the keyword filters described below.
+[`DataStructure`](@ref) using the keyword filters described below.
 
 ### DataFrame constructor
 
@@ -41,7 +41,7 @@ The primary constructor. Selects columns from a pre-computed
 TreatmentGroup(df::DataFrame; kwargs...)
 ```
 
-Convenience constructor that builds a [`DatasetStructure`](@ref) from `df`
+Convenience constructor that builds a [`DataStructure`](@ref) from `df`
 internally.
 
 ### Matrix constructor
@@ -50,7 +50,7 @@ internally.
 TreatmentGroup(ds::Matrix, vnames::Vector{String}; kwargs...)
 ```
 
-Convenience constructor that builds a [`DatasetStructure`](@ref) from a raw
+Convenience constructor that builds a [`DataStructure`](@ref) from a raw
 matrix and a vector of column names.
 
 ### Curried constructor
@@ -60,8 +60,8 @@ TreatmentGroup(; kwargs...)  # returns a Function
 ```
 
 Returns a closure `x -> TreatmentGroup(x; kwargs...)` that accepts a
-[`DatasetStructure`](@ref). Useful for passing to [`DataTreatment`](@ref)
-without having the `DatasetStructure` available yet.
+[`DataStructure`](@ref). Useful for passing to [`DataTreatment`](@ref)
+without having the `DataStructure` available yet.
 
 ### Keyword Arguments
 
@@ -173,7 +173,7 @@ Anonymous callables are displayed as `"anonymous callable"`.
 ## See Also
 
 - [`DataTreatment`](@ref) — the pipeline object that consumes `TreatmentGroup`s.
-- [`DatasetStructure`](@ref) — pre-computed dataset metadata used for column selection.
+- [`DataStructure`](@ref) — pre-computed dataset metadata used for column selection.
 - [`aggregate`](@ref) — aggregation function for multidimensional columns.
 - [`reducesize`](@ref) — reduction function for multidimensional columns.
 - [Output Datasets](@ref output_dataset) — the dataset types produced after processing.
