@@ -40,55 +40,31 @@ t_classif = ["classA", "classB", "classC", "classA", "classB"]
 t_regress = [1.2, 3.4, 2.2, 4.8, 0.9]
 
 ds = load_dataset(df)
+
 ds = load_dataset(df, t_classif)
+@test get_target(ds) == [1, 2, 3, 1, 2]
+@test get_levels(ds) == ["classA", "classB", "classC"]
+
 ds = load_dataset(df, t_regress)
+@test get_target(ds) == t_regress
+@test isnothing(get_levels(ds))
 
-# @btime load_dataset(df);
-# # 313.931 μs (3577 allocations: 227.88 KiB)
-# # 436.629 μs (3908 allocations: 252.18 KiB)
-
-# using Test
-# using DataTreatments
-
-# using MLJ
-# using DataFrames, Random
-# using SoleData: Artifacts
-
-# using CategoricalArrays
-
-# # ---------------------------------------------------------------------------- #
-# #                                load dataset                                  #
-# # ---------------------------------------------------------------------------- #
-# Xc, yc = @load_iris
-# Xc = DataFrame(Xc)
-
-# Xr, yr = @load_boston
-# Xr = DataFrame(Xr)
-
-# natopsloader = Artifacts.NatopsLoader()
-# Xts, yts = Artifacts.load(natopsloader)
-
-
-# ds = load_dataset(Xc, yc)
-
-# ds =load_dataset(
-#     Xc, yc,
-#     TreatmentGroup(name_expr=["petal_length", "petal_width"], grouped=true)
-# )
-
-# ds =load_dataset(Xr, yr)
-
-# ds =load_dataset(
-#     Xts, yts,
-#     TreatmentGroup(
-#         dims=1,
-#         aggrfunc=aggregate(
-#             features=(mean, maximum),
-#             win=(adaptivewindow(nwindows=5, overlap=0.4),)
-#         ),
-#         groupby=:feat
-#     )
-# )
+ds =load_dataset(
+    df,
+    TreatmentGroup(
+        dims=1,
+        aggrfunc=aggregate(
+            features=(mean, maximum),
+            win=(adaptivewindow(nwindows=5, overlap=0.4),)
+        ),
+        groupby=:feat
+    )
+)
+@test length(ds.treats) == 1
+@test ds.treats[1].ids == [7, 10, 11, 13]
+@test ds.treats[1].vnames == ["ts1", "ts2", "ts3", "ts4"]
+@test size(ds.data[1].data, 2) == 40
+@test length(ds.data[1].groups) == 2
 
 # ds =load_dataset(
 #     Xts, yts,

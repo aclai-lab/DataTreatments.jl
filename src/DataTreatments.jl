@@ -46,6 +46,7 @@ include("treatment.jl")
 include("groupby.jl")
 
 export load_dataset
+export get_target, get_levels
 include("datatreatment.jl")
 
 end

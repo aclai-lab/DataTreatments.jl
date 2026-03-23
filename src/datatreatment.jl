@@ -8,6 +8,9 @@ mutable struct DataTreatment
     treats::Vector{TreatmentGroup}
 end
 
+get_levels(d::DataTreatment) = d.levels
+get_target(d::DataTreatment) = d.target
+
 function load_dataset(
     data::Matrix,
     vnames::Vector{String}=["V$i" for i in 1:size(data, 2)],
@@ -53,5 +56,8 @@ function load_dataset(
     return DataTreatment(ds, ctarget, clevels, treats)
 end
 
+load_dataset(df::DataFrame, target::AbstractVector, args...; kwargs...) =
+    load_dataset(Matrix(df), names(df), target, args...; kwargs...)
+
 load_dataset(df::DataFrame, args...; kwargs...) =
-    load_dataset(Matrix(df), names(df), args...; kwargs...)
+    load_dataset(Matrix(df), names(df), nothing, args...; kwargs...)
