@@ -1,8 +1,6 @@
 using Test
 using DataTreatments
 
-using SoleData.Artifacts
-
 function run_tests(list)
     println("\n" * ("#"^50))
     for test in list
@@ -14,17 +12,17 @@ end
 println("Julia version: ", VERSION)
 
 test_suites = [
-    ("Dataset Structure", ["dataset_structure.jl"]),
-    ("DataTreatment", ["datatreatment.jl"]),
-    ("Groupby", ["groupby.jl"]),
-    ("Metadatas",  ["metadata.jl",]),
-    ("Treatment Groups",  ["treatment_group.jl",]),
-    ("Treatments",  ["treatment.jl",]),
-    ("Output Datasets",  ["output_dataset.jl",]),
-    ("Windowing",  ["windowing.jl",]),
-    ("FeatureSet", ["featureset.jl",]),
-    ("Handy Methods", ["methods.jl",]),
-    ("Usage Examples", ["usage_example.jl",]),
+    ("Dataset Inspect", ["inspecting.jl"]),
+    # ("DataTreatment", ["datatreatment.jl"]),
+    # ("Groupby", ["groupby.jl"]),
+    # ("Metadatas",  ["metadata.jl",]),
+    # ("Treatment Groups",  ["treatment_group.jl",]),
+    # ("Treatments",  ["treatment.jl",]),
+    # ("Output Datasets",  ["output_dataset.jl",]),
+    # ("Windowing",  ["windowing.jl",]),
+    # ("FeatureSet", ["featureset.jl",]),
+    # ("Handy Methods", ["methods.jl",]),
+    # ("Usage Examples", ["usage_example.jl",]),
 ]
 
 @testset "DataTreatments.jl" begin

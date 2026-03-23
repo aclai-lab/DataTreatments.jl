@@ -4,7 +4,7 @@ using MLJ
 using DataFrames, Random
 using SoleData: Artifacts
 
-using DataTreatments: aggregate, wholewindow, adaptivewindow
+using DataTreatments: aggregate, reducesize, wholewindow, adaptivewindow
 using CategoricalArrays
 
 # ---------------------------------------------------------------------------- #
@@ -22,10 +22,10 @@ Xts, yts = Artifacts.load(natopsloader)
 # ---------------------------------------------------------------------------- #
 #                               Dataset struct                                 #
 # ---------------------------------------------------------------------------- #
-# mutable struct DataTreatment
-#     data::Vector{DT.AbstractDataset}
-#     treats::Vector{DT.TreatmentGroup}
-# end
+mutable struct DataTreatment
+    data::Vector{AbstractDataset}
+    treats::Vector{TreatmentGroup}
+end
 
 include("NEW_treatment_group.jl")
 include("NEW_output_datasets.jl")
@@ -43,7 +43,7 @@ function load_dataset(
     # data_type::Base.Callable=tabular,
     float_type::Type=Float64
 )
-    datastruct = _collect_dataset_info(data)
+    datastruct = _inspecting(data)
 
     ctarget, clevels = if !isnothing(target) && !isa(eltype(target), AbstractFloat)
         _discrete_encode(target), levels(target)
@@ -75,8 +75,7 @@ function load_dataset(
     
     # return vcat(get_discrete(data), get_continuous(data), get_aggregated(data)), treats
 
-    # Dataset(data, treats)
-    ds
+    return DataTreatment(ds, treats)
 end
 
 load_dataset(df::DataFrame, args...; kwargs...) =
@@ -107,17 +106,16 @@ ds =load_dataset(
     )
 )
 
-# ds =load_dataset(
-#     Xts, yts,
-#     TreatmentGroup(
-#         dims=1,
-#         aggrfunc=SF.reducesize(
-#             reducefunc=mean,
-#             win=(splitwindow(nwindows=5),)
-#         )
-#     );
-#     data_type=multidim
-# )
+ds =load_dataset(
+    Xts, yts,
+    TreatmentGroup(
+        dims=1,
+        aggrfunc=reducesize(
+            reducefunc=mean,
+            win=(splitwindow(nwindows=5),)
+        )
+    );
+)
 
 # ds =load_dataset(
 #     Xts, yts,
@@ -128,3 +126,6 @@ ds =load_dataset(
 #     data_type=tabular
 # )
 # @test isempty(SF.get_data(ds))
+
+# @inferred
+# @code_warntype

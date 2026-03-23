@@ -5,7 +5,7 @@ _to_str(v) = (ismissing(v) || (v isa AbstractFloat && isnan(v))) ? missing : str
 _discrete_encode(X::Matrix) = [_discrete_encode(x) for x in eachcol(X)]
 _discrete_encode(x::AbstractVector) = [levelcode(cat) for cat in categorical(_to_str.(x))]
 
-function _collect_dataset_info(data::Matrix)
+function _inspecting(data::Matrix)
         ncols = size(data, 2)
 
         id = Vector{Int}(undef, ncols)

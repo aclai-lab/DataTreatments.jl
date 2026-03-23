@@ -31,41 +31,43 @@ include("windowing.jl")
 export aggregate, reducesize
 include("multidim_treatment.jl")
 
-export DataStructure
-export get_vnames, get_datatype, get_dims
-export get_valididxs, get_missingidxs, get_nanidxs
-export get_hasmissing, get_hasnans
-export get_dataset_structure
-include("dataset_structure.jl")
+include("inspecting.jl")
 
-export TreatmentGroup
-export get_idxs, get_dims, get_vnames, get_aggrfunc, get_grouped, get_groupby, has_groupby
-include("treatment_group.jl")
+# export DataStructure
+# export get_vnames, get_datatype, get_dims
+# export get_valididxs, get_missingidxs, get_nanidxs
+# export get_hasmissing, get_hasnans
+# export get_dataset_structure
+# include("dataset_structure.jl")
 
-export DiscreteFeat, ContinuousFeat, AggregateFeat, ReduceFeat
-export get_id, get_idx, get_vname, get_dims, get_valididxs
-export get_missingidxs, get_nanidxs, get_hasmissing, get_hasnans
-export get_levels, get_feat, get_nwin, get_reducefunc
-include("metadata.jl")
+# export TreatmentGroup
+# export get_idxs, get_dims, get_vnames, get_aggrfunc, get_grouped, get_groupby, has_groupby
+# include("treatment_group.jl")
 
-export DiscreteDataset, ContinuousDataset, MultidimDataset
-export discrete_encode
-export get_data, get_info, get_nrows, get_ncols, get_vnames, get_idxs
-export has_groups, get_groups
-include("output_dataset.jl")
-include("groupby.jl")
+# export DiscreteFeat, ContinuousFeat, AggregateFeat, ReduceFeat
+# export get_id, get_idx, get_vname, get_dims, get_valididxs
+# export get_missingidxs, get_nanidxs, get_hasmissing, get_hasnans
+# export get_levels, get_feat, get_nwin, get_reducefunc
+# include("metadata.jl")
 
-export DataTreatment, TreatmentOutput
-export groupby
-export get_data, get_target, get_ds_struct, get_t_groups, get_float_type
-export get_nrows, get_ncols
-export get_dataset
-export get_treatments_datasets, get_leftover_datasets
-export standard, matrix, dataframe
-include("datatreatment.jl")
+# export DiscreteDataset, ContinuousDataset, MultidimDataset
+# export discrete_encode
+# export get_data, get_info, get_nrows, get_ncols, get_vnames, get_idxs
+# export has_groups, get_groups
+# include("output_dataset.jl")
+# include("groupby.jl")
 
-export get_discrete, get_continuous, get_multidim, get_aggregated, get_reduced
-export get_tabular, get_multidim
-include("methods.jl")
+# export DataTreatment, TreatmentOutput
+# export groupby
+# export get_data, get_target, get_ds_struct, get_t_groups, get_float_type
+# export get_nrows, get_ncols
+# export get_dataset
+# export get_treatments_datasets, get_leftover_datasets
+# export standard, matrix, dataframe
+# include("datatreatment.jl")
+
+# export get_discrete, get_continuous, get_multidim, get_aggregated, get_reduced
+# export get_tabular, get_multidim
+# include("methods.jl")
 
 end
