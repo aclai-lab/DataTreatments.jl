@@ -20,8 +20,8 @@ function load_dataset(
 )
     datastruct = _inspecting(data)
 
-    ctarget, clevels = if !isnothing(target) && !isa(eltype(target), AbstractFloat)
-        _discrete_encode(target), levels(target)
+    ctarget, clevels = if !isnothing(target) && !(eltype(target) <: AbstractFloat)
+        _discrete_encode(target)
     else
         target, nothing
     end

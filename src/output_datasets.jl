@@ -185,9 +185,7 @@ mutable struct DiscreteDataset <: AbstractDataset
         vnames = vnames[ids]
         valid = datastruct.valididxs[ids]
         miss = datastruct.missingidxs[ids]
-        codes, levels = _discrete_encode(data[:, ids])
-        @show codes
-        @show levels
+        codes, levels = _discrete_encode(@views(data[:, ids]))
 
         return new(
             stack(codes),
