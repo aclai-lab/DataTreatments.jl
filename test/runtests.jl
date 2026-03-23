@@ -16,10 +16,11 @@ test_suites = [
     ("Windowing",  ["windowing.jl",]),
     ("Dataset Inspect", ["inspecting.jl"]),
     ("Multidim Treatments",  ["multidim_treatment.jl",]),
+    ("Treatment Groups",  ["treatment_group.jl",]),
     # ("DataTreatment", ["datatreatment.jl"]),
     # ("Groupby", ["groupby.jl"]),
     # ("Metadatas",  ["metadata.jl",]),
-    # ("Treatment Groups",  ["treatment_group.jl",]),
+
 
     # ("Output Datasets",  ["output_dataset.jl",]),
 
