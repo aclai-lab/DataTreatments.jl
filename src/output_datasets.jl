@@ -415,3 +415,9 @@ Base.getindex(ds::MultidimDataset, idxs::AbstractVector{Int}) =
     MultidimDataset(@view(ds.data[:, idxs]), ds.info[idxs], _reindex_groups(ds.groups, idxs))
 
 get_dims(d::MultidimDataset) = [get_dims(f) for f in d.info]
+
+get_data(d::Vector{<:AbstractDataset}) = reduce(hcat, get_data.(d))
+get_data(d::AbstractDataset) = d.data
+
+get_info(d::Vector{<:AbstractDataset}) = reduce(vcat, get_info.(d))
+get_info(d::AbstractDataset) = d.info

@@ -90,7 +90,7 @@ end
 
 @testset "_discrete_encode works as expected" begin
     target = [:circle, :square, :triangle, :square, missing]
-    encoded = DT._discrete_encode(target)
+    encoded, levels = DT._discrete_encode(target)
 
     @test length(encoded) == length(target)
     @test all(ismissing(target[i]) ? ismissing(encoded[i]) : isa(encoded[i], Int) for i in eachindex(target))
@@ -99,4 +99,6 @@ end
 
     @test encoded[1] != encoded[2]
     @test encoded[3] != encoded[1]
+
+    @test length(levels) == 3
 end

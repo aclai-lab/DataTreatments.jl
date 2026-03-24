@@ -8,9 +8,20 @@ mutable struct DataTreatment
     treats::Vector{TreatmentGroup}
 end
 
-get_levels(d::DataTreatment) = d.levels
-get_target(d::DataTreatment) = d.target
+get_levels(dt::DataTreatment) = dt.levels
+get_target(dt::DataTreatment) = dt.target
 
+get_discrete(dt::DataTreatment) = get_data(filter(d -> d isa DiscreteDataset, dt.data))
+get_continuous(dt::DataTreatment) = get_data(filter(d -> d isa ContinuousDataset, dt.data))
+
+get_aggregated(dt::DataTreatment) = get_data(filter(d -> d isa MultidimDataset &&
+    all(elt -> elt isa AggregateFeat, get_info(d)), dt.data))
+get_reduced(dt::DataTreatment) = get_data(filter(d -> d isa MultidimDataset &&
+    all(elt -> elt isa ReduceFeat, get_info(d)), dt.data))
+
+# ---------------------------------------------------------------------------- #
+#                                load dataset                                  #
+# ---------------------------------------------------------------------------- #
 function load_dataset(
     data::Matrix,
     vnames::Vector{String}=["V$i" for i in 1:size(data, 2)],
@@ -18,7 +29,6 @@ function load_dataset(
     treatments::Vararg{Base.Callable}=DefaultTreatmentGroup;
     treatment_ds::Bool=true,
     leftover_ds::Bool=true,
-    # data_type::Base.Callable=tabular,
     float_type::Type=Float64
 )
     datastruct = _inspecting(data)
@@ -47,12 +57,6 @@ function load_dataset(
         !isnothing(ds_md) && append!(ds, ds_md)
     end
 
-    # data, treats = data_type(dt, args...; kwargs...)
-
-    # data, treats = get_dataset(dt::DataTreatment, args...; kwargs...)
-    
-    # return vcat(get_discrete(data), get_continuous(data), get_aggregated(data)), treats
-
     return DataTreatment(ds, ctarget, clevels, treats)
 end
 
@@ -61,3 +65,26 @@ load_dataset(df::DataFrame, target::AbstractVector, args...; kwargs...) =
 
 load_dataset(df::DataFrame, args...; kwargs...) =
     load_dataset(Matrix(df), names(df), nothing, args...; kwargs...)
+
+# ---------------------------------------------------------------------------- #
+#                             get tabular method                               #
+# ---------------------------------------------------------------------------- #
+"""
+    get_tabular(dt::DataTreatment)
+
+Convenience function to collect all tabular-like datasets from a `DataTreatment` 
+object, including discrete, continuous, and aggregated multidimensional data.
+"""
+@inline get_tabular(dt::DataTreatment) =
+    hcat(get_discrete(dt), get_continuous(dt), get_aggregated(dt))
+
+# ---------------------------------------------------------------------------- #
+#                            get multidim method                               #
+# ---------------------------------------------------------------------------- #
+"""
+    get_multidim(dt::DataTreatment)
+
+Convenience function to collect all reduced multidimensional datasets 
+from a `DataTreatment` object.
+"""
+@inline get_multidim(dt::DataTreatment) = get_reduced(dt)

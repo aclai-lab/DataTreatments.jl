@@ -45,8 +45,12 @@ include("treatment.jl")
 
 include("groupby.jl")
 
+export DataTreatment
 export load_dataset
 export get_target, get_levels
+export get_discrete, get_continuous
+export get_aggregated, get_reduced
+export get_tabular, get_multidim
 include("datatreatment.jl")
 
 end
