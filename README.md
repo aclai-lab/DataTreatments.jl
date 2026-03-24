@@ -50,7 +50,7 @@ df = DataFrame(
     img2     = [rand(6, 6) for _ in 1:5],
 )
 
-dt = DataTreatment(df)
+dt = load_dataset(df)
 ```
 
 ### 2. Extract processed datasets with `get_dataset`
@@ -58,9 +58,6 @@ dt = DataTreatment(df)
 All transformations are applied lazily when you call `get_dataset`. You pass one or more `TreatmentGroup` directives to control how columns are filtered, windowed, and aggregated.
 
 ```julia
-# get_dataset: aggregate all columns with max, min, mean over a whole window
-result = get_dataset(dt)
-
 # get_tabular: returns only tabular part of the dataset
 result = get_tabular(dt)
 
@@ -74,8 +71,8 @@ Use `TreatmentGroup` to specify which columns to process and how:
 
 ```julia
 # Aggregate 1D columns with custom features and windowing
-result = get_dataset(
-    dt,
+result = load_dataset(
+    df,
     TreatmentGroup(
         dims=1,
         aggrfunc=aggregate(
@@ -91,8 +88,8 @@ result = get_dataset(
 Apply different processing to different dimensionalities:
 
 ```julia
-result = get_dataset(
-    dt,
+result = load_dataset(
+    df,
     TreatmentGroup(
         dims=1,
         aggrfunc=aggregate(
@@ -115,9 +112,9 @@ result = get_dataset(
 Use `vnames` to select columns matching a regex pattern. Set `leftover_ds=false` to exclude unmatched columns:
 
 ```julia
-result = get_dataset(
-    dt,
-    TreatmentGroup(vnames=r"^(V|i)"),
+result = load_dataset(
+    df,
+    TreatmentGroup(name_expr=r"^(V|i)"),
     leftover_ds=false,
 )
 ```
@@ -127,8 +124,8 @@ result = get_dataset(
 Group output columns by metadata (e.g., variable name, feature function) and optionally split the result:
 
 ```julia
-result = get_dataset(
-    dt,
+result = load_dataset(
+    df,
     TreatmentGroup(
         dims=2,
         aggrfunc=aggregate(
@@ -136,8 +133,8 @@ result = get_dataset(
             win=(adaptivewindow(nwindows=5, overlap=0.4),)
         ),
         groupby=:vname,
-    ),
-    groupby_split=true
+        grouped=true
+    )
 )
 ```
 

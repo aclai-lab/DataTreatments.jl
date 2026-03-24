@@ -29,8 +29,7 @@ Pkg.add("DataTreatments")
 
 ### 1. Create a `DataTreatment` container
 
-`DataTreatment` is a lightweight container that stores the raw dataset and its metadata.
-No processing happens at construction time.
+`DataTreatment` is a lightweight container that stores the raw dataset and its metadata. No processing happens at construction time.
 
 ```julia
 using DataTreatments, DataFrames, Statistics, CategoricalArrays
@@ -48,17 +47,19 @@ df = DataFrame(
     img2     = [rand(6, 6) for _ in 1:5],
 )
 
-dt = DataTreatment(df)
+dt = load_dataset(df)
 ```
 
 ### 2. Extract processed datasets with `get_dataset`
 
-All transformations are applied lazily when you call `get_dataset`.
-You pass one or more `TreatmentGroup` directives to control how columns are filtered, windowed, and aggregated.
+All transformations are applied lazily when you call `get_dataset`. You pass one or more `TreatmentGroup` directives to control how columns are filtered, windowed, and aggregated.
 
 ```julia
-# Default: aggregate all columns with max, min, mean over a whole window
-result = get_dataset(dt)
+# get_tabular: returns only tabular part of the dataset
+result = get_tabular(dt)
+
+# get_multidim: returns only multidimensional part of the dataset
+result = get_multidim(dt)
 ```
 
 ### 3. Custom treatment groups
@@ -67,8 +68,8 @@ Use `TreatmentGroup` to specify which columns to process and how:
 
 ```julia
 # Aggregate 1D columns with custom features and windowing
-result = get_dataset(
-    dt,
+result = load_dataset(
+    df,
     TreatmentGroup(
         dims=1,
         aggrfunc=aggregate(
@@ -84,8 +85,8 @@ result = get_dataset(
 Apply different processing to different dimensionalities:
 
 ```julia
-result = get_dataset(
-    dt,
+result = load_dataset(
+    df,
     TreatmentGroup(
         dims=1,
         aggrfunc=aggregate(
@@ -105,25 +106,23 @@ result = get_dataset(
 
 ### 5. Filter columns by name
 
-Use `name_expr` to select columns matching a regex pattern.
-Set `leftover_ds=false` to exclude unmatched columns:
+Use `vnames` to select columns matching a regex pattern. Set `leftover_ds=false` to exclude unmatched columns:
 
 ```julia
-result = get_dataset(
-    dt,
+result = load_dataset(
+    df,
     TreatmentGroup(name_expr=r"^(V|i)"),
-    leftover_ds=false
+    leftover_ds=false,
 )
 ```
 
 ### 6. Groupby and split
 
-Group output columns by metadata (e.g., variable name, feature function)
-and optionally split the result into separate datasets:
+Group output columns by metadata (e.g., variable name, feature function) and optionally split the result:
 
 ```julia
-result = get_dataset(
-    dt,
+result = load_dataset(
+    df,
     TreatmentGroup(
         dims=2,
         aggrfunc=aggregate(
@@ -131,8 +130,8 @@ result = get_dataset(
             win=(adaptivewindow(nwindows=5, overlap=0.4),)
         ),
         groupby=:vname,
-    ),
-    groupby_split=true
+        grouped=true
+    )
 )
 ```
 
@@ -144,7 +143,7 @@ result = get_dataset(
 
 - **Construction** (`DataTreatment(df)`) only stores the raw data matrix and computes
   lightweight metadata (column types, dimensions, missing/NaN indices) via
-  [`DatasetStructure`](@ref).
+  [`DataStructure`](@ref).
 - **Processing** happens entirely inside [`get_dataset`](@ref), which accepts
   [`TreatmentGroup`](@ref) directives specifying how to filter, window, aggregate,
   or reduce each subset of columns.
@@ -269,7 +268,7 @@ dt = DataTreatment(matrix, colnames)        # from Matrix + column names
 Access raw data and metadata:
 ```julia
 get_data(dt)        # raw data matrix
-get_ds_struct(dt)   # DatasetStructure with column metadata
+get_ds_struct(dt)   # DataStructure with column metadata
 get_float_type(dt)  # floating-point type
 get_nrows(dt)       # number of rows
 get_ncols(dt)       # number of columns

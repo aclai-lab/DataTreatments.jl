@@ -31,52 +31,28 @@ Columns are selected based on:
 
 ## Fields
 
-- `idxs::Vector{Int}`: Column indices selected by this group
+- `ids::Vector{Int}`: Column indices selected by this group
 - `dims::Int`: Dimensionality filter used
 - `vnames::Vector{String}`: Names of selected columns
 - `aggrfunc::Base.Callable`: Aggregation function for multidimensional columns
 - `grouped::Bool`: Whether to process all columns together (`true`) or columnwise (`false`)
 - `groupby::Tuple{Vararg{Symbol}}`: Grouping specification for output features
 
-## Constructors
-
-    TreatmentGroup(ds_struct::DatasetStructure; kwargs...)
-    TreatmentGroup(ds::Matrix, vnames::Vector{String}; kwargs...)
-    TreatmentGroup(df::DataFrame; kwargs...)
-    TreatmentGroup(; kwargs...)  # curried form, returns a callable
-
 The curried form `TreatmentGroup(; kwargs...)` returns a function that accepts a
-`DatasetStructure` and forwards `kwargs`, useful for passing to `DataTreatment`.
-
-## Examples
-
-```julia
-# Select all columns with dimensionality 0 (scalars) — curried form
-TreatmentGroup(dims=0)
-
-# Select columns matching a regex pattern
-TreatmentGroup(ds_struct, name_expr=r"^V")
-
-# Select specific columns by name
-TreatmentGroup(ds_struct, name_expr=["col1", "col2"])
-
-# Select continuous columns with custom aggregation
-TreatmentGroup(ds_struct, datatype=Float64, aggrfunc=aggregate(...))
-
-# Process all selected columns together (joint processing)
-TreatmentGroup(ds_struct, grouped=true)
-```
+`DataStructure` and forwards `kwargs`, useful for passing to `DataTreatment`.
 """
-struct TreatmentGroup{T}
-    idxs::Vector{Int}
+struct TreatmentGroup
+    ids::Vector{Int}
     dims::Int
     vnames::Vector{String}
     aggrfunc::Base.Callable
     grouped::Bool
     groupby::Union{Nothing,Tuple{Vararg{Symbol}}}
+    datatype::Type
 
     function TreatmentGroup(
-        ds_struct::DatasetStructure;
+        datastruct::NamedTuple,
+        vnames::Vector{String};
         dims::Int=-1,
         name_expr::Union{Regex,Base.Callable,Vector{String}}=r".*",
         datatype::Type=Any,
@@ -84,12 +60,10 @@ struct TreatmentGroup{T}
         grouped::Bool=false,
         groupby::Union{Nothing,Symbol,Tuple{Vararg{Symbol}}}=nothing
     )
-        vnames = get_vnames(ds_struct)
-        all_dims = get_dims(ds_struct)
-        all_types = get_datatype(ds_struct)
+        all_dims = datastruct.dims
+        all_types = datastruct.datatype
         groupby isa Symbol && (groupby = (groupby,))
 
-        # build name matcher once
         name_match = if name_expr isa Regex
             n -> match(name_expr, n) !== nothing
         elseif name_expr isa Vector{String}
@@ -99,150 +73,32 @@ struct TreatmentGroup{T}
             name_expr
         end
 
-        # single pass: collect indices matching all filters
-        idxs = Int[]
-        for i in eachindex(ds_struct)
+        ids = Int[]
+
+        for i in datastruct.id
             (dims != -1 && all_dims[i] != dims) && continue
             (datatype != Any && all_types[i] != datatype) && continue
             name_match(vnames[i]) || continue
-            push!(idxs, i)
+            push!(ids, i)
         end
 
-        col_types = get_datatype(ds_struct, idxs)
+        col_types = all_types[ids]
         T = isempty(col_types) ? Any : mapreduce(identity, typejoin, col_types)
+        isconcretetype(T) || (T = Any)
 
-        new{T}(idxs, dims, vnames[idxs], aggrfunc, grouped, groupby)
+        new(ids, dims, vnames[ids], aggrfunc, grouped, groupby, T)
     end
 end
 
-TreatmentGroup(; kwargs...) = x -> TreatmentGroup(x; kwargs...)
+TreatmentGroup(; kwargs...) = (d, v) -> TreatmentGroup(d, v; kwargs...)
 
 # ---------------------------------------------------------------------------- #
-#                                Base methods                                  #
+#                                   methods                                    #
 # ---------------------------------------------------------------------------- #
-Base.length(tg::TreatmentGroup) = length(tg.idxs)
-Base.iterate(tg::TreatmentGroup, state=1) = state > length(tg) ? nothing : (tg.idxs[state], state + 1)
-Base.eachindex(tg::TreatmentGroup) = eachindex(tg.idxs)
+get_ids(t::Vector{<:TreatmentGroup}) = get_ids.(t)
+get_ids(t::TreatmentGroup) = t.ids
 
-# ---------------------------------------------------------------------------- #
-#                               getter methods                                 #
-# ---------------------------------------------------------------------------- #
-"""
-    get_idxs(tg::TreatmentGroup)
-    get_idxs(tg::TreatmentGroup, i::Int)
+get_aggrfunc(t::TreatmentGroup) = t.aggrfunc
 
-Returns the column indices selected by this group. If `i` is provided, returns the `i`-th index.
-"""
-get_idxs(tg::TreatmentGroup) = tg.idxs
-get_idxs(tg::TreatmentGroup, i::Int) = tg.idxs[i]
-
-"""
-    get_dims(tg::TreatmentGroup)
-
-Returns the dimensionality filter used to select columns (`-1` means no filter).
-"""
-get_dims(tg::TreatmentGroup) = tg.dims
-
-"""
-    get_vnames(tg::TreatmentGroup)
-    get_vnames(tg::TreatmentGroup, i::Int)
-    get_vnames(tg::TreatmentGroup, idxs::Vector{Int})
-
-Returns the column names selected by this group. If `i` is provided, returns the `i`-th name.
-If a vector of indices is provided, returns a view of the names for those positions.
-"""
-get_vnames(tg::TreatmentGroup) = tg.vnames
-get_vnames(tg::TreatmentGroup, i::Int) = tg.vnames[i]
-get_vnames(tg::TreatmentGroup, idxs::Vector{Int}) = @views tg.vnames[idxs]
-
-"""
-    get_aggrfunc(tg::TreatmentGroup)
-
-Returns the aggregation function used by this group.
-"""
-get_aggrfunc(tg::TreatmentGroup) = tg.aggrfunc
-
-"""
-    get_grouped(tg::TreatmentGroup)
-
-Returns the `grouped` setting: if `true`, datas must be processed together, not columwise.
-"""
-get_grouped(tg::TreatmentGroup) = tg.grouped
-
-"""
-    get_groupby(tg::TreatmentGroup)
-
-Returns the `groupby` tuple of symbols used to partition output features.
-"""
-get_groupby(tg::TreatmentGroup) = tg.groupby
-
-"""
-    has_groupby(tg::TreatmentGroup)
-
-Returns `true` if a `groupby` specification is set for this group.
-"""
-has_groupby(tg::TreatmentGroup) = !isnothing(tg.groupby)
-
-
-# ---------------------------------------------------------------------------- #
-#                             custom lazy methods                              #
-# ---------------------------------------------------------------------------- #
-"""
-    get_idxs(tgs::Vector{<:TreatmentGroup})
-
-Returns a vector of index vectors, one for each treatment group.
-
-When the same index appears in multiple groups, **later groups take precedence**:
-the duplicated index is kept in the last group where it appears and removed from all
-previous groups.
-
-In other words, the output groups are made pairwise disjoint by filtering overlaps
-from left to right, giving priority to groups with higher position in `tgs`.
-"""
-function get_idxs(tgs::Vector{<:TreatmentGroup})
-    seen = Set{Int}()
-    no_intersect_groups = reverse(map(reverse(tgs)) do tg
-        unique_idxs = filter(∉(seen), get_idxs(tg))
-        union!(seen, unique_idxs)
-        unique_idxs
-    end)
-
-    any(isempty.(no_intersect_groups)) &&
-        @warn "One or more TreatmentGroups have no columns after resolving overlaps " *
-        "(all their indices were claimed by later groups)"
-
-    return no_intersect_groups
-end
-
-# ---------------------------------------------------------------------------- #
-#                                 show method                                  #
-# ---------------------------------------------------------------------------- #
-# one-line
-function Base.show(io::IO, tg::TreatmentGroup{T}) where {T}
-    dims_str = tg.dims == -1 ? "all" : string(tg.dims)
-    print(io, "TreatmentGroup{$T}(", length(tg.idxs), " cols, dims=", dims_str, ")")
-end
-
-# multi-line
-function Base.show(io::IO, ::MIME"text/plain", tg::TreatmentGroup{T}) where {T}
-    n_selected = length(tg.idxs)
-    dims_str = tg.dims == -1 ? "all" : string(tg.dims)
-
-    aggr_label = try
-        ftype_name = String(Base.unwrap_unionall(typeof(tg.aggrfunc)).name.name)
-        startswith(ftype_name, "#") ? "anonymous callable" : ftype_name
-    catch
-        string(typeof(tg.aggrfunc))
-    end
-
-    println(io, "TreatmentGroup{$T}($n_selected columns selected)")
-    println(io, "├─ dims filter: $dims_str")
-
-    if tg.dims != 0
-        println(io, "├─ selected indices: $(tg.idxs)")
-        println(io, "├─ aggregation function: $aggr_label")
-        print(io,   "└─ groupby: $(tg.groupby)")
-    else
-        print(io,   "└─ selected indices: $(tg.idxs)")
-    end
-end
+has_groupby(t::TreatmentGroup) = !isnothing(t.groupby)
+get_groupby(t::TreatmentGroup) = t.groupby

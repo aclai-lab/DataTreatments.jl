@@ -1,213 +1,227 @@
 # ---------------------------------------------------------------------------- #
-#                                    utils                                     #
+#                             internal functions                               #
 # ---------------------------------------------------------------------------- #
-# extract window ranges from intervals and cartesian index
-@inline function get_window_ranges(intervals::Tuple, cartidx::CartesianIndex)
-    ntuple(i -> intervals[i][cartidx[i]], length(intervals))
+function _split_md_by_dims(ds_md::MultidimDataset)
+    dims = get_dims(ds_md)
+    unique_dims = unique(get_dims(ds_md))
+
+    idxs = [filter(i -> dims[i] == ud, collect(eachindex(dims))) for ud in unique_dims]
+
+    return [ds_md[idx] for idx in idxs]
 end
 
 """
-    safe_feat(v, f) -> Any
+    _build_ds(
+        ids::Vector{Int},
+        treat::TreatmentGroup,
+        data::Matrix,
+        vnames::Vector{String},
+        datastruct::NamedTuple,
+        float_type::Type
+    ) -> (ds_td, ds_tc, ds_md)
 
-Apply a feature function to a vector while safely handling missing values and NaN entries.
+Partitions the selected columns of a dataset into three macro categories based on their data type, 
+and constructs the appropriate dataset structure for each category.
 
-Filters out `missing` values and `NaN` entries before applying the feature function,
-making it robust for incomplete or noisy data. Used in aggregation and size-reduction
-operations on windowed data.
+# Description
 
-# Arguments
-- `v::AbstractVector`: Input vector that may contain missing values or NaN entries.
-- `f::Callable`: Feature function to apply (e.g., `mean`, `std`, `maximum`).
+Given a set of column indices and metadata, this function separates columns into:
+- **Discrete data**: Columns whose element type is neither `AbstractFloat` nor `AbstractArray` 
+  (e.g., categorical labels, strings, integers). These are stored in a [`DiscreteDataset`](@ref).
+- **Continuous data**: Columns whose element type is a subtype of `AbstractFloat` (scalar numeric values). 
+  These are stored in a [`ContinuousDataset`](@ref).
+- **Multidimensional data**: Columns whose element type is a subtype of `AbstractArray` 
+  (e.g., time series, images, spectrograms). These are stored in a [`MultidimDataset`](@ref), processed according to the aggregation function specified in the `TreatmentGroup`.
 
-# Returns
-- Result of applying `f` to the cleaned, materialized vector (typically a scalar).
-
-# Details
-- Skips all `missing` values via `skipmissing()`.
-- Filters out `NaN` values (for floating-point types).
-- The cleaned values are collected into a `Vector` before calling `f`, since some
-  aggregation functions (e.g., `mean`, `std`) require indexable collections.
-- If all values are missing/NaN, `f` receives an empty `Vector`.
-"""
-@inline function safe_feat(v, f)
-    f(collect(x for x in skipmissing(v) if !(x isa AbstractFloat && isnan(x))))
-end
-
-# ---------------------------------------------------------------------------- #
-#                             aggregate functions                              #
-# ---------------------------------------------------------------------------- #
-"""
-    aggregate(X, idx, float_type; win, features) -> (Xa, nwindows)
-
-Transform a multivariate dataset into a tabular dataset through windowing and
-feature aggregation.
+Columns with detected type `nothing` are skipped.
 
 # Arguments
-- `X::AbstractArray`: The multivariate dataset to aggregate.
-- `idx::AbstractVector{Vector{Int}}`: Valid row indices for each column
-  (non-missing, non-NaN elements).
-- `float_type::Type`: The output floating-point type.
 
-# Keyword Arguments
-- `win::Tuple{Vararg{Base.Callable}}`: Window definition functions for each
-  dimension. When fewer functions than dimensions are provided, the last
-  function is reused for remaining dimensions.
-- `features::Tuple{Vararg{Base.Callable}}`: Aggregation functions to apply
-  (e.g., `mean`, `maximum`, `minimum`).
+- `ids::Vector{Int}`: Indices of columns to consider.
+- `treat::TreatmentGroup`: The treatment group specifying aggregation/reduction functions and optional grouping.
+- `data::Matrix`: The raw data matrix.
+- `vnames::Vector{String}`: Names of the columns.
+- `datastruct::NamedTuple`: Metadata about the dataset (types, dimensions, validity indices, etc.).
+- `float_type::Type`: The floating-point type for numeric output.
 
 # Returns
-- `Xa::Matrix{Union{Missing,float_type}}`: Tabular matrix where each column
-  represents one (feature × window × original column) combination.
-- `nwindows::Vector{Int}`: Number of windows generated per original column.
 
-# Details
-- For valid rows (`rowidx ∈ idx[colidx]`), windows are computed via
-  [`@evalwindow`](@ref) and each `feature` is applied to each window slice
-  through [`safe_feat`](@ref).
-- For invalid rows (missing or NaN source elements), the original value is
-  broadcast across all output slots for that column.
+A tuple `(ds_td, ds_tc, ds_md)`:
+- `ds_td`: A [`DiscreteDataset`](@ref) or `nothing` if no discrete columns are present.
+- `ds_tc`: A [`ContinuousDataset`](@ref) or `nothing` if no continuous columns are present.
+- `ds_md`: A [`MultidimDataset`](@ref) or `nothing` if no multidimensional columns are present.
+
+See also: [`DiscreteDataset`](@ref), [`ContinuousDataset`](@ref), 
+[`MultidimDataset`](@ref), [`TreatmentGroup`](@ref)
 """
-function aggregate(
-    X::AbstractArray,
-    idx::AbstractVector{Vector{Int}},
-    float_type::Type;
-    win::Tuple{Vararg{Base.Callable}},
-    features::Tuple{Vararg{Base.Callable}}
+function _build_ds(
+    ids::Vector{Int},
+    treat::TreatmentGroup,
+    data::Matrix,
+    vnames::Vector{String},
+    datastruct::NamedTuple,
+    float_type::Type
 )
-    colwin = [[n > length(win) ? last(win) : win[n] for n in 1:ndims(X[first(idx[i]), i])] for i in axes(X, 2)]
-    nwindows = [prod(hasfield(typeof(w), :nwindows) ? w.nwindows : 1 for w in c) for c in colwin]
-    nfeats = length(features)
+    aggrfunc = get_aggrfunc(treat)
+    valtype = datastruct.datatype
+    groups = has_groupby(treat) ? get_groupby(treat) : nothing
 
-    Xa = Matrix{Union{Missing,float_type}}(undef, size(X, 1), sum(nwindows) * nfeats)
-    outtmp = 1
+    td_ids = ids ∩ findall(T -> !isnothing(T) && !(T <: AbstractFloat) && !(T <: AbstractArray), valtype)
+    tc_ids = ids ∩ findall(T -> !isnothing(T) && T <: AbstractFloat, valtype)
+    md_ids = ids ∩ findall(T -> !isnothing(T) && T <: AbstractArray, valtype)
 
-    @inbounds for colidx in axes(X, 2)
-        outidx = outtmp
+    ds_td = isempty(td_ids) ?
+        nothing :
+        DiscreteDataset(td_ids, data, vnames, datastruct)
+    ds_tc = isempty(tc_ids) ?
+        nothing :
+        ContinuousDataset(tc_ids, data, vnames, datastruct, float_type)
+    ds_md = isempty(md_ids) ?
+        nothing :
+        MultidimDataset(md_ids, data, vnames, datastruct, aggrfunc, float_type, groups)
 
-        for rowidx in axes(X, 1)
-            x = X[rowidx, colidx]
-            outidx = outtmp
+    return ds_td, ds_tc, ds_md
+end
 
-            if rowidx in idx[colidx]
-                intervals = @evalwindow X[rowidx, colidx] colwin[colidx]...
-                for feat in features
-                    for cartidx in CartesianIndices(length.(intervals))
-                        ranges = get_window_ranges(intervals, cartidx)
-                        window_view = @views x[ranges...]
-                        Xa[rowidx, outidx] = safe_feat(reshape(window_view, :), feat)
-                        outidx += 1
-                    end
-                end
-            else
-                intervals = nwindows[colidx] * nfeats
-                Xa[rowidx, outidx:outidx+intervals-1] .= ismissing(x) ? x : float_type(x)
-                outidx += intervals
-            end
-        end
+"""
+    _treatments_ds(
+        data::Matrix,
+        vnames::Vector{String},
+        datastruct::NamedTuple,
+        treats::Vector{<:TreatmentGroup},
+        float_type::Type
+    ) -> (Vector{DiscreteDataset}, Vector{ContinuousDataset}, Vector{MultidimDataset})
 
-        outtmp = outidx
+Partitions and processes the dataset columns according to a set of user-defined [`TreatmentGroup`](@ref)s, 
+returning the resulting datasets grouped by type.
+
+# Description
+
+For each treatment group in `treats`, this function:
+- Selects the columns specified by the group.
+- Splits them into discrete, continuous, and multidimensional categories based on their type.
+- Constructs the corresponding dataset objects: [`DiscreteDataset`](@ref), [`ContinuousDataset`](@ref), 
+  and [`MultidimDataset`](@ref).
+- Multidimensional datasets are further split by source dimensionality (e.g., 1D, 2D) 
+  using [`_split_md_by_dims`](@ref).
+
+The function returns three vectors, each containing all datasets of a given type 
+(discrete, continuous, multidimensional) across all treatment groups. Empty categories are omitted.
+
+# Arguments
+
+- `data::Matrix`: The raw data matrix.
+- `vnames::Vector{String}`: Names of the columns.
+- `datastruct::NamedTuple`: Metadata about the dataset (types, dimensions, validity indices, etc.).
+- `treats::Vector{<:TreatmentGroup}`: The treatment groups specifying which columns to select and how to process them.
+- `float_type::Type`: The floating-point type for numeric output.
+
+# Returns
+
+A tuple of vectors:
+- `Vector{DiscreteDataset}`: All discrete datasets (one per treatment group with discrete columns).
+- `Vector{ContinuousDataset}`: All continuous datasets (one per treatment group with continuous columns).
+- `Vector{MultidimDataset}`: All multidimensional datasets, split by source dimensionality.
+
+See also: [`TreatmentGroup`](@ref), [`DiscreteDataset`](@ref), [`ContinuousDataset`](@ref), 
+[`MultidimDataset`](@ref), [`_split_md_by_dims`](@ref)
+"""
+function _treatments_ds(
+    data::Matrix,
+    vnames::Vector{String},
+    datastruct::NamedTuple,
+    treats::Vector{<:TreatmentGroup},
+    float_type::Type
+)
+    ntreats = length(treats)
+    ds_td = Vector{Union{Nothing,DiscreteDataset}}(undef, ntreats)
+    ds_tc = Vector{Union{Nothing,ContinuousDataset}}(undef, ntreats)
+    ds_md = Vector{Union{Nothing,MultidimDataset}}(undef, ntreats)
+
+    Threads.@threads for i in eachindex(treats)
+        ds_td[i], ds_tc[i], ds_md[i] = _build_ds(
+            get_ids(treats[i]),
+            treats[i],
+            data,
+            vnames,
+            datastruct,
+            float_type
+        )
     end
 
-    return Xa, nwindows
+    td_filtered = filter(!isnothing, ds_td)
+    tc_filtered = filter(!isnothing, ds_tc)
+    md_filtered = filter(!isnothing, ds_md)
+
+    md_split = isempty(md_filtered) ? MultidimDataset[] : reduce(vcat, _split_md_by_dims.(md_filtered))
+
+    return td_filtered, tc_filtered, md_split
 end
 
 """
-    aggregate(; win, features) -> Function
+    _leftovers_ds(
+        data::Matrix,
+        vnames::Vector{String},
+        datastruct::NamedTuple,
+        treats::Vector{<:TreatmentGroup},
+        float_type::Type
+    ) -> (Vector{AbstractDataset}, Vector{AbstractDataset}, Vector{AbstractDataset})
 
-Curried form that returns a closure `(X, idx, float_type) -> aggregate(X, idx, float_type; win, features)`.
+Identifies and processes the columns of a dataset that were **not** 
+selected by any user-defined [`TreatmentGroup`](@ref), 
+partitioning them by data type and returning the corresponding dataset objects.
 
-# Keyword Arguments
-- `win::Tuple{Vararg{Base.Callable}}`: Window functions. Default: `(wholewindow(),)`.
-- `features::Tuple{Vararg{Base.Callable}}`: Feature functions. Default: `(maximum, minimum, mean)`.
+# Description
 
-# Returns
-A `Function` suitable for use as the `aggrfunc` parameter of [`TreatmentGroup`](@ref).
-"""
-aggregate(;
-    win::Tuple{Vararg{Base.Callable}}=(wholewindow(),),
-    features::Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean)
-) = (x, i, ft) -> aggregate(x, i, ft; win, features)
+This function finds all columns not assigned to any treatment group in `treats`, and partitions them into:
+- **Discrete columns**: Categorical or non-numeric columns, returned as a [`DiscreteDataset`](@ref) (if any).
+- **Continuous columns**: Scalar numeric columns, returned as a [`ContinuousDataset`](@ref) (if any).
+- **Multidimensional columns**: Array-valued columns, returned as one or more [`MultidimDataset`](@ref)s (if any), 
+  split by source dimensionality using [`_split_md_by_dims`](@ref).
 
-# ---------------------------------------------------------------------------- #
-#                             reducesize functions                             #
-# ---------------------------------------------------------------------------- #
-"""
-    reducesize(X, idx, float_type; win, reducefunc) -> (Xr, 0)
-
-Reduce the size of a multivariate dataset through windowing and dimension reduction.
+Default aggregation functions are used for multidimensional columns.
 
 # Arguments
-- `X::AbstractArray`: The multivariate dataset to reduce.
-- `idx::AbstractVector{Vector{Int}}`: Valid row indices for each column
-  (non-missing, non-NaN elements).
-- `float_type::DataType`: The output floating-point type.
 
-# Keyword Arguments
-- `win::Tuple{Vararg{Base.Callable}}`: Window definition functions for each
-  dimension.
-- `reducefunc::Base.Callable`: Reduction function applied to each window
-  (e.g., `mean`, `median`).
+- `data::Matrix`: The raw data matrix.
+- `vnames::Vector{String}`: Names of the columns.
+- `datastruct::NamedTuple`: Metadata about the dataset (types, dimensions, validity indices, etc.).
+- `treats::Vector{<:TreatmentGroup}`: The treatment groups already assigned; columns in these groups are excluded.
+- `float_type::Type`: The floating-point type for numeric output.
 
 # Returns
-- `Xr::Array{Union{Missing,float_type,Array{float_type}}}`: Reduced dataset
-  where each valid element is an array with one value per window.
-- `0::Int`: Placeholder (unused) to match the return signature of
-  [`aggregate`](@ref).
 
-# Details
-- For valid rows (`rowidx ∈ idx[colidx]`), windows are computed via
-  [`@evalwindow`](@ref) and `reducefunc` is applied to each window slice
-  through [`safe_feat`](@ref).
-- For invalid rows, the original value is preserved (missing stays missing,
-  NaN is cast to `float_type`).
+A tuple of vectors:
+- `Vector{AbstractDataset}`: Discrete datasets for leftover columns (empty if none).
+- `Vector{AbstractDataset}`: Continuous datasets for leftover columns (empty if none).
+- `Vector{AbstractDataset}`: Multidimensional datasets for leftover columns, split by dimensionality (empty if none).
+
+Empty categories are omitted from the result.
+
+See also: [`TreatmentGroup`](@ref), [`DiscreteDataset`](@ref), [`ContinuousDataset`](@ref), 
+[`MultidimDataset`](@ref), [`_split_md_by_dims`](@ref)
 """
-function reducesize(
-    X::AbstractArray,
-    idx::AbstractVector{Vector{Int}},
-    float_type::DataType;
-    win::Tuple{Vararg{Base.Callable}},
-    reducefunc::Base.Callable,
+function _leftovers_ds(
+    data::Matrix,
+    vnames::Vector{String},
+    datastruct::NamedTuple,
+    treats::Vector{<:TreatmentGroup},
+    float_type::Type
 )
-    Xr = Array{Union{Missing,float_type,Array{float_type}}}(undef, size(X))
+    ids = setdiff(datastruct.id, reduce(vcat, get_ids(treats)))
 
-    @inbounds for colidx in axes(X, 2)
-        for rowidx in axes(X, 1)
-            x = X[rowidx, colidx]
+    ds_td, ds_tc, ds_md = _build_ds(
+        ids,
+        TreatmentGroup(datastruct, vnames; aggrfunc=DefaultAggrFunc),
+        data,
+        vnames,
+        datastruct,
+        float_type
+    )
 
-            if rowidx in idx[colidx]
-                intervals = @evalwindow x win...
-                output_dims  = length.(intervals)
-                cart_indices = CartesianIndices(output_dims)
-                reduced = Array{float_type}(undef, output_dims...)
+    td_filtered = isnothing(ds_td) ? AbstractDataset[] : AbstractDataset[ds_td]
+    tc_filtered = isnothing(ds_tc) ? AbstractDataset[] : AbstractDataset[ds_tc]
+    md_split = isnothing(ds_md) ? AbstractDataset[] : _split_md_by_dims(ds_md)
 
-                for cartidx in cart_indices
-                    ranges = get_window_ranges(intervals, cartidx)
-                    reduced[cartidx] = safe_feat(reshape(@views(x[ranges...]), :), reducefunc)
-                end
-
-                Xr[rowidx, colidx] = reduced
-            else
-                Xr[rowidx, colidx] = ismissing(x) ? x : float_type(x)
-            end
-        end
-    end
-
-    return Xr, 0 # not used
+    return td_filtered, tc_filtered, md_split
 end
-
-"""
-    reducesize(; win, reducefunc) -> Function
-
-Curried form that returns a closure `(X, idx, float_type) -> reducesize(X, idx, float_type; win, reducefunc)`.
-
-# Keyword Arguments
-- `win::Tuple{Vararg{Base.Callable}}`: Window functions. Default: `(wholewindow(),)`.
-- `reducefunc::Base.Callable`: Reduction function. Default: `mean`.
-
-# Returns
-A `Function` suitable for use as the `aggrfunc` parameter of [`TreatmentGroup`](@ref).
-"""
-reducesize(;
-    win::Tuple{Vararg{Base.Callable}}=(wholewindow(),),
-    reducefunc::Base.Callable=mean
-) = (x, i, ft) -> reducesize(x, i, ft; win, reducefunc)
