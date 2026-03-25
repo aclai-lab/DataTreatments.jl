@@ -94,8 +94,11 @@ load_dataset(df::DataFrame, args...; kwargs...) =
 Convenience function to collect all tabular-like datasets from a `DataTreatment` 
 object, including discrete, continuous, and aggregated multidimensional data.
 """
-@inline get_tabular(dt::DataTreatment)::Matrix{Union{Missing, Float64}} =
-    hcat(get_discrete(dt), get_continuous(dt), get_aggregated(dt))
+@inline get_tabular(dt::DataTreatment)::Matrix{Union{Missing, Float64}} = begin
+    mats = [get_discrete(dt), get_continuous(dt), get_aggregated(dt)]
+    nonempty = filter(x -> !(isempty(x) || size(x,2) == 0), mats)
+    isempty(nonempty) ? Matrix{Union{Missing, Float64}}(undef, nrows(dt), 0) : hcat(nonempty...)
+end
 
 # ---------------------------------------------------------------------------- #
 #                            get multidim method                               #
