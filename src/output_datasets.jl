@@ -104,6 +104,8 @@ end
 get_subid(f::AggregateFeat) = f.subid
 get_dims(f::Union{AggregateFeat,ReduceFeat}) = f.dims
 
+get_vnames(d::AbstractDataFeature) = d.vname
+
 # ---------------------------------------------------------------------------- #
 #                                   utils                                      #
 # ---------------------------------------------------------------------------- #
@@ -431,3 +433,5 @@ is_tabular(d::AbstractDataset) = isa(
     }
 )
 is_multidim(d::AbstractDataset) = isa(d, MultidimDataset{<:ReduceFeat})
+
+get_vnames(d::AbstractDataset) = get_vnames.(d.info)

@@ -35,6 +35,21 @@ get_reduced(dt::DataTreatment)::Matrix{Union{Missing, Float64, Array{Float64}}} 
     isempty(ds) ? Matrix{Union{Missing, Float64, Array{Float64}}}(undef, 0, 0) : get_data(ds)
 end
 
+# get_d_names(dt::DataTreatment)::Vector{String} = begin
+#     ds = filter(d -> d isa DiscreteDataset, dt.data)
+#     isempty(ds) ? Vector{String}(undef, 0) : reduce(vcat, get_vnames.(ds))
+# end
+
+# get_c_names(dt::DataTreatment)::Vector{String} = begin
+#     ds = filter(d -> d isa ContinuousDataset, dt.data)
+#     isempty(ds) ? Vector{String}(undef, 0) : reduce(vcat, get_vnames.(ds))
+# end
+
+# get_a_names(dt::DataTreatment)::Vector{String} = begin
+#     ds = filter(d -> d isa ContinuousDataset, dt.data)
+#     isempty(ds) ? Vector{String}(undef, 0) : reduce(vcat, get_vnames.(ds))
+# end
+
 is_tabular(dt::DataTreatment) = all(is_tabular.(dt.data))
 is_multidim(dt::DataTreatment) = all(is_multidim.(dt.data))
 
