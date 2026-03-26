@@ -13,42 +13,43 @@ nrows(dt::DataTreatment) = size(first(dt.data).data, 1)
 get_levels(dt::DataTreatment) = dt.levels
 get_target(dt::DataTreatment) = dt.target
 
-get_discrete(dt::DataTreatment)::Matrix{Union{Missing, Float64}} = begin
+function get_discrete(dt::DataTreatment)
     ds = filter(d -> d isa DiscreteDataset, dt.data)
-    isempty(ds) ? Matrix{Union{Missing, Float64}}(undef, 0, 0) : get_data(ds)
+    return if isempty(ds)
+        Matrix{Union{Missing,Float64}}(undef, 0, 0), String[]
+    else
+        get_data(ds), reduce(vcat, get_vnames.(ds))
+    end
 end
 
-get_continuous(dt::DataTreatment)::Matrix{Union{Missing, Float64}} = begin
+get_continuous(dt::DataTreatment) = begin
     ds = filter(d -> d isa ContinuousDataset, dt.data)
-    isempty(ds) ? Matrix{Union{Missing, Float64}}(undef, 0, 0) : get_data(ds)
+    return if isempty(ds)
+        Matrix{Union{Missing,Float64}}(undef, 0, 0), String[]
+    else
+        get_data(ds), reduce(vcat, get_vnames.(ds))
+    end
 end
 
-get_aggregated(dt::DataTreatment)::Matrix{Union{Missing, Float64}} = begin
+get_aggregated(dt::DataTreatment) = begin
     ds = filter(d -> d isa MultidimDataset &&
         all(elt -> elt isa AggregateFeat, get_info(d)), dt.data)
-    isempty(ds) ? Matrix{Union{Missing, Float64}}(undef, 0, 0) : get_data(ds)
+    return if isempty(ds)
+        Matrix{Union{Missing,Float64}}(undef, 0, 0), String[]
+    else
+        get_data(ds), reduce(vcat, get_vnames.(ds))
+    end
 end
 
-get_reduced(dt::DataTreatment)::Matrix{Union{Missing, Float64, Array{Float64}}} = begin
+get_reduced(dt::DataTreatment) = begin
     ds = filter(d -> d isa MultidimDataset &&
         all(elt -> elt isa ReduceFeat, get_info(d)), dt.data)
-    isempty(ds) ? Matrix{Union{Missing, Float64, Array{Float64}}}(undef, 0, 0) : get_data(ds)
+    return if isempty(ds)
+        Matrix{Union{Missing,Float64}}(undef, 0, 0), String[]
+    else
+        get_data(ds), reduce(vcat, get_vnames.(ds))
+    end
 end
-
-# get_d_names(dt::DataTreatment)::Vector{String} = begin
-#     ds = filter(d -> d isa DiscreteDataset, dt.data)
-#     isempty(ds) ? Vector{String}(undef, 0) : reduce(vcat, get_vnames.(ds))
-# end
-
-# get_c_names(dt::DataTreatment)::Vector{String} = begin
-#     ds = filter(d -> d isa ContinuousDataset, dt.data)
-#     isempty(ds) ? Vector{String}(undef, 0) : reduce(vcat, get_vnames.(ds))
-# end
-
-# get_a_names(dt::DataTreatment)::Vector{String} = begin
-#     ds = filter(d -> d isa ContinuousDataset, dt.data)
-#     isempty(ds) ? Vector{String}(undef, 0) : reduce(vcat, get_vnames.(ds))
-# end
 
 is_tabular(dt::DataTreatment) = all(is_tabular.(dt.data))
 is_multidim(dt::DataTreatment) = all(is_multidim.(dt.data))
@@ -109,7 +110,13 @@ load_dataset(df::DataFrame, args...; kwargs...) =
 Convenience function to collect all tabular-like datasets from a `DataTreatment` 
 object, including discrete, continuous, and aggregated multidimensional data.
 """
-@inline get_tabular(dt::DataTreatment)::Matrix{Union{Missing, Float64}} = begin
+# @inline get_tabular(dt::DataTreatment)::Matrix{Union{Missing, Float64}} = begin
+#     mats = [get_discrete(dt), get_continuous(dt), get_aggregated(dt)]
+#     nonempty = filter(x -> !(isempty(x) || size(x,2) == 0), mats)
+#     isempty(nonempty) ? Matrix{Union{Missing, Float64}}(undef, nrows(dt), 0) : hcat(nonempty...)
+# end
+
+@inline function get_tabular(dt::DataTreatment)
     mats = [get_discrete(dt), get_continuous(dt), get_aggregated(dt)]
     nonempty = filter(x -> !(isempty(x) || size(x,2) == 0), mats)
     isempty(nonempty) ? Matrix{Union{Missing, Float64}}(undef, nrows(dt), 0) : hcat(nonempty...)
