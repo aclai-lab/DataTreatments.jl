@@ -1,7 +1,7 @@
 # ---------------------------------------------------------------------------- #
 #                             DataTreatment struct                             #
 # ---------------------------------------------------------------------------- #
-mutable struct DataTreatment
+mutable struct DataTreatment{T}
     data::Vector{AbstractDataset}
     target::Union{Nothing,AbstractVector}
     levels::Union{Nothing,AbstractVector}
@@ -15,47 +15,48 @@ get_target(dt::DataTreatment) = dt.target
 
 function get_discrete(
     dt::DataTreatment
-)
+)::Tuple{Matrix{Union{Missing,Int64}}, Vector{String}}
     ds = collect(filter(d -> d isa DiscreteDataset, dt.data))
     return if isempty(ds)
-        Matrix{Union{Missing,Float64}}(undef, 0, 0), String[]
+        Matrix{Union{Missing,Int64}}(undef, 0, 0), String[]
     else
-        get_data(ds), reduce(vcat, get_vnames.(ds))
+        Matrix{Union{Missing,Int64}}(get_data(ds)),
+        reduce(vcat, get_vnames.(ds))
     end
 end
 
 function get_continuous(
-    dt::DataTreatment
-)
-    ds = collect(filter(d -> d isa ContinuousDataset, dt.data))
+    dt::DataTreatment{T}
+)::Tuple{Matrix{Union{Missing,T}}, Vector{String}} where {T<:AbstractFloat}
+    ds = collect(filter(d -> d isa ContinuousDataset{T}, dt.data))
     return if isempty(ds)
-        Matrix(undef, 0, 0), String[]
+        Matrix{Union{Missing,T}}(undef, 0, 0), String[]
     else
-        get_data(ds), reduce(vcat, get_vnames.(ds))
+        Matrix{Union{Missing,T}}(get_data(ds)), reduce(vcat, get_vnames.(ds))
     end
 end
 
 function get_aggregated(
-    dt::DataTreatment
-)
+    dt::DataTreatment{T}
+)::Tuple{Matrix{Union{Missing,T}}, Vector{String}} where {T<:AbstractFloat}
     ds = filter(d -> d isa MultidimDataset &&
-        all(elt -> elt isa AggregateFeat, get_info(d)), dt.data)
+        all(elt -> elt isa AggregateFeat{T}, get_info(d)), dt.data)
     return if isempty(ds)
-        Matrix(undef, 0, 0), String[]
+        Matrix{Union{Missing,T}}(undef, 0, 0), String[]
     else
-        get_data(ds), reduce(vcat, get_vnames.(ds))
+        Matrix{Union{Missing,T}}(get_data(ds)), reduce(vcat, get_vnames.(ds))
     end
 end
 
 function get_reduced(
-    dt::DataTreatment
-)
+    dt::DataTreatment{T}
+)::Tuple{Matrix{Union{Missing,T,AbstractArray{T}}}, Vector{String}} where {T<:AbstractFloat}
     ds = filter(d -> d isa MultidimDataset &&
         all(elt -> elt isa ReduceFeat, get_info(d)), dt.data)
     return if isempty(ds)
-        Matrix(undef, 0, 0), String[]
+        Matrix{Union{Missing,T,AbstractArray{T}}}(undef, 0, 0), String[]
     else
-        get_data(ds), reduce(vcat, get_vnames.(ds))
+        Matrix{Union{Missing,T,AbstractArray{T}}}(get_data(ds)), reduce(vcat, get_vnames.(ds))
     end
 end
 
@@ -100,7 +101,7 @@ function load_dataset(
         !isnothing(ds_md) && append!(ds, ds_md)
     end
 
-    return DataTreatment(ds, ctarget, clevels, treats)
+    return DataTreatment{float_type}(ds, ctarget, clevels, treats)
 end
 
 load_dataset(df::DataFrame, target::AbstractVector, args...; kwargs...) =
@@ -131,15 +132,32 @@ object, including discrete, continuous, and aggregated multidimensional data.
 #     isempty(nonempty) ? Matrix{Union{Missing, Float64}}(undef, nrows(dt), 0) : hcat(nonempty...)
 # end
 @inline function get_tabular(
-    dt::DataTreatment
-)::Tuple{Matrix{Union{Missing, Float64}}, Vector{String}}
+    dt::DataTreatment{T}
+)::Tuple{Matrix{Union{Missing,T}}, Vector{String}} where {T<:AbstractFloat}
     mats = get_discrete(dt), get_continuous(dt), get_aggregated(dt)
     idxs = findall(x -> !(isempty(x)), map(first, mats))
     not_empty = collect(zip(mats[idxs]...))
-    @show typeof(not_empty)
+
     return reduce(hcat, not_empty[1]), reduce(vcat, not_empty[2])
 end
-# 8.069 μs (92 allocations: 12.58 KiB)
+
+# @inline function get_tabular(
+#     dt::DataTreatment{T}
+# )::Tuple{Matrix{Union{Missing,T}}, Vector{String}} where {T<:AbstractFloat}
+#     disc_mat, disc_names = get_discrete(dt)
+#     cont_mat, cont_names = get_continuous(dt)
+#     aggr_mat, aggr_names = get_aggregated(dt)
+
+#     mats   = Matrix{Union{Missing,T}}[]
+#     vnames = String[]
+
+#     !isempty(disc_mat) && (push!(mats, Matrix{Union{Missing,T}}(disc_mat)); append!(vnames, disc_names))
+#     !isempty(cont_mat) && (push!(mats, cont_mat); append!(vnames, cont_names))
+#     !isempty(aggr_mat) && (push!(mats, aggr_mat); append!(vnames, aggr_names))
+
+#     isempty(mats) && return Matrix{Union{Missing,T}}(undef, nrows(dt), 0), String[]
+#     return reduce(hcat, mats), vnames
+# end
 # ---------------------------------------------------------------------------- #
 #                            get multidim method                               #
 # ---------------------------------------------------------------------------- #
@@ -149,5 +167,8 @@ end
 Convenience function to collect all reduced multidimensional datasets 
 from a `DataTreatment` object.
 """
-@inline get_multidim(dt::DataTreatment)::Matrix{Union{Missing, Float64, Array{Float64}}} =
-    get_reduced(dt)
+@inline function get_multidim(
+    dt::DataTreatment{T}
+)::Tuple{Matrix{Union{Missing,AbstractArray{T}}}, Vector{String}} where {T<:AbstractFloat}
+    return get_reduced(dt)
+end

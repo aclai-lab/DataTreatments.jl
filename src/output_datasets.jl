@@ -441,7 +441,7 @@ mutable struct MultidimDataset{T} <: AbstractDataset
         end
 
         grouped = isnothing(groups) ? nothing : _groupby(md_feats, groups)
-@show eltype(eltype(md_feats))
+
         new{eltype(md_feats)}(md, md_feats, grouped)
     end
 end
@@ -463,7 +463,9 @@ Base.getindex(ds::MultidimDataset, idxs::AbstractVector{Int}) =
 get_dims(d::MultidimDataset) = [get_dims(f) for f in d.info]
 
 get_data(d::Vector{<:AbstractDataset}) = reduce(hcat, get_data.(d))
-get_data(d::AbstractDataset)= d.data
+get_data(d::DiscreteDataset)= d.data
+get_data(d::ContinuousDataset)= d.data
+get_data(d::MultidimDataset)= d.data
 
 get_info(d::Vector{<:AbstractDataset}) = reduce(vcat, get_info.(d))
 get_info(d::AbstractDataset) = d.info
