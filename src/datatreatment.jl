@@ -77,10 +77,12 @@ function load_dataset(
 )
     datastruct = _inspecting(data)
 
-    ctarget, clevels = if !isnothing(target) && !(eltype(target) <: AbstractFloat)
+    ctarget, clevels = if isnothing(target)
+        (Int[], nothing)
+    elseif !isnothing(target) && !(eltype(target) <: AbstractFloat)
         _discrete_encode(target)
     else
-        target, nothing
+        (target, nothing)
     end
 
     treats = [treat(datastruct, vnames) for treat in treatments]
