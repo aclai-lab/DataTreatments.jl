@@ -146,14 +146,15 @@ object, including discrete, continuous, and aggregated multidimensional data.
 ) where {T<:Float}
     mats = get_discrete(dt), get_continuous(dt), get_aggregated(dt)
     idxs = findall(x -> !(isempty(x)), map(first, mats))
+
     isempty(idxs) && return force_type ?
         (Matrix{T}(undef, 0,0), String[]) :
         (Matrix{Union{Missing,T}}(undef, 0,0), String[])
     not_empty = collect(zip(mats[idxs]...))
 
     X = force_type ?
-        Matrix{T}(reduce(hcat, not_empty[1])) :
-        Matrix{Union{Missing,T}}(reduce(hcat, not_empty[1]))
+        Matrix{Union{CategoricalValue,T}}(reduce(hcat, not_empty[1])) :
+        Matrix{Union{Missing,CategoricalValue,T}}(reduce(hcat, not_empty[1]))
 
     return X, reduce(vcat, not_empty[2])
 end

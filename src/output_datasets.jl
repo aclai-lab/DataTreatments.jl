@@ -17,7 +17,6 @@ Metadata for a discrete (categorical) feature in a dataset.
 struct DiscreteFeat{T} <: AbstractDataFeature
     id::Int
     vname::String
-    # levels::CategoricalArrays.CategoricalVector
     valididxs::Vector{Int}
     missingidxs::Vector{Int}
     datatype::Type

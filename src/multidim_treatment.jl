@@ -5,7 +5,8 @@
 @inline _get_window_ranges(intervals::Tuple, cartidx::CartesianIndex) =
     ntuple(i -> intervals[i][cartidx[i]], length(intervals))
 
-# apply a feature function to a vector while safely handling missing values and NaN entries
+# apply a feature function to a vector while safely
+# handling missing values and NaN entries
 @inline _safe_feat(v, f) =
     f(collect(x for x in skipmissing(v) if !(x isa Float && isnan(x))))
 
@@ -48,10 +49,15 @@ function aggregate(
     colwin = [[n > length(win) ?
         last(win) :
         win[n] for n in 1:ndims(X[first(idx[i]), i])] for i in axes(X, 2)]
-    nwindows = [prod(hasfield(typeof(w), :nwindows) ? w.nwindows : 1 for w in c) for c in colwin]
+    nwindows = [prod(hasfield(typeof(w), :nwindows) ?
+        w.nwindows :
+        1 for w in c) for c in colwin
+    ]
     nfeats = length(features)
 
-    Xa = Matrix{Union{Missing,float_type}}(undef, size(X, 1), sum(nwindows) * nfeats)
+    Xa = Matrix{Union{Missing,float_type}}(undef, size(X, 1),
+        sum(nwindows) * nfeats)
+
     outtmp = 1
 
     @inbounds for colidx in axes(X, 2)
@@ -67,15 +73,19 @@ function aggregate(
                     for cartidx in CartesianIndices(length.(intervals))
                         ranges = _get_window_ranges(intervals, cartidx)
                         window_view = @views x[ranges...]
-                        isempty(window_view) && error("Reduce number of windows: " * 
+                        isempty(window_view) && error(
+                            "Reduce number of windows: " * 
                             "at least one dimension has no window definitions.")
-                        Xa[rowidx, outidx] = _safe_feat(reshape(window_view, :), feat)
+                        Xa[rowidx, outidx] =
+                            _safe_feat(reshape(window_view, :), feat)
                         outidx += 1
                     end
                 end
             else
                 intervals = nwindows[colidx] * nfeats
-                Xa[rowidx, outidx:outidx+intervals-1] .= ismissing(x) ? x : float_type(x)
+                Xa[rowidx, outidx:outidx+intervals-1] .= ismissing(x) ?
+                    x :
+                    float_type(x)
                 outidx += intervals
             end
         end
@@ -150,7 +160,10 @@ function reducesize(
                     xwin = x[ranges...]
                     isempty(xwin) && error("Reduce number of windows: " * 
                         "at least one dimension has no window definitions.")
-                    reduced[cartidx] = _safe_feat(reshape(@views(xwin), :), reducefunc)
+                    reduced[cartidx] = _safe_feat(
+                        reshape(@views(xwin), :),
+                        reducefunc
+                    )
                 end
 
                 Xr[rowidx, colidx] = reduced
