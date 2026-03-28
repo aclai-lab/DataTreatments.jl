@@ -490,21 +490,3 @@ function get_vnames(
     #     names
 end
 
-"""
-    _check_no_missing(datasets::Vector{<:AbstractDataset})
-
-Check that all features in the provided datasets have no missing values.
-Throws an error listing all features with missing indices if any are found.
-"""
-function _check_no_missing(datasets::Vector{<:AbstractDataset})
-    offenders = [
-        "$(feat.vname) (rows: $(feat.missingidxs))"
-        for ds in datasets
-        for feat in get_info(ds)
-        if !isempty(feat.missingidxs)
-    ]
-    isempty(offenders) || error(
-        "Missing values found in the following features:\n" *
-        join((" - $o" for o in offenders), "\n")
-    )
-end
