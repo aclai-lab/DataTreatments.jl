@@ -152,9 +152,12 @@ object, including discrete, continuous, and aggregated multidimensional data.
         (Matrix{Union{Missing,T}}(undef, 0,0), String[])
     not_empty = collect(zip(mats[idxs]...))
 
-    X = force_type ?
-        Matrix{Union{CategoricalValue,T}}(reduce(hcat, not_empty[1])) :
+    X = if force_type
+        _check_no_missing(dt.data[idxs])
+        Matrix{Union{CategoricalValue,T}}(reduce(hcat, not_empty[1]))
+    else
         Matrix{Union{Missing,CategoricalValue,T}}(reduce(hcat, not_empty[1]))
+    end
 
     return X, reduce(vcat, not_empty[2])
 end

@@ -370,7 +370,7 @@ operations or auditing the source of each derived feature.
 See also: [`DiscreteDataset`](@ref), [`ContinuousDataset`](@ref),
 [`AggregateFeat`](@ref), [`ReduceFeat`](@ref), [`aggregate`](@ref), [`reducesize`](@ref)
 """
-mutable struct MultidimDataset{T} <: AbstractDataset
+mutable struct MultidimDataset{T,S} <: AbstractDataset
     data::AbstractArray
     info::Vector{<:Union{AggregateFeat,ReduceFeat}}
     groups::Union{Nothing,Vector{Vector{Int}}}
@@ -379,13 +379,13 @@ mutable struct MultidimDataset{T} <: AbstractDataset
         data::AbstractArray,
         info::Vector{<:AggregateFeat{T}},
         groups::Union{Nothing,Vector{Vector{Int}}}
-    ) where T = new{T}(data, info, groups)
+    ) where T = new{T,AggregateFeat}(data, info, groups)
 
     MultidimDataset(
         data::AbstractArray,
         info::Vector{<:ReduceFeat{T}},
         groups::Union{Nothing,Vector{Vector{Int}}}=nothing
-    ) where T = new{T}(data, info, groups)
+    ) where T = new{T,ReduceFeat}(data, info, groups)
 
     function MultidimDataset(
         ids::Vector{Int},
@@ -441,7 +441,7 @@ mutable struct MultidimDataset{T} <: AbstractDataset
 
         grouped = isnothing(groups) ? nothing : _groupby(md_feats, groups)
 
-        new{float_type}(md, md_feats, grouped)
+        new{float_type,eltype(md_feats)}(md, md_feats, grouped)
     end
 end
 
@@ -471,14 +471,40 @@ get_data(d::MultidimDataset)= d.data
 get_info(d::Vector{<:AbstractDataset}) = reduce(vcat, get_info.(d))
 get_info(d::AbstractDataset) = d.info
 
-is_tabular(d::AbstractDataset) = isa(
-    d,
-    Union{
-        <:ContinuousDataset,
-        <:DiscreteDataset,
-        <:MultidimDataset{<:AggregateFeat}
-    }
-)
-is_multidim(d::AbstractDataset) = isa(d, MultidimDataset{<:ReduceFeat})
+is_tabular(d::AbstractDataset) = d isa Union{
+    ContinuousDataset,
+    DiscreteDataset,
+    MultidimDataset{<:Any, AggregateFeat}
+}
+is_multidim(d::AbstractDataset) = isa(d, MultidimDataset{<:Any, ReduceFeat})
 
 get_vnames(d::AbstractDataset)::Vector{String} = get_vnames.(d.info)
+function get_vnames(
+    ds::MultidimDataset{<:Any,<:AggregateFeat};
+    groupby_split::Bool=false
+)
+    names =
+        ["$(f.vname),$(f.feat),win:$(f.nwin)" for f in ds.info]
+    # groupby_split && has_groups(ds) ?
+    #     [names[g] for g in get_groups(ds)] :
+    #     names
+end
+
+"""
+    _check_no_missing(datasets::Vector{<:AbstractDataset})
+
+Check that all features in the provided datasets have no missing values.
+Throws an error listing all features with missing indices if any are found.
+"""
+function _check_no_missing(datasets::Vector{<:AbstractDataset})
+    offenders = [
+        "$(feat.vname) (rows: $(feat.missingidxs))"
+        for ds in datasets
+        for feat in get_info(ds)
+        if !isempty(feat.missingidxs)
+    ]
+    isempty(offenders) || error(
+        "Missing values found in the following features:\n" *
+        join((" - $o" for o in offenders), "\n")
+    )
+end
