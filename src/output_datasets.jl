@@ -398,7 +398,7 @@ mutable struct MultidimDataset{T} <: AbstractDataset
         aggrfunc::F,
         float_type::Type{T},
         groups::Union{Nothing, Tuple{Vararg{Symbol}}}
-    ) where {T<:AbstractFloat, F<:Base.Callable}
+    ) where {T<:Float, F<:Base.Callable}
         data = @view data[:, ids]
         vnames = vnames[ids]
         dims = datastruct.dims[ids]

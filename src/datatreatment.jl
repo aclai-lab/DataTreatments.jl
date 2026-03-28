@@ -18,16 +18,16 @@ function get_discrete(
 )
     ds = collect(filter(d -> d isa DiscreteDataset, dt.data))
     return if isempty(ds)
-        Matrix{Union{Missing,Int64}}(undef, 0, 0), String[]
+        Matrix{Union{Missing,Int}}(undef, 0, 0), String[]
     else
-        Matrix{Union{Missing,Int64}}(get_data(ds)),
+        Matrix{Union{Missing,Int}}(get_data(ds)),
         reduce(vcat, get_vnames.(ds))
     end
 end
 
 function get_continuous(
     dt::DataTreatment{T}
-) where {T<:AbstractFloat}
+) where {T<:Float}
     ds = collect(filter(d -> d isa ContinuousDataset{T}, dt.data))
     return if isempty(ds)
         Matrix{Union{Missing,T}}(undef, 0, 0), String[]
@@ -38,7 +38,7 @@ end
 
 function get_aggregated(
     dt::DataTreatment{T}
-) where {T<:AbstractFloat}
+) where {T<:Float}
     ds = filter(d -> d isa MultidimDataset &&
         all(elt -> elt isa AggregateFeat{T}, get_info(d)), dt.data)
     return if isempty(ds)
@@ -49,14 +49,21 @@ function get_aggregated(
 end
 
 function get_reduced(
-    dt::DataTreatment{T}
-) where {T<:AbstractFloat}
+    dt::DataTreatment{T};
+    force_type::Bool=false,
+) where {T<:Float}
     ds = filter(d -> d isa MultidimDataset &&
         all(elt -> elt isa ReduceFeat, get_info(d)), dt.data)
     return if isempty(ds)
-        Matrix{Union{Missing,T,AbstractArray{T}}}(undef, 0, 0), String[]
+        force_type ?
+        (Matrix{VecOrMat{T}}(undef, 0, 0), String[]) :
+        (Matrix{Union{Missing,T,VecOrMat{T}}}(undef, 0, 0), String[])
     else
-        Matrix{Union{Missing,T,AbstractArray{T}}}(get_data(ds)), reduce(vcat, get_vnames.(ds))
+        force_type ?
+        (Matrix{VecOrMat{T}}(get_data(ds)),
+            reduce(vcat, get_vnames.(ds))) :
+        (Matrix{Union{Missing,T,VecOrMat{T}}}(get_data(ds)),
+            reduce(vcat, get_vnames.(ds)))
     end
 end
 
@@ -79,7 +86,7 @@ function load_dataset(
 
     ctarget, clevels = if isnothing(target)
         (Int[], nothing)
-    elseif !isnothing(target) && !(eltype(target) <: AbstractFloat)
+    elseif !isnothing(target) && !(eltype(target) <: Float)
         _discrete_encode(target)
     else
         (target, nothing)
@@ -122,14 +129,21 @@ Convenience function to collect all tabular-like datasets from a `DataTreatment`
 object, including discrete, continuous, and aggregated multidimensional data.
 """
 @inline function get_tabular(
-    dt::DataTreatment{T}
-) where {T<:AbstractFloat}
+    dt::DataTreatment{T};
+    force_type::Bool=false,
+) where {T<:Float}
     mats = get_discrete(dt), get_continuous(dt), get_aggregated(dt)
     idxs = findall(x -> !(isempty(x)), map(first, mats))
-    isempty(idxs) && return (Matrix{Union{Missing,T}}(undef, 0,0), String[])
+    isempty(idxs) && return force_type ?
+        (Matrix{T}(undef, 0,0), String[]) :
+        (Matrix{Union{Missing,T}}(undef, 0,0), String[])
     not_empty = collect(zip(mats[idxs]...))
 
-    return reduce(hcat, not_empty[1]), reduce(vcat, not_empty[2])
+    X = force_type ?
+        Matrix{T}(reduce(hcat, not_empty[1])) :
+        Matrix{Union{Missing,T}}(reduce(hcat, not_empty[1]))
+
+    return X, reduce(vcat, not_empty[2])
 end
 
 # ---------------------------------------------------------------------------- #
@@ -142,7 +156,8 @@ Convenience function to collect all reduced multidimensional datasets
 from a `DataTreatment` object.
 """
 @inline function get_multidim(
-    dt::DataTreatment{T}
-) where {T<:AbstractFloat}
-    return get_reduced(dt)
+    dt::DataTreatment{T};
+    kwargs...
+) where {T<:Float}
+    return get_reduced(dt; kwargs...)
 end

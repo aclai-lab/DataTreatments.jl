@@ -26,9 +26,9 @@ and constructs the appropriate dataset structure for each category.
 # Description
 
 Given a set of column indices and metadata, this function separates columns into:
-- **Discrete data**: Columns whose element type is neither `AbstractFloat` nor `AbstractArray` 
+- **Discrete data**: Columns whose element type is neither `Float` nor `AbstractArray` 
   (e.g., categorical labels, strings, integers). These are stored in a [`DiscreteDataset`](@ref).
-- **Continuous data**: Columns whose element type is a subtype of `AbstractFloat` (scalar numeric values). 
+- **Continuous data**: Columns whose element type is a subtype of `Float` (scalar numeric values). 
   These are stored in a [`ContinuousDataset`](@ref).
 - **Multidimensional data**: Columns whose element type is a subtype of `AbstractArray` 
   (e.g., time series, images, spectrograms). These are stored in a [`MultidimDataset`](@ref), processed according to the aggregation function specified in the `TreatmentGroup`.
@@ -61,13 +61,13 @@ function _build_ds(
     vnames::Vector{String},
     datastruct::NamedTuple,
     float_type::Type{T}
-) where {T<:AbstractFloat}
+) where {T<:Float}
     aggrfunc = get_aggrfunc(treat)
     valtype = datastruct.datatype
     groups = get_groupby(treat)
 
-    td_ids = ids ∩ findall(T -> !(T <: AbstractFloat) && !(T <: AbstractArray), valtype)
-    tc_ids = ids ∩ findall(T -> T <: AbstractFloat, valtype)
+    td_ids = ids ∩ findall(T -> !(T <: Float) && !(T <: AbstractArray), valtype)
+    tc_ids = ids ∩ findall(T -> T <: Float, valtype)
     md_ids = ids ∩ findall(T -> T <: AbstractArray, valtype)
 
     return (

@@ -7,10 +7,12 @@ using Catch22
 using Statistics: mean, median, std, cov
 
 # ---------------------------------------------------------------------------- #
-#                               abstract types                                 #
+#                                   types                                      #
 # ---------------------------------------------------------------------------- #
 abstract type AbstractDataset end
 abstract type AbstractDataFeature end
+
+const Float = Union{Float32,Float64}
 
 # ---------------------------------------------------------------------------- #
 #                                 includes                                     #

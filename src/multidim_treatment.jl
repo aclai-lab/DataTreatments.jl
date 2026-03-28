@@ -7,7 +7,7 @@
 
 # apply a feature function to a vector while safely handling missing values and NaN entries
 @inline _safe_feat(v, f) =
-    f(collect(x for x in skipmissing(v) if !(x isa AbstractFloat && isnan(x))))
+    f(collect(x for x in skipmissing(v) if !(x isa Float && isnan(x))))
 
 # ---------------------------------------------------------------------------- #
 #                             aggregate functions                              #

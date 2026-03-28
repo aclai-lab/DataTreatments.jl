@@ -1,10 +1,10 @@
 # ---------------------------------------------------------------------------- #
 #                                   utils                                      #
 # ---------------------------------------------------------------------------- #
-_isnanval(v) = v isa AbstractFloat && isnan(v)
-_isarray(v) = v isa AbstractArray
+_isnanval(v) = v isa Float && isnan(v)
+_isarray(v) = v isa VecOrMat
 
-_to_str(v) = (ismissing(v) || (v isa AbstractFloat && isnan(v))) ? missing : string(v)
+_to_str(v) = (ismissing(v) || (v isa Float && isnan(v))) ? missing : string(v)
 function _discrete_encode(X::AbstractMatrix)
     cats = [categorical(_to_str.(col)) for col in eachcol(X)]
     return [levelcode.(cat) for cat in cats], levels.(cats)
