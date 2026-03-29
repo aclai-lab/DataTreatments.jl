@@ -14,13 +14,13 @@ Columns are selected based on:
 - **`dims::Int`**: Dimensionality filter (`-1` selects all dimensions)
 - **`name_expr`**: Column name filter, can be:
   - `Regex`: matches column names against the pattern
-  - `Function`: predicate function applied to column names
+  - `Base.Callable`: predicate function applied to column names
   - `Vector{String}`: explicit list of column names to include
 - **`datatype::Type`**: Filter columns by data type (default: `Any` means no filter)
 
 ## Processing Parameters (for multidimensional columns)
 
-- **`aggrfunc::Function`**: Aggregation function applied to multidimensional elements:
+- **`aggrfunc::Base.Callable`**: Aggregation function applied to multidimensional elements:
   - `aggregate`: tabularizes multidimensional data into a flat matrix
   - `reducesize`: resizes multidimensional data while preserving dimensionality
 
@@ -34,7 +34,7 @@ Columns are selected based on:
 - `ids::Vector{Int}`: Column indices selected by this group
 - `dims::Int`: Dimensionality filter used
 - `vnames::Vector{String}`: Names of selected columns
-- `aggrfunc::Function`: Aggregation function for multidimensional columns
+- `aggrfunc::Base.Callable`: Aggregation function for multidimensional columns
 - `grouped::Bool`: Whether to process all columns together (`true`) or columnwise (`false`)
 - `groupby::Tuple{Vararg{Symbol}}`: Grouping specification for output features
 
@@ -45,21 +45,23 @@ struct TreatmentGroup
     ids::Vector{Int}
     dims::Int
     vnames::Vector{String}
-    aggrfunc::Function
+    aggrfunc::Base.Callable
     grouped::Bool
     groupby::Union{Nothing,Tuple{Vararg{Symbol}}}
+    impute::Union{Nothing,Tuple{Vararg{<:Impute.Imputor}}}
     datatype::Type
 
     function TreatmentGroup(
         datastruct::NamedTuple,
         vnames::Vector{String};
         dims::Int=-1,
-        name_expr::Union{Regex,Function,Vector{String}}=r".*",
-        datatype::T=Any,
+        name_expr::Union{Regex,Base.Callable,Vector{String}}=r".*",
         aggrfunc::F=aggregate(win=(wholewindow(),), features=(maximum, minimum, mean)),
         grouped::Bool=false,
-        groupby::Union{Nothing,Symbol,Tuple{Vararg{Symbol}}}=nothing
-    ) where {T<:Type,F<:Function}
+        groupby::Union{Nothing,Symbol,Tuple{Vararg{Symbol}}}=nothing,
+        impute::Union{Nothing,Tuple{Vararg{<:Impute.Imputor}}}=nothing,
+        datatype::T=Any
+    ) where {T<:Type,F<:Base.Callable}
         all_dims = datastruct.dims
         all_types = datastruct.datatype
         groupby isa Symbol && (groupby = (groupby,))
@@ -86,7 +88,7 @@ struct TreatmentGroup
         t = isempty(col_types) ? Any : mapreduce(identity, typejoin, col_types)
         isconcretetype(t) || (t = Any)
 
-        new(ids, dims, vnames[ids], aggrfunc, grouped, groupby, t)
+        new(ids, dims, vnames[ids], aggrfunc, grouped, groupby, impute, t)
     end
 end
 

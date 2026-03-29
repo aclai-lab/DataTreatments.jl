@@ -1,10 +1,16 @@
 module DataTreatments
 
+using Reexport
+
 using CategoricalArrays
 using DataFrames
 using Catch22
 
 using Statistics: mean, median, std, cov
+
+using Impute
+@reexport using Impute: Interpolate, Impute.LOCF, Impute.NOCB
+@reexport using Impute: Impute.Substitute, Impute.SVD
 
 # ---------------------------------------------------------------------------- #
 #                                   types                                      #

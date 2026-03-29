@@ -441,6 +441,9 @@ mutable struct MultidimDataset{T,S} <: AbstractDataset
 
         grouped = isnothing(groups) ? nothing : _groupby(md_feats, groups)
 
+        # qui si imputa
+        # qui si normalizza
+
         new{float_type,eltype(md_feats)}(md, md_feats, grouped)
     end
 end
@@ -479,6 +482,7 @@ is_tabular(d::AbstractDataset) = d isa Union{
 is_multidim(d::AbstractDataset) = isa(d, MultidimDataset{<:Any, ReduceFeat})
 
 get_vnames(d::AbstractDataset)::Vector{String} = get_vnames.(d.info)
+
 function get_vnames(
     ds::MultidimDataset{<:Any,<:AggregateFeat};
     groupby_split::Bool=false
