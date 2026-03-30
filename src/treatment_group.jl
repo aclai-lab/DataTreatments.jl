@@ -1,3 +1,10 @@
+const TreatType = Dict(
+    :discrete => T -> !(T <: Float) && !(T <: AbstractArray),
+    :continuous => T -> T <: Float,
+    :multidim => T -> T <: AbstractArray,
+    :all => T -> true
+)
+
 # ---------------------------------------------------------------------------- #
 #                            TreatmentGroup struct                             #
 # ---------------------------------------------------------------------------- #
@@ -60,8 +67,8 @@ struct TreatmentGroup
         grouped::Bool=false,
         groupby::Union{Nothing,Symbol,Tuple{Vararg{Symbol}}}=nothing,
         impute::Union{Nothing,Tuple{Vararg{<:Impute.Imputor}}}=nothing,
-        datatype::T=Any
-    ) where {T<:Type,F<:Base.Callable}
+        datatype::Symbol=:all
+    ) where {F<:Base.Callable}
         all_dims = datastruct.dims
         all_types = datastruct.datatype
         groupby isa Symbol && (groupby = (groupby,))
@@ -79,7 +86,7 @@ struct TreatmentGroup
 
         for i in datastruct.id
             (dims != -1 && all_dims[i] != dims) && continue
-            (datatype != Any && all_types[i] != datatype) && continue
+            !TreatType[datatype](all_types[i]) && continue
             name_match(vnames[i]) || continue
             push!(ids, i)
         end
@@ -104,3 +111,5 @@ get_aggrfunc(t::TreatmentGroup) = t.aggrfunc
 
 has_groupby(t::TreatmentGroup) = !isnothing(t.groupby)
 get_groupby(t::TreatmentGroup) = t.groupby
+
+get_impute(t::TreatmentGroup) = t.impute

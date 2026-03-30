@@ -145,6 +145,16 @@ _reindex_groups(
     idxs::AbstractVector{Int}
 ) = Vector{Vector{Int}}()
 
+function _impute(data::Matrix, impute::Tuple{Vararg{<:Impute.Imputor}})
+    Impute.declaremissings(data; values=(NaN, "NULL"))
+    for im in impute
+        Impute.impute!(data, im; dims=2)
+    end
+    any(ismissing.(data)) || (data = disallowmissing(data))
+
+    return data
+end
+
 # ---------------------------------------------------------------------------- #
 #                           output dataset structs                             #
 # ---------------------------------------------------------------------------- #
@@ -197,7 +207,8 @@ mutable struct DiscreteDataset{T} <: AbstractDataset
         ids::Vector{Int},
         data::AbstractMatrix,
         vnames::Vector{String},
-        datastruct::NamedTuple
+        datastruct::NamedTuple,
+        impute::Union{Nothing,Tuple{Vararg{<:Impute.Imputor}}}
     )
         codes = _discrete_encode(@views(data[:, ids]))
         vnames = vnames[ids]
@@ -205,8 +216,14 @@ mutable struct DiscreteDataset{T} <: AbstractDataset
         miss = datastruct.missingidxs[ids]
         datatype = datastruct.datatype[ids]
 
+        data = isempty(codes) ?
+            Matrix{eltype(codes)}(undef, 0, 0) :
+            stack(codes)
+
+        isnothing(impute) || (data = _impute(data, impute))
+
         return new{eltype(codes)}(
-            isempty(codes) ? Matrix{eltype(codes)}(undef, 0, 0) : stack(codes),
+            data,
             [DiscreteFeat{eltype(codes)}(
                 ids[i],
                 vnames[i],
@@ -274,6 +291,7 @@ mutable struct ContinuousDataset{T} <: AbstractDataset
         data::AbstractMatrix,
         vnames::Vector{String},
         datastruct::NamedTuple,
+        impute::Union{Nothing,Tuple{Vararg{<:Impute.Imputor}}},
         float_type::Type
     )
         vnames = vnames[ids]
@@ -281,14 +299,20 @@ mutable struct ContinuousDataset{T} <: AbstractDataset
         miss = datastruct.missingidxs[ids]
         nan = datastruct.nanidxs[ids]
 
-        return new{float_type}(
-            isempty(ids) ?
-            Matrix{float_type}(undef, 0, 0) :
+        data = if isempty(ids)
+            Matrix{float_type}(undef, 0, 0)
+        else
             reduce(hcat, [map(x -> ismissing(x) ?
                 missing :
                 float_type(x), @view data[:, id])
                 for id in ids]
-            ),
+            )
+        end
+
+        isnothing(impute) || (data = _impute(data, impute))
+
+        return new{float_type}(
+            data,
             [ContinuousFeat{float_type}(
                 ids[i],
                 vnames[i],
@@ -393,6 +417,7 @@ mutable struct MultidimDataset{T,S} <: AbstractDataset
         vnames::Vector{String},
         datastruct::NamedTuple,
         aggrfunc::F,
+        impute::Union{Nothing,Tuple{Vararg{<:Impute.Imputor}}},
         float_type::Type{T},
         groups::Union{Nothing, Tuple{Vararg{Symbol}}}
     ) where {T<:Float, F<:Base.Callable}
@@ -440,9 +465,6 @@ mutable struct MultidimDataset{T,S} <: AbstractDataset
         end
 
         grouped = isnothing(groups) ? nothing : _groupby(md_feats, groups)
-
-        # qui si imputa
-        # qui si normalizza
 
         new{float_type,eltype(md_feats)}(md, md_feats, grouped)
     end

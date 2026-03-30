@@ -90,7 +90,21 @@ dt = load_dataset(
     df,
     TreatmentGroup(
         dims=0,
-        impute=(SVD(),)
+        impute=(LOCF(),)
+    )
+)
+
+dt = load_dataset(
+    df,
+    TreatmentGroup(
+        dims=0,
+        impute=(LOCF(), NOCB()),
+        datatype=:discrete
+    ),
+    TreatmentGroup(
+        dims=0,
+        impute=(SVD(),),
+        datatype=:continuous
     )
 )
 
@@ -121,8 +135,32 @@ dt = load_dataset(
         impute=(Interpolate(), LOCF(), NOCB())
     ),
     TreatmentGroup(
-        dims=1,
+        dims=2,
         impute=(Interpolate(), LOCF(), NOCB())
     )
 )
+
+# using Impute
+
+# data = dt.data[1].data
+
+# Impute.declaremissings(data; values=(NaN, "NULL"))
+
+# # Impute.interp(data)
+
+# Impute.interp(data) |> Impute.locf() |> Impute.nocb()
+
+# using Impute: Interpolate, impute!, impute
+
+# d = dt.data[1].data
+
+# impute!(d, Interpolate(); dims=2)
+
+# impute(data, Interpolate(r=RoundNearest); dims=2)
+# impute(Impute.declaremissings(data; values=(NaN, "NULL")), Impute.KNN(); dims=2)
+# impute(data, Impute.LOCF(); dims=2)
+# impute(data, Impute.NOCB(); dims=2)
+# impute(data, Impute.Substitute(statistic=Impute.defaultstats); dims=2)
+# impute(data, Impute.Substitute(statistic=mean, ); dims=2)
+# impute(data, Impute.SVD(); dims=2)
 

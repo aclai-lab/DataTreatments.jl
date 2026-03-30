@@ -4,13 +4,11 @@
 mutable struct DataTreatment{T}
     data::Vector{AbstractDataset}
     target::AbstractVector
-    # levels::Union{Nothing,AbstractVector}
     treats::Vector{TreatmentGroup}
 end
 
 nrows(dt::DataTreatment) = size(first(dt.data).data, 1)
 
-# get_levels(dt::DataTreatment) = dt.levels
 get_target(dt::DataTreatment) = dt.target
 
 function get_discrete(
