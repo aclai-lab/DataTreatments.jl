@@ -137,7 +137,7 @@ dt = load_dataset(
             reducefunc=mean,
             win=(splitwindow(nwindows=3),)
         ),
-        impute=(Impute.Substitute(statistic=mean),)
+        impute=(DT.Substitute(statistic=mean),)
     )
 )
 

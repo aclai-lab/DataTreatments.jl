@@ -15,13 +15,10 @@ function _impute(
 ) where {T<:Union{Missing,Float,AbstractArray{<:Float}}}
     Impute.declaremissings(data; values=(NaN, "NULL"))
 
-    # for i in eachindex(data)
-    #     data[i] = _impute(data[i], impute)
-    # end
     for im in impute
         Impute.impute!(data, im)
     end
-    
+
     any(ismissing.(data)) || (data = disallowmissing(data))
 
     return data
