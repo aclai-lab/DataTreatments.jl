@@ -12,6 +12,8 @@ using Impute
 @reexport using Impute: Interpolate, Impute.LOCF, Impute.NOCB
 @reexport using Impute: Impute.Substitute, Impute.SVD
 
+using Normalization
+
 # ---------------------------------------------------------------------------- #
 #                                   types                                      #
 # ---------------------------------------------------------------------------- #
@@ -37,6 +39,12 @@ export @evalwindow
 include("windowing.jl")
 
 include("impute.jl")
+
+import Normalization: @_Normalization
+export ZScore, MinMax, Center, Sigmoid, UnitEnergy, UnitPower
+export Scale, ScaleMad, ScaleFirst, PNorm1, PNorm, PNormInf
+export Robust
+include("normalization.jl")
 
 include("inspecting.jl")
 

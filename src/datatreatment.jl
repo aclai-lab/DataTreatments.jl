@@ -1,6 +1,65 @@
 # ---------------------------------------------------------------------------- #
 #                             DataTreatment struct                             #
 # ---------------------------------------------------------------------------- #
+"""
+    DataTreatment{T}
+
+Top-level container produced by [`load_dataset`](@ref). Holds all output datasets
+derived from a source table, a target vector, and the applied treatment groups.
+
+## Structure
+
+```
+DataTreatment{T}  (T = float_type, e.g. Float64)
+├── data    ::Vector{AbstractDataset}   # ordered list of output datasets
+│    ├── DiscreteDataset{...}           # from discrete (categorical) columns
+│    ├── ContinuousDataset{T}           # from continuous (scalar) columns
+│    └── MultidimDataset{T, ...}        # from multidimensional columns
+│         ├── AggregateFeat variant     # → tabular scalar output
+│         └── ReduceFeat variant        # → array output
+├── target  ::AbstractVector            # encoded target vector (labels)
+└── treats  ::Vector{TreatmentGroup}    # the treatment groups that produced `data`
+```
+
+## Full pipeline overview
+
+```
+Raw DataFrame / Matrix
+        │
+        ▼  load_dataset(data, vnames, target, treatments...; float_type=Float64)
+        │
+        ├─ _inspecting(data)  →  datastruct::NamedTuple
+        │   (inspect all columns: types, missing, NaN, dims, ...)
+        │
+        ├─ encode target  →  CategoricalVector
+        │
+        ├─ for each TreatmentGroup:
+        │   ├── classify columns  →  discrete_ids, continuous_ids, multidim_ids
+        │   ├── DiscreteDataset(discrete_ids, ...)
+        │   ├── ContinuousDataset(continuous_ids, ...)
+        │   └── MultidimDataset(multidim_ids, ..., aggrfunc)
+        │
+        └── DataTreatment{T}(ds, target, treats)
+```
+
+## Accessor summary
+
+| Method              | Returns                                      |
+|---------------------|----------------------------------------------|
+| `get_discrete(dt)`  | `(Matrix, vnames)` for categorical columns   |
+| `get_continuous(dt)`| `(Matrix{T}, vnames)` for scalar columns     |
+| `get_aggregated(dt)`| `(Matrix{T}, vnames)` for aggregated series  |
+| `get_reduced(dt)`   | `(Matrix{Array{T}}, vnames)` for series      |
+| `get_tabular(dt)`   | merged tabular matrix + all column names     |
+| `get_multidim(dt)`  | reduced multidim matrix + column names       |
+| `get_target(dt)`    | the encoded target vector                    |
+
+# Type Parameter
+- `T`: The floating-point type used throughout (e.g., `Float64`, `Float32`).
+
+See also: [`load_dataset`](@ref), [`DiscreteDataset`](@ref),
+[`ContinuousDataset`](@ref), [`MultidimDataset`](@ref), [`TreatmentGroup`](@ref)
+"""
 mutable struct DataTreatment{T}
     data::Vector{AbstractDataset}
     target::AbstractVector
@@ -18,9 +77,6 @@ function get_discrete(
     return if isempty(ds)
         Matrix{Union{Missing,CategoricalValue}}(undef, 0, 0), String[]
     else
-        # data = get_data(ds)
-        # Matrix{eltype(data)}(data),
-        # reduce(vcat, get_vnames.(ds))
         get_data(ds), reduce(vcat, get_vnames.(ds))
     end
 end
