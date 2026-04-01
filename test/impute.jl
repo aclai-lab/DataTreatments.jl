@@ -324,3 +324,14 @@ dt = SX.setup_dataset(
             win=(splitwindow(nwindows=2),)
         ),)
 )
+
+################################################################################
+dt = load_dataset(
+    df, t_classif,
+    TreatmentGroup(
+        dims=0,
+        datatype=:continuous,
+        norm=MinMax
+    )
+)
+a=get_continuous(dt)[1]

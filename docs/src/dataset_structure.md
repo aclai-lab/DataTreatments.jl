@@ -64,6 +64,90 @@ Raw DataFrame / Matrix
 
 ---
 
+## Treatment Directives
+
+### `TreatmentGroup`
+
+```@docs
+TreatmentGroup
+```
+
+#### Column Selection Filters
+
+```
+All columns in the dataset
+        │
+        ├─ dims filter        keep columns with array length == dims
+        │                     (skip if dims == -1)
+        │
+        ├─ datatype filter    :discrete  → !(T <: Float) && !(T <: AbstractArray)
+        │                     :continuous → T <: Float
+        │                     :multidim  → T <: AbstractArray
+        │                     :all       → any type  (skip filter)
+        │
+        └─ name_expr filter   Regex      → match(name_expr, name) !== nothing
+                              Callable   → name_expr(name)
+                              Vector     → name ∈ name_expr
+                              (skip if name_expr == r".*")
+                                    │
+                                    ▼
+                            ids ::Vector{Int}
+```
+
+#### From Directive to Output Datasets
+
+```
+TreatmentGroup
+│   ids = [1, 3, 5, 7, 8]   ← column indices surviving all filters
+│
+├─ discrete ids   → [1, 3]
+│       └─▶ DiscreteDataset{T}
+│            ├── data :: Matrix{Union{Int,Missing}}  (integer-coded)
+│            └── info :: Vector{DiscreteFeat}
+│
+├─ continuous ids → [5]
+│       └─▶ ContinuousDataset{T}
+│            ├── data :: Matrix{Union{Missing,T}}
+│            └── info :: Vector{ContinuousFeat}
+│
+└─ multidim ids  → [7, 8]
+        │
+        ├─ aggrfunc = aggregate(win=slidingwindows(2), features=(mean, std))
+        │       └─▶ MultidimDataset{T, AggregateFeat}
+        │            ├── data :: Matrix{T}              (nrows × n_feats×nwins)
+        │            ├── info :: Vector{AggregateFeat}
+        │            └── groups :: Vector{Vector{Int}}  (if groupby != nothing)
+        │
+        └─ aggrfunc = reducesize(256)
+                └─▶ MultidimDataset{T, ReduceFeat}
+                     ├── data :: Matrix{AbstractArray{T}}
+                     ├── info :: Vector{ReduceFeat}
+                     └── groups :: nothing
+```
+
+#### Multiple `TreatmentGroup`s
+
+```
+load_dataset(df, target, t1, t2, t3)
+│
+├─ t1 = TreatmentGroup(datatype=:continuous, norm=MinMaxNormalization)
+│        └─▶ ContinuousDataset  (all continuous columns, normalized)
+│
+├─ t2 = TreatmentGroup(name_expr=r"^signal_", aggrfunc=aggregate(...), groupby=:vname)
+│        └─▶ MultidimDataset{T, AggregateFeat}  (signal_* columns → scalar features)
+│
+└─ t3 = TreatmentGroup(name_expr=r"^audio_", aggrfunc=reducesize(256))
+         └─▶ MultidimDataset{T, ReduceFeat}     (audio_* columns → downsampled arrays)
+
+DataTreatment.data = [
+    ContinuousDataset,                   # from t1
+    MultidimDataset{AggregateFeat},      # from t2
+    MultidimDataset{ReduceFeat}          # from t3
+]
+```
+
+---
+
 ## Metadata Feature Structs
 
 These structs carry per-column diagnostic information (valid/missing/NaN indices,
@@ -135,3 +219,5 @@ MultidimDataset{T,S}
 ```@docs
 DataTreatment{T}
 ```
+
+

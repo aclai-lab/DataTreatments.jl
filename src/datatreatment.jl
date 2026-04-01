@@ -18,7 +18,7 @@ DataTreatment{T}  (T = float_type, e.g. Float64)
 │         ├── AggregateFeat variant     # → tabular scalar output
 │         └── ReduceFeat variant        # → array output
 ├── target  ::AbstractVector            # encoded target vector (labels)
-└── treats  ::Vector{TreatmentGroup}    # the treatment groups that produced `data`
+└── treats  ::Vector{TreatmentGroup}    # user directives
 ```
 
 ## Full pipeline overview

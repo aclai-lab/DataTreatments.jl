@@ -414,6 +414,7 @@ mutable struct ContinuousDataset{T} <: AbstractDataset
         vnames::Vector{String},
         datastruct::NamedTuple,
         impute::Union{Nothing,Tuple{Vararg{<:Impute.Imputor}}},
+        norm::Union{Type{<:AbstractNormalization},Nothing},
         float_type::Type
     )
         vnames = vnames[ids]
@@ -432,6 +433,11 @@ mutable struct ContinuousDataset{T} <: AbstractDataset
         end
 
         isnothing(impute) || (data = _impute(data, impute))
+
+        if !isnothing(norm)
+            data = Impute.replace(data; values=NaN)
+            normalize!(data, NaNSafe{norm{float_type}}, dims=1)
+        end
 
         return new{float_type}(
             data,
@@ -492,15 +498,15 @@ preserving the array structure.
 ```
 Source column "audio" (dims=10000)
  ┌────────────────────────────────────────┐
- │ Row 1: [0.1, 0.2, ..., 0.9]  (10000) │
- │ Row 2: [0.3, NaN, ..., 0.8]  (10000) │
+ │ Row 1: [0.1, 0.2, ..., 0.9]  (10000)   │
+ │ Row 2: [0.3, NaN, ..., 0.8]  (10000)   │
  │ Row 3: missing                         │
  └────────────────────────────────────────┘
          │
          ▼  reducefunc = downsample(256)
  ┌────────────────────────────────────────┐
- │ Row 1: [0.12, 0.34, ..., 0.88]  (256) │  data::Matrix{AbstractArray{Float64}}
- │ Row 2: [0.31, 0.49, ..., 0.50]  (256) │
+ │ Row 1: [0.12, 0.34, ..., 0.88]  (256)  │  data::Matrix{AbstractArray{Float64}}
+ │ Row 2: [0.31, 0.49, ..., 0.50]  (256)  │
  │ Row 3: missing                         │
  └────────────────────────────────────────┘
  info = [ReduceFeat(id=5, vname="audio", dims=10000, reducefunc=..., ...)]
@@ -570,6 +576,7 @@ mutable struct MultidimDataset{T,S} <: AbstractDataset
         datastruct::NamedTuple,
         aggrfunc::F,
         impute::Union{Nothing,Tuple{Vararg{<:Impute.Imputor}}},
+        norm::Union{Nothing,Type{<:AbstractNormalization}},
         float_type::Type{T},
         groups::Union{Nothing, Tuple{Vararg{Symbol}}}
     ) where {T<:Float, F<:Base.Callable}
