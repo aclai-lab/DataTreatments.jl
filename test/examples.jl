@@ -1,22 +1,22 @@
 using Test
-using SoleXplorer
-const SX = SoleXplorer
+# using SoleXplorer
+# const SX = SoleXplorer
 using DataTreatments
 const DT = DataTreatments
 
-using MLJ
+# using MLJ
 using DataFrames
 using Random
 using CategoricalArrays
 
-Xc, yc = @load_iris
-Xc = DataFrame(Xc)
+# Xc, yc = @load_iris
+# Xc = DataFrame(Xc)
 
-Xr, yr = @load_boston
-Xr = DataFrame(Xr)
+# Xr, yr = @load_boston
+# Xr = DataFrame(Xr)
 
-natopsloader = SX.NatopsLoader()
-Xts, yts = SX.load(natopsloader)
+# natopsloader = SX.NatopsLoader()
+# Xts, yts = SX.load(natopsloader)
 
 function create_image(seed::Int; n=6)
     Random.seed!(seed)
@@ -248,82 +248,82 @@ get_multidim(dt)
 get_tabular(dt)
 
 ################################################################################
-dt = SX.setup_dataset(
-    df, t_classif,
-    TreatmentGroup(
-        impute=(LOCF(), NOCB(), Interpolate()),
-        datatype=:discrete
-    )
-)
+# dt = SX.setup_dataset(
+#     df, t_classif,
+#     TreatmentGroup(
+#         impute=(LOCF(), NOCB(), Interpolate()),
+#         datatype=:discrete
+#     )
+# )
 
-dt = SX.setup_dataset(
-    df, t_classif,
-    TreatmentGroup(
-        impute=(SVD(),),
-        datatype=:continuous
-    )
-)
+# dt = SX.setup_dataset(
+#     df, t_classif,
+#     TreatmentGroup(
+#         impute=(SVD(),),
+#         datatype=:continuous
+#     )
+# )
 
-dt = SX.setup_dataset(
-    df, t_classif,
-    TreatmentGroup(
-        dims=0,
-        impute=(Interpolate(), LOCF(), NOCB()),
-        datatype=:continuous
-    )
-)
+# dt = SX.setup_dataset(
+#     df, t_classif,
+#     TreatmentGroup(
+#         dims=0,
+#         impute=(Interpolate(), LOCF(), NOCB()),
+#         datatype=:continuous
+#     )
+# )
 
-dt = SX.setup_dataset(
-    df, t_classif,
-    TreatmentGroup(
-        dims=1,
-        impute=(SVD(),)
-    ),
-    TreatmentGroup(
-        dims=2,
-        impute=(SVD(),)
-    )
-)
+# dt = SX.setup_dataset(
+#     df, t_classif,
+#     TreatmentGroup(
+#         dims=1,
+#         impute=(SVD(),)
+#     ),
+#     TreatmentGroup(
+#         dims=2,
+#         impute=(SVD(),)
+#     )
+# )
 
-dt = SX.setup_dataset(
-    df, t_classif,
-    model=ModalDecisionTree(),
-    TreatmentGroup(
-        dims=1,
-        aggrfunc=reducesize(
-            reducefunc=mean,
-            win=(splitwindow(nwindows=3),)
-        ),
-        impute=(DT.Substitute(statistic=mean),)
-    )
-)
+# dt = SX.setup_dataset(
+#     df, t_classif,
+#     model=ModalDecisionTree(),
+#     TreatmentGroup(
+#         dims=1,
+#         aggrfunc=reducesize(
+#             reducefunc=mean,
+#             win=(splitwindow(nwindows=3),)
+#         ),
+#         impute=(DT.Substitute(statistic=mean),)
+#     )
+# )
 
-dt = SX.setup_dataset(
-    df, t_classif,
-    model=ModalDecisionTree(),
-    TreatmentGroup(
-        dims=2,
-        aggrfunc=reducesize(
-            reducefunc=mean,
-            win=(splitwindow(nwindows=2),)
-        ),
-        impute=(LOCF(), NOCB())
-    )
-)
+# dt = SX.setup_dataset(
+#     df, t_classif,
+#     model=ModalDecisionTree(),
+#     TreatmentGroup(
+#         dims=2,
+#         aggrfunc=reducesize(
+#             reducefunc=mean,
+#             win=(splitwindow(nwindows=2),)
+#         ),
+#         impute=(LOCF(), NOCB())
+#     )
+# )
 
 ################################################################################
-dt = SX.setup_dataset(Xc, yc)
-dt = SX.setup_dataset(Xr, yr)
-dt = SX.setup_dataset(
-    Xts,
-    yts,
-    model=ModalDecisionTree(),
-    TreatmentGroup(
-        aggrfunc=reducesize(
-            reducefunc=mean,
-            win=(splitwindow(nwindows=2),)
-        ),)
-)
+# dt = SX.setup_dataset(Xc, yc)
+# dt = SX.setup_dataset(Xr, yr)
+# dt = SX.setup_dataset(
+#     Xts,
+#     yts,
+#     model=ModalDecisionTree(),
+#     TreatmentGroup(
+#         aggrfunc=reducesize(
+#             reducefunc=mean,
+#             win=(splitwindow(nwindows=2),)
+#         ),)
+# )
 
 ################################################################################
 

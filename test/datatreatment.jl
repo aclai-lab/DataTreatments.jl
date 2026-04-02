@@ -72,7 +72,7 @@ dt =load_dataset(
     df,
     TreatmentGroup(
         dims=1,
-        aggrfunc=aggregate(
+        aggrfunc=DT.aggregate(
             features=(mean, maximum),
             win=(adaptivewindow(nwindows=5, overlap=0.4),)
         ),
@@ -110,7 +110,7 @@ multidim = get_multidim(dt)
         df,
         TreatmentGroup(
             dims=1,
-            aggrfunc=aggregate(
+            aggrfunc=DT.aggregate(
                 features=(mean, maximum),
                 win=(adaptivewindow(nwindows=5, overlap=0.4),)
             ),
