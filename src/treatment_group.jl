@@ -1,65 +1,164 @@
 # ---------------------------------------------------------------------------- #
+#                                   types                                      #
+# ---------------------------------------------------------------------------- #
+const TreatType = Dict(
+    :discrete => T -> !(T <: Float) && !(T <: AbstractArray),
+    :continuous => T -> T <: Float,
+    :multidim => T -> T <: AbstractArray,
+    :all => T -> true
+)
+
+# ---------------------------------------------------------------------------- #
 #                            TreatmentGroup struct                             #
 # ---------------------------------------------------------------------------- #
 """
-    TreatmentGroup{T}
+    TreatmentGroup
 
-A configuration object for selecting and processing columns in a dataset passed to `DataTreatment`.
+A user-defined directive that specifies **which columns to select** from a dataset
+and **how to process** them inside `load_dataset`.
 
-The type parameter `T` is the `typejoin` of the data types of all selected columns.
+Each `TreatmentGroup` encodes two orthogonal concerns:
 
-## Selection Parameters
+1. **Column selection** — filter columns by name, dimensionality, or data type.
+2. **Processing directives** — how to handle multidimensional columns, missing
+   values, normalization, and output grouping.
 
-Columns are selected based on:
-- **`dims::Int`**: Dimensionality filter (`-1` selects all dimensions)
-- **`name_expr`**: Column name filter, can be:
-  - `Regex`: matches column names against the pattern
-  - `Function`: predicate function applied to column names
-  - `Vector{String}`: explicit list of column names to include
-- **`datatype::Type`**: Filter columns by data type (default: `Any` means no filter)
+Multiple `TreatmentGroup`s can be passed to `load_dataset`; each produces its own
+set of [`AbstractDataset`](@ref) entries inside the resulting [`DataTreatment`](@ref).
 
-## Processing Parameters (for multidimensional columns)
+---
 
-- **`aggrfunc::Function`**: Aggregation function applied to multidimensional elements:
-  - `aggregate`: tabularizes multidimensional data into a flat matrix
-  - `reducesize`: resizes multidimensional data while preserving dimensionality
+## Column Selection
 
-- **`grouped::Bool`**: If `true`, further processing is performed on all selected columns together (jointly), rather than the default columnwise processing. If `false` (default), processing is applied to each column independently.
+Columns are included when **all** active filters match:
 
-- **`groupby::Tuple{Vararg{Symbol}}`**: Further partitioning of output features from multidimensional processing.
-  Possible grouping keys include `:vname` (column name), window index, or feature type applied.
+| Field        | Type                                          | Effect                                             |
+|--------------|-----------------------------------------------|----------------------------------------------------|
+| `dims`       | `Int`                                         | Keep only columns whose array length equals `dims`; `-1` disables this filter |
+| `name_expr`  | `Regex` / `Base.Callable` / `Vector{String}`  | Keep columns whose name matches the pattern/predicate/list |
+| `datatype`   | `Symbol`                                      | `:discrete`, `:continuous`, `:multidim`, or `:all` |
+
+```
+All columns in the dataset
+        │
+        ├─ dims filter        (skip if dims == -1)
+        ├─ datatype filter    (skip if datatype == :all)
+        └─ name_expr filter   (skip if name_expr == r".*")
+                │
+                ▼
+        ids ::Vector{Int}   ← indices of the surviving columns
+```
+
+---
+
+## Processing Directives
+
+Once columns are selected, the following fields govern how they are processed:
+
+| Field      | Type                                        | Effect                                                                                                    |
+|------------|---------------------------------------------|-----------------------------------------------------------------------------------------------------------|
+| `aggrfunc` | `Base.Callable`                             | Applied to multidimensional columns: `aggregate(...)` → scalar matrix; `reducesize(...)` → smaller arrays |
+| `grouped`  | `Bool`                                      | `false` (default): process each column independently; `true`: process all selected columns jointly        |
+| `groupby`  | `Nothing` / `Tuple{Vararg{Symbol}}`         | Partition output features by `:vname`, window index, or feature type                                      |
+| `impute`   | `Nothing` / `Tuple{Vararg{Imputor}}`        | Imputation strategy applied after encoding/aggregation                                                    |
+| `norm`     | `Nothing` / `Type{<:AbstractNormalization}` | Normalization applied to the output matrix                                                                |
+
+---
 
 ## Fields
 
-- `ids::Vector{Int}`: Column indices selected by this group
-- `dims::Int`: Dimensionality filter used
-- `vnames::Vector{String}`: Names of selected columns
-- `aggrfunc::Function`: Aggregation function for multidimensional columns
-- `grouped::Bool`: Whether to process all columns together (`true`) or columnwise (`false`)
-- `groupby::Tuple{Vararg{Symbol}}`: Grouping specification for output features
+```
+TreatmentGroup
+├── ids       ::Vector{Int}                                  # selected column indices
+├── dims      ::Int                                          # dimensionality filter used
+├── vnames    ::Vector{String}                               # names of selected columns
+├── aggrfunc  ::Base.Callable                                # multidim processing strategy
+├── grouped   ::Bool                                         # joint vs columnwise processing
+├── groupby   ::Union{Nothing,Tuple{Vararg{Symbol}}}         # output feature partitioning
+├── impute    ::Union{Nothing,Tuple{Vararg{Imputor}}}        # imputation strategy
+├── norm      ::Union{Nothing,Type{<:AbstractNormalization}} # normalization
+└── datatype  ::Type                                         # typejoin of selected column types
+```
 
-The curried form `TreatmentGroup(; kwargs...)` returns a function that accepts a
-`DataStructure` and forwards `kwargs`, useful for passing to `DataTreatment`.
+---
+
+## Usage
+
+`TreatmentGroup` is most conveniently created in **curried form** and passed
+directly to [`load_dataset`](@ref):
+
+```julia
+# Select all continuous columns and normalize them
+t1 = TreatmentGroup(datatype=:continuous, norm=MinMaxNormalization)
+
+# Select time-series columns matching "signal_*", aggregate with mean/std over 3 windows
+t2 = TreatmentGroup(
+    name_expr  = r"^signal_",
+    datatype   = :multidim,
+    aggrfunc   = aggregate(win=slidingwindows(3), features=(mean, std)),
+    groupby    = :vname
+)
+
+# Select audio columns and downsample to 256 points
+t3 = TreatmentGroup(
+    name_expr = r"^audio_",
+    datatype  = :multidim,
+    aggrfunc  = reducesize(256)
+)
+
+dt = load_dataset(df, target, t1, t2, t3)
+```
+
+---
+
+## How Each Group Maps to Output Datasets
+
+```
+TreatmentGroup (user directive)
+        │
+        ├─ selected discrete columns
+        │       └─▶ DiscreteDataset{T}
+        │
+        ├─ selected continuous columns
+        │       └─▶ ContinuousDataset{T}
+        │
+        └─ selected multidim columns
+                ├─ aggrfunc = aggregate(...)
+                │       └─▶ MultidimDataset{T, AggregateFeat}  (tabular)
+                └─ aggrfunc = reducesize(...)
+                        └─▶ MultidimDataset{T, ReduceFeat}     (array)
+```
+
+The curried form `TreatmentGroup(; kwargs...)` returns a `(datastruct, vnames) -> TreatmentGroup`
+closure, which is the expected input signature for `load_dataset`.
+
+See also: [`load_dataset`](@ref), [`DataTreatment`](@ref),
+[`DiscreteDataset`](@ref), [`ContinuousDataset`](@ref), [`MultidimDataset`](@ref),
+[`aggregate`](@ref), [`reducesize`](@ref)
 """
 struct TreatmentGroup
     ids::Vector{Int}
     dims::Int
     vnames::Vector{String}
-    aggrfunc::Function
+    aggrfunc::Base.Callable
     grouped::Bool
     groupby::Union{Nothing,Tuple{Vararg{Symbol}}}
+    impute::Union{Nothing,Tuple{Vararg{<:Impute.Imputor}}}
+    norm::Union{Nothing,Type{<:AbstractNormalization}}
     datatype::Type
 
     function TreatmentGroup(
         datastruct::NamedTuple,
         vnames::Vector{String};
         dims::Int=-1,
-        name_expr::Union{Regex,Function,Vector{String}}=r".*",
-        datatype::T=Any,
+        name_expr::Union{Regex,Base.Callable,Vector{String}}=r".*",
         aggrfunc::F=aggregate(win=(wholewindow(),), features=(maximum, minimum, mean)),
         grouped::Bool=false,
-        groupby::Union{Nothing,Symbol,Tuple{Vararg{Symbol}}}=nothing
-    ) where {T<:Type,F<:Function}
+        groupby::Union{Nothing,Symbol,Tuple{Vararg{Symbol}}}=nothing,
+        impute::Union{Nothing,Tuple{Vararg{<:Impute.Imputor}}}=nothing,
+        norm::Union{Nothing,Type{<:AbstractNormalization}}=nothing,
+        datatype::Symbol=:all
+    ) where {F<:Base.Callable}
         all_dims = datastruct.dims
         all_types = datastruct.datatype
         groupby isa Symbol && (groupby = (groupby,))
@@ -77,7 +176,7 @@ struct TreatmentGroup
 
         for i in datastruct.id
             (dims != -1 && all_dims[i] != dims) && continue
-            (datatype != Any && all_types[i] != datatype) && continue
+            !TreatType[datatype](all_types[i]) && continue
             name_match(vnames[i]) || continue
             push!(ids, i)
         end
@@ -86,7 +185,7 @@ struct TreatmentGroup
         t = isempty(col_types) ? Any : mapreduce(identity, typejoin, col_types)
         isconcretetype(t) || (t = Any)
 
-        new(ids, dims, vnames[ids], aggrfunc, grouped, groupby, t)
+        new(ids, dims, vnames[ids], aggrfunc, grouped, groupby, impute, norm, t)
     end
 end
 
@@ -102,3 +201,6 @@ get_aggrfunc(t::TreatmentGroup) = t.aggrfunc
 
 has_groupby(t::TreatmentGroup) = !isnothing(t.groupby)
 get_groupby(t::TreatmentGroup) = t.groupby
+
+get_impute(t::TreatmentGroup) = t.impute
+get_norm(t::TreatmentGroup) = t.norm

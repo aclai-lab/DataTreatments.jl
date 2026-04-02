@@ -60,7 +60,7 @@ img = ["img4","img1","img2","img3"]
 img_idxs = [3, 14, 17, 18]
 img_v = datastruct.valididxs[img_idxs]
 
-a = aggregate(
+a = DT.aggregate(
     Matrix(df[!, ts]),
     ts_v,
     Float64;
@@ -68,7 +68,7 @@ a = aggregate(
     features=(mean, maximum)
 )
 
-a = aggregate(
+a = DT.aggregate(
     Matrix(df[!, img]),
     img_v,
     Float64;
@@ -92,9 +92,9 @@ a = reducesize(
     reducefunc=mean
 )
 
-@testset "aggregate output shape and type" begin
+@testset "DT.aggregate output shape and type" begin
     # Test 1: ts columns, adaptivewindow, mean+maximum
-    a1, nw1 = aggregate(
+    a1, nw1 = DT.aggregate(
         Matrix(df[!, ts]),
         ts_v,
         Float64;
@@ -107,7 +107,7 @@ a = reducesize(
     @test length(nw1) == length(ts)
 
     # Test 2: img columns, splitwindow, mean
-    a2, nw2 = aggregate(
+    a2, nw2 = DT.aggregate(
         Matrix(df[!, img]),
         img_v,
         Float64;
@@ -206,12 +206,12 @@ end
 end
 
 @testset "curried constructors" begin
-    @test aggregate() isa Function
-    @test aggregate(
+    @test DT.aggregate() isa Function
+    @test DT.aggregate(
         win=(movingwindow(winsize=3, winstep=2),), features=(sum, mean)
     ) isa Function
-    @test aggregate(features=(maximum,)) isa Function
-    @test aggregate(
+    @test DT.aggregate(features=(maximum,)) isa Function
+    @test DT.aggregate(
         win=(splitwindow(nwindows=3),), features=(mean,)
     ) isa Function
 

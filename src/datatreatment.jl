@@ -1,16 +1,73 @@
 # ---------------------------------------------------------------------------- #
 #                             DataTreatment struct                             #
 # ---------------------------------------------------------------------------- #
+"""
+    DataTreatment{T}
+
+Top-level container produced by [`load_dataset`](@ref). Holds all output datasets
+derived from a source table, a target vector, and the applied treatment groups.
+
+## Structure
+
+```
+DataTreatment{T}  (T = float_type, e.g. Float64)
+├── data    ::Vector{AbstractDataset}   # ordered list of output datasets
+│    ├── DiscreteDataset{...}           # from discrete (categorical) columns
+│    ├── ContinuousDataset{T}           # from continuous (scalar) columns
+│    └── MultidimDataset{T, ...}        # from multidimensional columns
+│         ├── AggregateFeat variant     # → tabular scalar output
+│         └── ReduceFeat variant        # → array output
+├── target  ::AbstractVector            # encoded target vector (labels)
+└── treats  ::Vector{TreatmentGroup}    # user directives
+```
+
+## Full pipeline overview
+
+```
+Raw DataFrame / Matrix
+        │
+        ▼  load_dataset(data, vnames, target, treatments...; float_type=Float64)
+        │
+        ├─ _inspecting(data)  →  datastruct::NamedTuple
+        │   (inspect all columns: types, missing, NaN, dims, ...)
+        │
+        ├─ encode target  →  CategoricalVector
+        │
+        ├─ for each TreatmentGroup:
+        │   ├── classify columns  →  discrete_ids, continuous_ids, multidim_ids
+        │   ├── DiscreteDataset(discrete_ids, ...)
+        │   ├── ContinuousDataset(continuous_ids, ...)
+        │   └── MultidimDataset(multidim_ids, ..., aggrfunc)
+        │
+        └── DataTreatment{T}(ds, target, treats)
+```
+
+## Accessor summary
+
+| Method              | Returns                                      |
+|---------------------|----------------------------------------------|
+| `get_discrete(dt)`  | `(Matrix, vnames)` for categorical columns   |
+| `get_continuous(dt)`| `(Matrix{T}, vnames)` for scalar columns     |
+| `get_aggregated(dt)`| `(Matrix{T}, vnames)` for aggregated series  |
+| `get_reduced(dt)`   | `(Matrix{Array{T}}, vnames)` for series      |
+| `get_tabular(dt)`   | merged tabular matrix + all column names     |
+| `get_multidim(dt)`  | reduced multidim matrix + column names       |
+| `get_target(dt)`    | the encoded target vector                    |
+
+# Type Parameter
+- `T`: The floating-point type used throughout (e.g., `Float64`, `Float32`).
+
+See also: [`load_dataset`](@ref), [`DiscreteDataset`](@ref),
+[`ContinuousDataset`](@ref), [`MultidimDataset`](@ref), [`TreatmentGroup`](@ref)
+"""
 mutable struct DataTreatment{T}
     data::Vector{AbstractDataset}
     target::AbstractVector
-    # levels::Union{Nothing,AbstractVector}
     treats::Vector{TreatmentGroup}
 end
 
 nrows(dt::DataTreatment) = size(first(dt.data).data, 1)
 
-# get_levels(dt::DataTreatment) = dt.levels
 get_target(dt::DataTreatment) = dt.target
 
 function get_discrete(
@@ -20,9 +77,7 @@ function get_discrete(
     return if isempty(ds)
         Matrix{Union{Missing,CategoricalValue}}(undef, 0, 0), String[]
     else
-        data = get_data(ds)
-        Matrix{eltype(data)}(data),
-        reduce(vcat, get_vnames.(ds))
+        get_data(ds), reduce(vcat, get_vnames.(ds))
     end
 end
 
@@ -31,9 +86,9 @@ function get_continuous(
 ) where {T<:Float}
     ds = collect(filter(d -> d isa ContinuousDataset{T}, dt.data))
     return if isempty(ds)
-        Matrix{Union{Missing,T}}(undef, 0, 0), String[]
+        Matrix{T}(undef, 0, 0), String[]
     else
-        Matrix{Union{Missing,T}}(get_data(ds)), reduce(vcat, get_vnames.(ds))
+        get_data(ds), reduce(vcat, get_vnames.(ds))
     end
 end
 
@@ -43,33 +98,29 @@ function get_aggregated(
     ds = filter(d -> d isa MultidimDataset &&
         all(elt -> elt isa AggregateFeat{T}, get_info(d)), dt.data)
     return if isempty(ds)
-        Matrix{Union{Missing,T}}(undef, 0, 0), String[]
+        Matrix{T}(undef, 0, 0), String[]
     else
-        Matrix{Union{Missing,T}}(get_data(ds)), reduce(vcat, get_vnames.(ds))
+        (get_data(ds)), reduce(vcat, get_vnames.(ds))
     end
 end
 
 function get_reduced(
-    dt::DataTreatment{T};
-    force_type::Bool=false,
+    dt::DataTreatment{T}
 ) where {T<:Float}
     ds = filter(d -> d isa MultidimDataset &&
         all(elt -> elt isa ReduceFeat, get_info(d)), dt.data)
     return if isempty(ds)
-        force_type ?
-        (Matrix{VecOrMat{T}}(undef, 0, 0), String[]) :
-        (Matrix{Union{Missing,T,VecOrMat{T}}}(undef, 0, 0), String[])
+        (Matrix{VecOrMat{T}}(undef, 0, 0), String[])
     else
-        force_type ?
-        (Matrix{VecOrMat{T}}(get_data(ds)),
-            reduce(vcat, get_vnames.(ds))) :
-        (Matrix{Union{Missing,T,VecOrMat{T}}}(get_data(ds)),
-            reduce(vcat, get_vnames.(ds)))
+        (get_data(ds)), reduce(vcat, get_vnames.(ds))
     end
 end
 
 is_tabular(dt::DataTreatment) = all(is_tabular.(dt.data))
 is_multidim(dt::DataTreatment) = all(is_multidim.(dt.data))
+
+has_tabular(dt::DataTreatment) = any(is_tabular.(dt.data))
+has_multidim(dt::DataTreatment) = any(is_multidim.(dt.data))
 
 # ---------------------------------------------------------------------------- #
 #                                load dataset                                  #
@@ -121,7 +172,6 @@ function load_dataset(
         !isempty(ds_md) && append!(ds, ds_md)
     end
 
-    # return DataTreatment{float_type}(ds, ctarget, clevels, treats)
     return DataTreatment{float_type}(ds, target, treats)
 end
 
@@ -141,24 +191,20 @@ Convenience function to collect all tabular-like datasets from a `DataTreatment`
 object, including discrete, continuous, and aggregated multidimensional data.
 """
 @inline function get_tabular(
-    dt::DataTreatment{T};
-    force_type::Bool=false
+    dt::DataTreatment{T}
 ) where {T<:Float}
     mats = get_discrete(dt), get_continuous(dt), get_aggregated(dt)
     idxs = findall(x -> !(isempty(x)), map(first, mats))
 
-    isempty(idxs) && return force_type ?
-        (Matrix{T}(undef, 0,0), String[]) :
-        (Matrix{Union{Missing,T}}(undef, 0,0), String[])
-    not_empty = collect(zip(mats[idxs]...))
+    isempty(idxs) && return(
+        (Matrix{T}(undef, 0,0), String[])
+    )
 
-    X = if force_type
-        Matrix{Union{CategoricalValue,Int,T}}(reduce(hcat, not_empty[1]))
-    else
-        Matrix{Union{Missing,CategoricalValue,Int,T}}(reduce(hcat, not_empty[1]))
-    end
+    X = collect(zip(mats[idxs]...))
+    Tnew = unique(eltype.(X[1]))
+    data = Matrix{Union{Tnew...}}(reduce(hcat, X[1]))
 
-    return X, reduce(vcat, not_empty[2])
+    return (data, reduce(vcat, X[2]))
 end
 
 # ---------------------------------------------------------------------------- #
@@ -174,5 +220,8 @@ from a `DataTreatment` object.
     dt::DataTreatment{T};
     kwargs...
 ) where {T<:Float}
-    return get_reduced(dt; kwargs...)
+    data, vnames = get_reduced(dt; kwargs...)
+    any(ismissing.(data)) || (data = disallowmissing(data))
+
+    return data, vnames
 end

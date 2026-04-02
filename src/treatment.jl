@@ -65,15 +65,41 @@ function _build_ds(
     aggrfunc = get_aggrfunc(treat)
     valtype = datastruct.datatype
     groups = get_groupby(treat)
+    impute = get_impute(treat)
+    norm = get_norm(treat)
 
     td_ids = ids ∩ findall(T -> !(T <: Float) && !(T <: AbstractArray), valtype)
     tc_ids = ids ∩ findall(T -> T <: Float, valtype)
     md_ids = ids ∩ findall(T -> T <: AbstractArray, valtype)
 
     return (
-        DiscreteDataset(td_ids, data, vnames, datastruct),
-        ContinuousDataset(tc_ids, data, vnames, datastruct, float_type),
-        MultidimDataset(md_ids, data, vnames, datastruct, aggrfunc, float_type, groups)
+        DiscreteDataset(
+            td_ids,
+            data,
+            vnames,
+            datastruct,
+            impute
+        ),
+        ContinuousDataset(
+            tc_ids,
+            data,
+            vnames,
+            datastruct,
+            impute,
+            norm,
+            float_type
+        ),
+        MultidimDataset(
+            md_ids,
+            data,
+            vnames,
+            datastruct,
+            aggrfunc,
+            impute,
+            norm,
+            float_type,
+            groups
+        )
     )
 end
 

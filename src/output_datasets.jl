@@ -4,15 +4,35 @@
 """
     DiscreteFeat{T} <: AbstractDataFeature
 
-Metadata for a discrete (categorical) feature in a dataset.
+Metadata for a **discrete (categorical)** feature in a dataset.
 
-# Fields
-- `id::Int`: Unique identifier for the feature (column index in the source data).
-- `vname::String`: Original column name.
-- `levels::CategoricalArrays.CategoricalVector`: Categorical vector of levels.
-- `valididxs::Vector{Int}`: Indices of valid (non-missing) entries.
-- `missingidxs::Vector{Int}`: Indices of missing entries.
-- `datatype`: Original column datatype
+## Structure
+
+```
+DiscreteFeat{T}
+├── id          ::Int           # column index in the source data
+├── vname       ::String        # original column name
+├── valididxs   ::Vector{Int}   # row indices with valid (non-missing) values
+├── missingidxs ::Vector{Int}   # row indices with missing values
+└── datatype    ::Type          # original column datatype
+```
+
+## Example
+
+Given a column `"color"` at position `3` in the source data with 10 rows,
+where rows 4 and 7 are missing:
+
+```
+Source data column "color" (id=3)
+Row:  1       2       3       4        5       6       7        8       9       10
+Val: "red"  "blue" "green" missing  "red"  "blue"  missing  "green" "red"  "blue"
+
+→ id          = 3
+→ vname       = "color"
+→ valididxs   = [1, 2, 3, 5, 6, 8, 9, 10]
+→ missingidxs = [4, 7]
+→ datatype    = String
+```
 """
 struct DiscreteFeat{T} <: AbstractDataFeature
     id::Int
@@ -25,14 +45,35 @@ end
 """
     ContinuousFeat{T} <: AbstractDataFeature
 
-Metadata for a continuous (numeric scalar) feature in a dataset.
+Metadata for a **continuous (numeric scalar)** feature in a dataset.
 
-# Fields
-- `id::Int`: Unique identifier for the feature (column index in the source data).
-- `vname::String`: Original column name.
-- `valididxs::Vector{Int}`: Indices of valid (non-missing, non-NaN) entries.
-- `missingidxs::Vector{Int}`: Indices of missing entries.
-- `nanidxs::Vector{Int}`: Indices of NaN entries.
+## Structure
+
+```
+ContinuousFeat{T}
+├── id          ::Int           # column index in the source data
+├── vname       ::String        # original column name
+├── valididxs   ::Vector{Int}   # row indices with valid (non-missing, non-NaN) values
+├── missingidxs ::Vector{Int}   # row indices with missing values
+└── nanidxs     ::Vector{Int}   # row indices with NaN values
+```
+
+## Example
+
+Given a column `"temperature"` at position `2` in the source data with 8 rows,
+where row 3 is missing and row 6 contains NaN:
+
+```
+Source data column "temperature" (id=2)
+Row:  1      2      3        4      5      6      7      8
+Val: 22.1   19.5  missing  24.0   21.3   NaN   20.8   23.1
+
+→ id          = 2
+→ vname       = "temperature"
+→ valididxs   = [1, 2, 4, 5, 7, 8]
+→ missingidxs = [3]
+→ nanidxs     = [6]
+```
 """
 struct ContinuousFeat{T} <: AbstractDataFeature
     id::Int
@@ -45,20 +86,46 @@ end
 """
     AggregateFeat{T} <: AbstractDataFeature
 
-Metadata for an aggregated feature derived from a multidimensional column.
+Metadata for an **aggregated scalar** feature derived from a multidimensional column
+(e.g., a time series) via a feature function applied over a sliding window.
 
-# Fields
-- `id::Int`: Source column index.
-- `subid::Int`: Sub-feature index (for window/feature combinations).
-- `vname::String`: Original column name.
-- `dims::Int`: Dimensionality of the source data.
-- `feat::Base.Callable`: Aggregation function used.
-- `nwin::Int`: Window index.
-- `valididxs::Vector{Int}`: Indices of valid entries.
-- `missingidxs::Vector{Int}`: Indices of missing entries.
-- `nanidxs::Vector{Int}`: Indices of NaN entries.
-- `hasmissing::Vector{Int}`: Indices where the array contains internal `missing`.
-- `hasnans::Vector{Int}`: Indices where the array contains internal `NaN`.
+## Structure
+
+```
+AggregateFeat{T}
+├── id          ::Int            # source column index in the original data
+├── subid       ::Int            # position of this feature in the flattened output
+├── vname       ::String         # original column name
+├── dims        ::Int            # dimensionality of the source arrays
+├── feat        ::Base.Callable  # aggregation function (e.g., mean, std)
+├── nwin        ::Int            # window index this feature was computed on
+├── valididxs   ::Vector{Int}    # row indices with valid entries
+├── missingidxs ::Vector{Int}    # row indices where the cell is missing
+├── nanidxs     ::Vector{Int}    # row indices where the scalar result is NaN
+├── hasmissing  ::Vector{Int}    # row indices where the source array has internal `missing`
+└── hasnans     ::Vector{Int}    # row indices where the source array has internal `NaN`
+```
+
+## Example
+
+A column `"signal"` (id=1) contains time series of length 100.
+We apply `[mean, std]` over `2` sliding windows → 4 output columns:
+
+```
+Source column "signal" (id=1, dims=100)
+       ┌───────────────────────────────────────────────┐
+Row 1: │ [0.1, 0.3, ..., 0.9]     (length 100)         │
+Row 2: │ [0.2, missing, ..., 0.7] (has internal miss)  │
+Row 3: │ missing                  (whole cell missing) │
+       └───────────────────────────────────────────────┘
+           │
+           ▼  apply [mean, std] × 2 windows
+┌──────────────────────────────────────────────────────┐
+│  subid=1         subid=2         subid=3   subid=4   │
+│  feat=mean,win=1 feat=std,win=1  mean,win2 std,win2  │
+│  id=1            id=1            id=1      id=1      │
+└──────────────────────────────────────────────────────┘
+```
 """
 struct AggregateFeat{T} <: AbstractDataFeature
     id::Int
@@ -77,18 +144,42 @@ end
 """
     ReduceFeat{T} <: AbstractDataFeature
 
-Metadata for a reduced-size feature derived from a multidimensional column.
+Metadata for a **reduced-size** feature derived from a multidimensional column.
+Unlike [`AggregateFeat`](@ref), the output preserves the array structure but
+reduces its size (e.g., downsampling a 10 000-point time series to 256 points).
 
-# Fields
-- `id::Int`: Source column index.
-- `vname::String`: Original column name.
-- `dims::Int`: Dimensionality of the source data.
-- `reducefunc::Base.Callable`: Reduction function used.
-- `valididxs::Vector{Int}`: Indices of valid entries.
-- `missingidxs::Vector{Int}`: Indices of missing entries.
-- `nanidxs::Vector{Int}`: Indices of NaN entries.
-- `hasmissing::Vector{Int}`: Indices where the array contains internal `missing`.
-- `hasnans::Vector{Int}`: Indices where the array contains internal `NaN`.
+## Structure
+
+```
+ReduceFeat{T}
+├── id          ::Int            # source column index in the original data
+├── vname       ::String         # original column name
+├── dims        ::Int            # dimensionality of the source arrays
+├── reducefunc  ::Base.Callable  # reduction/downsampling function
+├── valididxs   ::Vector{Int}    # row indices with valid entries
+├── missingidxs ::Vector{Int}    # row indices where the cell is missing
+├── nanidxs     ::Vector{Int}    # row indices where the reduced result has NaN
+├── hasmissing  ::Vector{Int}    # row indices where source array has internal `missing`
+└── hasnans     ::Vector{Int}    # row indices where source array has internal `NaN`
+```
+
+## Example
+
+```
+Source column "audio" (id=5, dims=10000)
+       ┌────────────────────────────────────────────┐
+Row 1: │ [0.1, 0.2, ..., 0.9]  (length 10 000)      │
+Row 2: │ [0.3, NaN, ..., 0.5]  (has internal NaN)   │
+Row 3: │ missing               (whole cell missing) │
+       └────────────────────────────────────────────┘
+           │
+           ▼  apply reducefunc (e.g., downsample to 256)
+       ┌────────────────────────────────────────────┐
+Row 1: │ [0.12, 0.34, ..., 0.88]  (length 256)      │  ← valid
+Row 2: │ [0.31, 0.49, ..., 0.50]  (length 256)      │  ← hasnans=[2]
+Row 3: │ missing                                    │  ← missingidxs=[3]
+       └────────────────────────────────────────────┘
+```
 """
 struct ReduceFeat{T} <: AbstractDataFeature
     id::Int
@@ -149,40 +240,61 @@ _reindex_groups(
 #                           output dataset structs                             #
 # ---------------------------------------------------------------------------- #
 """
-    DiscreteDataset <: AbstractDataset
+    DiscreteDataset{T} <: AbstractDataset
 
-Output dataset for **discrete (categorical)** columns 
-collected by `DataTreatment`.
+Output dataset for **discrete (categorical)** columns collected by `DataTreatment`.
 
-# Fields
-- `data::AbstractMatrix`: Encoded integer-coded matrix 
-  (one column per discrete feature).
-  Each value is either an `Int` level code or `missing`.
-- `info::Vector{<:DiscreteFeat}`: Per-column metadata, 
-  including the original column name, categorical levels, validity indices, 
-  and an `id` vector tracing the column 
-  back to the source dataset and `TreatmentGroup`.
+## Structure
+
+```
+DiscreteDataset{T}
+├── data  ::AbstractMatrix          # integer-coded matrix (nrows × nfeatures)
+│                                   # values are Int level codes or missing
+└── info  ::Vector{<:DiscreteFeat}  # one DiscreteFeat entry per column
+```
+
+## Layout
+
+```
+Source DataFrame (mixed types)
+ ┌──────────┬──────────┬──────────┐
+ │ color    │ shape    │ size     │  ← discrete columns selected (ids=[1,2,3])
+ ├──────────┼──────────┼──────────┤
+ │ "red"    │ "circle" │ "small"  │
+ │ "blue"   │ missing  │ "large"  │
+ │ "red"    │ "square" │ "small"  │
+ └──────────┴──────────┴──────────┘
+         │
+         ▼  _discrete_encode
+ ┌──────────┬──────────┬──────────┐
+ │ col_1    │ col_2    │ col_3    │   data::AbstractMatrix
+ ├──────────┼──────────┼──────────┤   (integer-coded, Union{Int,Missing})
+ │    2     │    1     │    2     │
+ │    1     │  miss.   │    1     │
+ │    2     │    3     │    2     │
+ └──────────┴──────────┴──────────┘
+
+ info = [DiscreteFeat(id=1, vname="color",  ...),
+         DiscreteFeat(id=2, vname="shape",  ...),
+         DiscreteFeat(id=3, vname="size",   ...)]
+```
 
 # Constructors
 
-- `DiscreteDataset(
-        ids::Vector{Int},
-        data::AbstractMatrix,
-        vnames::Vector{String},
-        datastruct::NamedTuple
-    )`  
-  Internal constructor: selects columns `ids` from `data`, 
-  encodes them categorically, and builds the corresponding 
+- `DiscreteDataset(data, info)`: Direct constructor from pre-built matrix and metadata.
+- `DiscreteDataset(ids, data, vnames, datastruct, impute)`:
+  Internal constructor — selects columns `ids` from `data`, encodes them
+  categorically, optionally applies `impute`, and builds
   [`DiscreteFeat`](@ref) metadata from `datastruct`.
 
 ## Arguments for internal constructor
-- `ids::Vector{Int}`: Column indices to include in this dataset.
-- `data::AbstractMatrix`: The full raw dataset matrix.
+- `ids::Vector{Int}`: Column indices to include.
+- `data::AbstractMatrix`: Full raw dataset matrix.
 - `vnames::Vector{String}`: Names of all columns.
-- `datastruct::NamedTuple`: Pre-computed dataset metadata.
+- `datastruct::NamedTuple`: Pre-computed dataset metadata from `_inspecting`.
+- `impute`: `nothing` or a tuple of `Impute.Imputor`s to fill missing values.
 
-See also: [`ContinuousDataset`](@ref), [`MultidimDataset`](@ref), 
-[`DiscreteFeat`](@ref)
+See also: [`ContinuousDataset`](@ref), [`MultidimDataset`](@ref), [`DiscreteFeat`](@ref)
 """
 mutable struct DiscreteDataset{T} <: AbstractDataset
     data::AbstractMatrix
@@ -197,7 +309,8 @@ mutable struct DiscreteDataset{T} <: AbstractDataset
         ids::Vector{Int},
         data::AbstractMatrix,
         vnames::Vector{String},
-        datastruct::NamedTuple
+        datastruct::NamedTuple,
+        impute::Union{Nothing,Tuple{Vararg{<:Impute.Imputor}}}
     )
         codes = _discrete_encode(@views(data[:, ids]))
         vnames = vnames[ids]
@@ -205,8 +318,14 @@ mutable struct DiscreteDataset{T} <: AbstractDataset
         miss = datastruct.missingidxs[ids]
         datatype = datastruct.datatype[ids]
 
+        data = isempty(codes) ?
+            Matrix{eltype(codes)}(undef, 0, 0) :
+            stack(codes)
+
+        isnothing(impute) || (data = _impute(data, impute))
+
         return new{eltype(codes)}(
-            isempty(codes) ? Matrix{eltype(codes)}(undef, 0, 0) : stack(codes),
+            data,
             [DiscreteFeat{eltype(codes)}(
                 ids[i],
                 vnames[i],
@@ -224,38 +343,75 @@ end
 
 Output dataset for **continuous (numeric scalar)** columns produced by `DataTreatment`.
 
-Each selected column is cast to the target `float_type` (e.g., `Float64`), with
-`missing` values preserved. The resulting `data` matrix is a numeric matrix
-ready for downstream ML pipelines, and each column is described by a
-[`ContinuousFeat`](@ref) metadata entry in `info`.
+## Structure
+
+```
+ContinuousDataset{T}
+├── data  ::AbstractMatrix            # float matrix (nrows × nfeatures)
+│                                     # values are Union{Missing, T}
+└── info  ::Vector{<:ContinuousFeat}  # one ContinuousFeat entry per column
+```
+
+## Layout
+
+```
+Source DataFrame (mixed types)
+ ┌────────────┬──────────┬───────────┐
+ │temperature │ pressure │ humidity  │  ← continuous columns (ids=[4,5,6])
+ ├────────────┼──────────┼───────────┤
+ │  22.1      │  1013.0  │   55.3    │
+ │  missing   │  987.5   │   NaN     │
+ │  19.8      │  1001.2  │   60.1    │
+ └────────────┴──────────┴───────────┘
+         │
+         ▼  cast to float_type (e.g. Float64)
+ ┌────────────┬──────────┬───────────┐
+ │  col_4     │  col_5   │  col_6    │   data::Matrix{Union{Missing,Float64}}
+ ├────────────┼──────────┼───────────┤
+ │  22.1      │  1013.0  │   55.3    │
+ │  missing   │   987.5  │   NaN     │
+ │  19.8      │  1001.2  │   60.1    │
+ └────────────┴──────────┴───────────┘
+         │
+         ▼  normalize! (if norm != nothing)  e.g. NaNSafe{MinMaxNormalization{Float64}}
+ ┌────────────┬──────────┬───────────┐
+ │  col_4     │  col_5   │  col_6    │   data::Matrix{Float64}  (column-wise)
+ ├────────────┼──────────┼───────────┤
+ │   0.82     │   1.00   │   0.72    │
+ │  missing   │   0.00   │   NaN     │
+ │   0.00     │   0.54   │   1.00    │
+ └────────────┴──────────┴───────────┘
+
+ info = [ContinuousFeat(id=4, vname="temperature", nanidxs=[],  missingidxs=[2], ...),
+         ContinuousFeat(id=5, vname="pressure",    nanidxs=[],  missingidxs=[],  ...),
+         ContinuousFeat(id=6, vname="humidity",    nanidxs=[2], missingidxs=[],  ...)]
+```
+
+!!! note "Normalization order"
+    Imputation (if any) is applied **before** normalization.
+    NaN values produced by missing imputation are handled transparently via
+    `NaNSafe{norm{T}}`, which ignores NaNs when computing statistics.
 
 # Type Parameter
 - `T`: The floating-point type used for numeric conversion (e.g., `Float64`, `Float32`).
 
-# Fields
-- `data::AbstractMatrix`: Numeric matrix (one column per continuous feature), with
-  elements of type `Union{Missing, T}`.
-- `info::Vector{<:ContinuousFeat}`: Per-column metadata, including the original
-  column name, validity indices, missing indices, NaN indices, and an `id` vector
-  tracing the column back to the source dataset and `TreatmentGroup`.
-
 # Constructors
 
-- `ContinuousDataset(
-        ids::Vector{Int},
-        data::AbstractMatrix,
-        vnames::Vector{String},
-        datastruct::NamedTuple,
-        float_type::Type
-    )`  
-  Internal constructor: selects columns `ids` from `data`, converts each element to `float_type`
-  (preserving `missing`), and builds the corresponding [`ContinuousFeat`](@ref) metadata from `datastruct`.
+- `ContinuousDataset(data, info)`: Direct constructor from pre-built matrix and metadata.
+- `ContinuousDataset(ids, data, vnames, datastruct, impute, norm, float_type)`:
+  Internal constructor — selects columns `ids` from `data`, converts each element
+  to `float_type` (preserving `missing`), optionally applies `impute` and/or
+  `norm`, and builds [`ContinuousFeat`](@ref) metadata from `datastruct`.
 
 ## Arguments for internal constructor
-- `ids::Vector{Int}`: Column indices to include in this dataset.
-- `data::AbstractMatrix`: The full raw dataset matrix.
+- `ids::Vector{Int}`: Column indices to include.
+- `data::AbstractMatrix`: Full raw dataset matrix.
 - `vnames::Vector{String}`: Names of all columns.
-- `datastruct::NamedTuple`: Pre-computed dataset metadata.
+- `datastruct::NamedTuple`: Pre-computed dataset metadata from `_inspecting`.
+- `impute`: `nothing` or a tuple of `Impute.Imputor`s to fill missing values.
+- `norm`: `nothing` or a `Type{<:AbstractNormalization}` (e.g., `MinMax`,
+  `ZScore`) applied column-wise after imputation. NaN values
+  are handled via `NaNSafe{norm{T}}`.
 - `float_type::Type`: Target floating-point type for numeric conversion.
 
 See also: [`DiscreteDataset`](@ref), [`MultidimDataset`](@ref), [`ContinuousFeat`](@ref)
@@ -274,6 +430,8 @@ mutable struct ContinuousDataset{T} <: AbstractDataset
         data::AbstractMatrix,
         vnames::Vector{String},
         datastruct::NamedTuple,
+        impute::Union{Nothing,Tuple{Vararg{<:Impute.Imputor}}},
+        norm::Union{Type{<:AbstractNormalization},Nothing},
         float_type::Type
     )
         vnames = vnames[ids]
@@ -281,14 +439,25 @@ mutable struct ContinuousDataset{T} <: AbstractDataset
         miss = datastruct.missingidxs[ids]
         nan = datastruct.nanidxs[ids]
 
-        return new{float_type}(
-            isempty(ids) ?
-            Matrix{float_type}(undef, 0, 0) :
+        data = if isempty(ids)
+            Matrix{float_type}(undef, 0, 0)
+        else
             reduce(hcat, [map(x -> ismissing(x) ?
                 missing :
                 float_type(x), @view data[:, id])
                 for id in ids]
-            ),
+            )
+        end
+
+        isnothing(impute) || (data = _impute(data, impute))
+
+        if !isnothing(norm)
+            data = Impute.replace(data; values=NaN)
+            normalize!(data, NaNSafe{norm{float_type}}, dims=1)
+        end
+
+        return new{float_type}(
+            data,
             [ContinuousFeat{float_type}(
                 ids[i],
                 vnames[i],
@@ -302,70 +471,124 @@ mutable struct ContinuousDataset{T} <: AbstractDataset
 end
 
 """
-    MultidimDataset{T} <: AbstractDataset
+    MultidimDataset{T,S} <: AbstractDataset
 
-Output dataset for **multidimensional** columns produced by `DataTreatment`.
+Output dataset for **multidimensional** columns (e.g., time series, spectrograms)
+produced by `DataTreatment`. The layout depends on the chosen aggregation strategy:
 
-Handles columns whose elements are arrays (e.g., time series, spectrograms).
-The output format depends on the aggregation strategy chosen in the `TreatmentGroup`:
+---
 
-- **`aggregate`**: Each multidimensional element is flattened into multiple scalar
-  columns — one per (window, feature) combination. The resulting `data` is a
-  **tabular matrix** (not multidimensional), ready to be used alongside
-  [`DiscreteDataset`](@ref) and [`ContinuousDataset`](@ref) in standard ML
-  pipelines. Each column is described by an [`AggregateFeat`](@ref) entry.
+## Strategy 1 — `aggregate` → `S = AggregateFeat`
 
-- **`reducesize`**: Each element preserves its original dimensionality but is
-  reduced in size (e.g., downsampling from 10 000 points to 256). The resulting
-  `data` remains a matrix of arrays. Each column is described by a
-  [`ReduceFeat`](@ref) entry.
+Each multidimensional element is condensed into multiple **scalar columns**
+via feature functions applied over sliding windows.
 
-Every column carries an `id` vector that traces its provenance back to the
-original dataset column and `TreatmentGroup`, which is useful for groupby
-operations or auditing the source of each derived feature.
+```
+Source column "signal" (dims=1000)
+ ┌────────────────────────────────────┐
+ │ Row 1: [0.1, 0.2, ..., 0.9]        │
+ │ Row 2: [0.3, 0.4, ..., 0.8]        │
+ │ Row 3: missing                     │
+ └────────────────────────────────────┘
+         │
+         ▼  features=[mean, std], nwindows=2
+ ┌──────────┬─────────┬──────────┬─────────┐
+ │mean,win1 │std,win1 │mean,win2 │std,win2 │  data::Matrix{Float64}
+ ├──────────┼─────────┼──────────┼─────────┤  (tabular, nrows × n_feats×nwins)
+ │  0.312   │  0.098  │  0.601   │  0.112  │
+ │  0.421   │  0.077  │  0.699   │  0.085  │
+ │ missing  │ missing │ missing  │ missing │
+ └──────────┴─────────┴──────────┴─────────┘
+         │
+         ▼  normalize! (if norm != nothing)  e.g. NaNSafe{MinMaxNormalization{Float64}}
+ ┌──────────┬─────────┬──────────┬─────────┐
+ │mean,win1 │std,win1 │mean,win2 │std,win2 │  (column-wise normalization)
+ ├──────────┼─────────┼──────────┼─────────┤
+ │  0.00    │  0.28   │  0.00    │  0.00   │
+ │  1.00    │  0.00   │  1.00    │  1.00   │
+ │ missing  │ missing │ missing  │ missing │
+ └──────────┴─────────┴──────────┴─────────┘
+ info = [AggregateFeat(subid=1, feat=mean, nwin=1, ...),
+         AggregateFeat(subid=2, feat=std,  nwin=1, ...),
+         AggregateFeat(subid=3, feat=mean, nwin=2, ...),
+         AggregateFeat(subid=4, feat=std,  nwin=2, ...)]
+```
 
-# Type Parameter
-- `T`: The element type of the inner arrays (e.g., `Float64`), or the scalar
-  type when aggregation flattens the data.
+---
 
-# Fields
-- `data::AbstractArray`: The processed matrix. When using `aggregate`, this is a
-  scalar tabular matrix with one column per (feature × window × original column)
-  combination. When using `reducesize`, this is a matrix of reduced-size arrays.
-- `info::Vector{<:Union{AggregateFeat,ReduceFeat}}`: Per-column metadata. Contains
-  [`AggregateFeat`](@ref) entries when using `aggregate`, or [`ReduceFeat`](@ref)
-  entries when using `reducesize`. Each entry stores the original column name,
-  source dimensionality (`dims`), validity/missing/NaN indices, internal corruption
-  indices (`hasmissing`, `hasnans`), and the applied feature function or reduction
-  function.
-- `groups::Union{Nothing,Vector{Vector{Int}}}`: Optional column groupings for
-  grouped operations. Each inner vector contains column indices belonging to the
-  same group. `nothing` when no grouping is applied.
+## Strategy 2 — `reducesize` → `S = ReduceFeat`
+
+Each multidimensional element is **downsampled** to a smaller array,
+preserving the array structure.
+
+```
+Source column "audio" (dims=10000)
+ ┌────────────────────────────────────────┐
+ │ Row 1: [0.1, 0.2, ..., 0.9]  (10000)   │
+ │ Row 2: [0.3, NaN, ..., 0.8]  (10000)   │
+ │ Row 3: missing                         │
+ └────────────────────────────────────────┘
+         │
+         ▼  reducefunc = downsample(256)
+ ┌────────────────────────────────────────┐
+ │ Row 1: [0.12, 0.34, ..., 0.88]  (256)  │  data::Matrix{AbstractArray{Float64}}
+ │ Row 2: [0.31, 0.49, ..., 0.50]  (256)  │
+ │ Row 3: missing                         │
+ └────────────────────────────────────────┘
+         │
+         ▼  normalize! (if norm != nothing)  applied element-wise per array
+ ┌────────────────────────────────────────┐
+ │ Row 1: [0.00, 0.23, ..., 1.00]  (256)  │
+ │ Row 2: [0.00, 0.19, ..., 0.96]  (256)  │
+ │ Row 3: missing                         │
+ └────────────────────────────────────────┘
+ info = [ReduceFeat(id=5, vname="audio", dims=10000, reducefunc=..., ...)]
+```
+
+---
+
+## Structure
+
+```
+MultidimDataset{T, S}
+├── data    ::AbstractArray                              # processed data matrix
+├── info    ::Vector{<:Union{AggregateFeat,ReduceFeat}}  # per-column metadata
+└── groups  ::Union{Nothing, Vector{Vector{Int}}}        # optional column groupings
+             │
+             └─ e.g. groups = [[1,2,3,4], [5,6,7,8]]
+                means columns 1-4 belong to group 1 (source col A),
+                and columns 5-8 belong to group 2 (source col B)
+```
+
+!!! note "Normalization order"
+    Processing steps are applied in this order:
+    1. `aggrfunc`  — aggregation or downsampling
+    2. `impute`    — fill missing values (if provided)
+    3. `norm`      — column-wise normalization via `NaNSafe{norm{T}}` (if provided)
+
+# Type Parameters
+- `T`: Element type of the inner arrays (e.g., `Float64`).
+- `S`: Either `AggregateFeat` (tabular output) or `ReduceFeat` (array output).
 
 # Constructors
 
-- `MultidimDataset(
-        ids::Vector{Int},
-        data::AbstractMatrix,
-        vnames::Vector{String},
-        datastruct::NamedTuple,
-        aggrfunc::Base.Callable,
-        float_type::Type,
-        groups::Union{Nothing,Symbol,Tuple{Vararg{Symbol}}}
-    )`  
-  Internal constructor: selects columns `ids` from `data`, applies `aggrfunc` 
-  to transform the multidimensional elements,
-  and builds the corresponding metadata from `datastruct`.
+- `MultidimDataset(data, info::Vector{<:AggregateFeat}, groups)`: Direct constructor for aggregated data.
+- `MultidimDataset(data, info::Vector{<:ReduceFeat}, groups)`: Direct constructor for reduced data.
+- `MultidimDataset(ids, data, vnames, datastruct, aggrfunc, impute, norm, float_type, groups)`:
+  Internal constructor — selects columns `ids`, applies `aggrfunc`, optionally
+  applies `impute` and/or `norm`, and builds the corresponding metadata from `datastruct`.
 
 ## Arguments for internal constructor
-- `ids::Vector{Int}`: Column indices to include in this dataset.
-- `data::AbstractMatrix`: The full raw dataset matrix.
+- `ids::Vector{Int}`: Column indices to include.
+- `data::Matrix`: Full raw dataset matrix.
 - `vnames::Vector{String}`: Names of all columns.
-- `datastruct::NamedTuple`: Pre-computed dataset metadata.
-- `aggrfunc::Base.Callable`: The aggregation or reduction strategy.
-- `float_type::Type`: Target floating-point type for numeric conversion.
-- `groups::Union{Nothing,Symbol,Tuple{Vararg{Symbol}}}`: Grouping specification.
-  `nothing` disables grouping; a `Symbol` or tuple of `Symbol`s enables it.
+- `datastruct::NamedTuple`: Pre-computed metadata from `_inspecting`.
+- `aggrfunc::Base.Callable`: Strategy struct (e.g., `aggregate(...)` or `reducesize(...)`).
+- `impute`: `nothing` or a tuple of `Impute.Imputor`s.
+- `norm`: `nothing` or a `Type{<:AbstractNormalization}` (e.g., `MinMax`,
+  `ZScore`) applied column-wise after imputation via `NaNSafe{norm{T}}`.
+- `float_type::Type{T}`: Target floating-point type.
+- `groups`: `nothing` to disable grouping, or a `Tuple{Vararg{Symbol}}` to enable it.
 
 See also: [`DiscreteDataset`](@ref), [`ContinuousDataset`](@ref),
 [`AggregateFeat`](@ref), [`ReduceFeat`](@ref), [`aggregate`](@ref), [`reducesize`](@ref)
@@ -393,6 +616,8 @@ mutable struct MultidimDataset{T,S} <: AbstractDataset
         vnames::Vector{String},
         datastruct::NamedTuple,
         aggrfunc::F,
+        impute::Union{Nothing,Tuple{Vararg{<:Impute.Imputor}}},
+        norm::Union{Nothing,Type{<:AbstractNormalization}},
         float_type::Type{T},
         groups::Union{Nothing, Tuple{Vararg{Symbol}}}
     ) where {T<:Float, F<:Base.Callable}
@@ -407,13 +632,17 @@ mutable struct MultidimDataset{T,S} <: AbstractDataset
 
         md, nwindows = aggrfunc(data, valid, float_type)
 
-        md_feats = if hasfield(typeof(aggrfunc), :features)
+        if !isnothing(impute) && !isempty(md)
+            md = _impute(md, impute)
+        end
+
+        md_feats, md, grouped = if hasfield(typeof(aggrfunc), :features)
             tuples = Iterators.flatten((
                 ((c, f, n) for f in _get_features(aggrfunc) for n in 1:nwindows[c])
                 for c in eachindex(ids)
             ))
 
-            [AggregateFeat{float_type}(
+            md_feats = [AggregateFeat{float_type}(
                 ids[c],
                 j,
                 vnames[c],
@@ -426,8 +655,21 @@ mutable struct MultidimDataset{T,S} <: AbstractDataset
                 hasmiss[c],
                 hasnan[c]
             ) for (j, (c, f, n)) in enumerate(tuples)]
+
+            grouped = isnothing(groups) ?
+                _groupby(md_feats, (:vname,)) :
+                _groupby(md_feats, groups)
+
+            if !isnothing(norm) && !isempty(md)
+                Impute.replace!(md; values=NaN)
+                for i in grouped
+                    md[:,i] = normalize(md[:,i], NaNSafe{norm{float_type}})
+                end
+            end
+
+            md_feats, md, grouped
         else
-            [ReduceFeat{AbstractArray{float_type}}(
+            md_feats = [ReduceFeat{AbstractArray{float_type}}(
                 ids[i],
                 vnames[c],
                 dims[c],
@@ -435,11 +677,15 @@ mutable struct MultidimDataset{T,S} <: AbstractDataset
                 valid[c],
                 miss[c],
                 nan[c],
-                hasmiss[c],hasnan[c])
-                for (i, c) in enumerate(axes(md,2))]
-        end
+                hasmiss[c],hasnan[c]
+            ) for (i, c) in enumerate(axes(md,2))]
 
-        grouped = isnothing(groups) ? nothing : _groupby(md_feats, groups)
+            if !isnothing(norm) && !isempty(md)
+                md = normalize(md, NaNSafe{norm{float_type}}; dims=1)
+            end
+
+            md_feats, md, nothing
+        end
 
         new{float_type,eltype(md_feats)}(md, md_feats, grouped)
     end
@@ -479,6 +725,7 @@ is_tabular(d::AbstractDataset) = d isa Union{
 is_multidim(d::AbstractDataset) = isa(d, MultidimDataset{<:Any, ReduceFeat})
 
 get_vnames(d::AbstractDataset)::Vector{String} = get_vnames.(d.info)
+
 function get_vnames(
     ds::MultidimDataset{<:Any,<:AggregateFeat};
     groupby_split::Bool=false

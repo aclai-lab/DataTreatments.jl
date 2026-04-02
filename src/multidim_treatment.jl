@@ -140,10 +140,10 @@ function reducesize(
     reducefunc::Base.Callable,
 )
     isempty(X) && return (
-        Array{Union{Missing,float_type,Array{float_type}}}(undef, 0, 0), 0
+        Array{Union{Missing,Array{float_type}}}(undef, 0, 0), 0
     )
 
-    Xr = Array{Union{Missing,float_type,Array{float_type}}}(undef, size(X))
+    Xr = Array{Union{Missing,Array{float_type}}}(undef, size(X))
 
     @inbounds for colidx in axes(X, 2)
         for rowidx in axes(X, 1)
@@ -168,7 +168,7 @@ function reducesize(
 
                 Xr[rowidx, colidx] = reduced
             else
-                Xr[rowidx, colidx] = ismissing(x) ? x : float_type(x)
+                Xr[rowidx, colidx] = missing
             end
         end
     end
