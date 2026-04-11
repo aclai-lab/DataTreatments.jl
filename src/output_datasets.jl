@@ -207,7 +207,11 @@ get_nanidxs(d::AbstractDataFeature) = d.nanidxs
 # ---------------------------------------------------------------------------- #
 #                                   utils                                      #
 # ---------------------------------------------------------------------------- #
-_get_features(a::Base.Callable) = a.features
+function _get_features(a::Base.Callable)
+    features = a.features
+    return features isa Base.Callable ?
+        (features=(features,)) : features
+end
 _get_reducefunc(r::Base.Callable) = r.reducefunc
 
 """

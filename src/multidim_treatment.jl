@@ -42,11 +42,12 @@ function aggregate(
     idx::AbstractVector{Vector{Int}},
     float_type::Type;
     win::Union{Base.Callable,Tuple{Vararg{Base.Callable}}},
-    features::Tuple{Vararg{Base.Callable}}
+    features::Union{Base.Callable,Tuple{Vararg{Base.Callable}}}
 )
     isempty(X) && return (Matrix{Union{Missing,float_type}}(undef, 0, 0), 0)
 
     win isa Base.Callable && (win=(win,))
+    features isa Base.Callable && (features=(features,))
 
     colwin = [[n > length(win) ?
         last(win) :
@@ -105,7 +106,8 @@ Curried form that returns a closure `(X, idx, float_type) -> aggregate(X, idx, f
 """
 aggregate(;
     win::Union{Base.Callable,Tuple{Vararg{Base.Callable}}}=wholewindow(),
-    features::Tuple{Vararg{Base.Callable}}=(maximum, minimum, mean)
+    features::Union{Base.Callable,Tuple{Vararg{Base.Callable}}}=
+        (maximum, minimum, mean)
 ) = (x, i, ft) -> aggregate(x, i, ft; win, features)
 
 # ---------------------------------------------------------------------------- #
