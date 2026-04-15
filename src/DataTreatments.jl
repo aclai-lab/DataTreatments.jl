@@ -4,6 +4,7 @@ using Reexport
 
 using CategoricalArrays
 using DataFrames
+using Random
 using Catch22
 
 using Statistics: mean, median, std, cov
@@ -11,6 +12,19 @@ using Statistics: mean, median, std, cov
 using Impute
 @reexport using Impute: Interpolate, Impute.LOCF, Impute.NOCB
 @reexport using Impute: Impute.Substitute, Impute.SVD
+
+using Imbalance:
+    random_oversample,
+    random_walk_oversample,
+    rose,
+    smote,
+    borderline_smote1,
+    smoten,
+    smotenc,
+    random_undersample,
+    cluster_undersample,
+    enn_undersample,
+    tomek_undersample
 
 using Normalization
 
@@ -41,6 +55,11 @@ include("windowing.jl")
 
 include("impute.jl")
 
+export RandomOversampler, RandomWalkOversampler, ROSE, SMOTE
+export BorderlineSMOTE1, SMOTEN, SMOTENC, RandomUndersampler
+export ClusterUndersampler, ENNUndersampler, TomekUndersampler
+include("imbalance.jl")
+
 export ZScore, MinMax, Center, Sigmoid, UnitEnergy, UnitPower
 export Scale, ScaleMad, ScaleFirst, PNorm1, PNorm, PNormInf
 export MissingSafe, Robust
@@ -65,11 +84,10 @@ include("groupby.jl")
 
 export DataTreatment
 export nrows, ncols
-export get_target, get_treats
+export get_target, get_treats, get_balance
 export load_dataset
 include("load_dataset.jl")
 
-export get_target, get_levels
 export get_discrete, get_continuous
 export get_aggregated, get_reduced
 export get_tabular, get_multidim
