@@ -155,14 +155,12 @@ end
 struct SMOTENC{T} <: AbstractBalance
     balance::Base.Callable
     k::Int
-    knn_tree::AbstractString
     ratios::T
     rng::Int
     try_preserve_type::Bool
 
     function SMOTENC(;
         k::Int=5,
-        knn_tree::AbstractString="Brute",
         ratios::T=1.0,
         rng::Int=42,
         try_preserve_type::Bool=true
@@ -170,7 +168,6 @@ struct SMOTENC{T} <: AbstractBalance
         new{T}(
             _smotenc,
             k,
-            knn_tree,
             ratios,
             rng,
             try_preserve_type
@@ -179,8 +176,11 @@ struct SMOTENC{T} <: AbstractBalance
 end
 
 function _smotenc(X, y; kwargs...)
-    cat_inds = X isa AbstractMatrix{<:Union{Int,Union{Missing,Int}}} ? collect(1:size(X, 2)) : Int[]
-    smotenc(X, y, cat_inds; kwargs...)
+    if X isa AbstractMatrix{<:Union{Int,Union{Missing,Int}}}
+        smoten(X, y; kwargs...)
+    else
+        smote(X, y; kwargs...)
+    end
 end
 
 # ---------------------------------------------------------------------------- #
