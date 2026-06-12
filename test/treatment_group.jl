@@ -80,7 +80,8 @@ vnames = names(df)
     tg_vec = TreatmentGroup(datastruct, vnames; name_expr=["V1", "V3"])
     @test tg_vec.vnames == ["V1", "V3"]
 
-    tg_fun = TreatmentGroup(datastruct, vnames; name_expr=n -> endswith(n, "col"))
+    tg_fun = TreatmentGroup(
+        datastruct, vnames; name_expr=n -> endswith(n, "col"))
     @test all(endswith(n, "col") for n in tg_fun.vnames)
 
     tg_empty = TreatmentGroup(datastruct, vnames; name_expr=r"^ZZZZZ")
