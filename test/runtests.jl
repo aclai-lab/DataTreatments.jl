@@ -15,12 +15,13 @@ test_suites = [
     ("FeatureSet", ["featureset.jl",]),
     ("Windowing", ["windowing.jl",]),
     ("Dataset Inspect", ["inspecting.jl"]),
+    ("Dataset Imputation", ["impute.jl"]),
+    ("Imbalance", ["imbalance.jl"]),
     ("Load Dataset", ["load_dataset.jl"]),
     ("Examples", ["examples.jl"]),
     ("Multidim Treatments", ["multidim_treatment.jl",]),
     ("Treatment Groups", ["treatment_group.jl",]),
     ("DataTreatment", ["datatreatment.jl"]),
-    ("Imbalance", ["imbalance.jl"]),
 ]
 
 @testset "DataTreatments.jl" begin

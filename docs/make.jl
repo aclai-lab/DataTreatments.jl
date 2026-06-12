@@ -20,6 +20,8 @@ makedocs(;
         "Dataset Structure" => "dataset_structure.md",
         "Treatment Groups" => "treatment_group.md",
         "Treatments" => "treatment.md",
+        "Imputation" => "impute.md",
+        "Imbalance" => "imbalance.md",
         "FeatureSet" => "featureset.md",
         "Windowing" => "windowing.md",
     ],
