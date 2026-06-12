@@ -28,7 +28,7 @@ makedocs(;
 
 deploydocs(;
     repo = "github.com/PasoStudio73/DataTreatments.jl",
-    devbranch = "main",
+    devbranch = "dev",
     target = "build",
     branch = "gh-pages",
     versions = ["main" => "main", "stable" => "v^", "v#.#", "dev" => "dev"],

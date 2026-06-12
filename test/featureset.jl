@@ -6,15 +6,14 @@ using Statistics
 using Catch22
 
 @testset "FeatureSet" begin
-
-    # A simple deterministic time series for reproducible results
+    # a simple deterministic time series for reproducible results
     ts = collect(1.0:100.0)
-    # A more varied signal for catch22 features
+    # a more varied signal for catch22 features
     ts_varied = Float64[sin(2π * i / 20) + 0.5 * cos(2π * i / 7) for i in 1:200]
 
-    # ------------------------------------------------------------------ #
-    #                   Catch22 pretty-named wrappers                    #
-    # ------------------------------------------------------------------ #
+# ---------------------------------------------------------------------------- #
+#                        Catch22 pretty-named wrappers                         #
+# ---------------------------------------------------------------------------- #
     @testset "Catch22 wrappers return scalars" begin
         fns = [
             DT.mode_5,
@@ -48,37 +47,59 @@ using Catch22
         end
     end
 
-    # ------------------------------------------------------------------ #
-    #                     Wrapper consistency                             #
-    # ------------------------------------------------------------------ #
+# ---------------------------------------------------------------------------- #
+#                             wrapper consistency                              #
+# ---------------------------------------------------------------------------- #
     @testset "Wrappers match Catch22 originals" begin
-        @test DT.mode_5(ts_varied) == Catch22.DN_HistogramMode_5(ts_varied)
-        @test DT.mode_10(ts_varied) == Catch22.DN_HistogramMode_10(ts_varied)
-        @test DT.acf_timescale(ts_varied) == Catch22.CO_f1ecac(ts_varied)
-        @test DT.acf_first_min(ts_varied) == Catch22.CO_FirstMin_ac(ts_varied)
-        @test DT.ami2(ts_varied) == Catch22.CO_HistogramAMI_even_2_5(ts_varied)
-        @test DT.trev(ts_varied) == Catch22.CO_trev_1_num(ts_varied)
-        @test DT.embedding_dist(ts_varied) == Catch22.CO_Embed2_Dist_tau_d_expfit_meandiff(ts_varied)
-        @test DT.outlier_timing_pos(ts_varied) == Catch22.DN_OutlierInclude_p_001_mdrmd(ts_varied)
-        @test DT.outlier_timing_neg(ts_varied) == Catch22.DN_OutlierInclude_n_001_mdrmd(ts_varied)
-        @test DT.whiten_timescale(ts_varied) == Catch22.FC_LocalSimple_mean1_tauresrat(ts_varied)
-        @test DT.forecast_error(ts_varied) == Catch22.FC_LocalSimple_mean3_stderr(ts_varied)
-        @test DT.ami_timescale(ts_varied) == Catch22.IN_AutoMutualInfoStats_40_gaussian_fmmi(ts_varied)
-        @test DT.high_fluctuation(ts_varied) == Catch22.MD_hrv_classic_pnn40(ts_varied)
-        @test DT.stretch_decreasing(ts_varied) == Catch22.SB_BinaryStats_diff_longstretch0(ts_varied)
-        @test DT.stretch_high(ts_varied) == Catch22.SB_BinaryStats_mean_longstretch1(ts_varied)
-        @test DT.entropy_pairs(ts_varied) == Catch22.SB_MotifThree_quantile_hh(ts_varied)
-        @test DT.rs_range(ts_varied) == Catch22.SC_FluctAnal_2_rsrangefit_50_1_logi_prop_r1(ts_varied)
-        @test DT.dfa(ts_varied) == Catch22.SC_FluctAnal_2_dfa_50_1_2_logi_prop_r1(ts_varied)
-        @test DT.low_freq_power(ts_varied) == Catch22.SP_Summaries_welch_rect_area_5_1(ts_varied)
-        @test DT.centroid_freq(ts_varied) == Catch22.SP_Summaries_welch_rect_centroid(ts_varied)
-        @test DT.transition_variance(ts_varied) == Catch22.SB_TransitionMatrix_3ac_sumdiagcov(ts_varied)
-        @test DT.periodicity(ts_varied) == Catch22.PD_PeriodicityWang_th0_01(ts_varied)
+        @test DT.mode_5(ts_varied) == 
+            Catch22.DN_HistogramMode_5(ts_varied)
+        @test DT.mode_10(ts_varied) == 
+            Catch22.DN_HistogramMode_10(ts_varied)
+        @test DT.acf_timescale(ts_varied) == 
+            Catch22.CO_f1ecac(ts_varied)
+        @test DT.acf_first_min(ts_varied) == 
+            Catch22.CO_FirstMin_ac(ts_varied)
+        @test DT.ami2(ts_varied) == 
+            Catch22.CO_HistogramAMI_even_2_5(ts_varied)
+        @test DT.trev(ts_varied) == 
+            Catch22.CO_trev_1_num(ts_varied)
+        @test DT.embedding_dist(ts_varied) ==
+            Catch22.CO_Embed2_Dist_tau_d_expfit_meandiff(ts_varied)
+        @test DT.outlier_timing_pos(ts_varied) ==
+            Catch22.DN_OutlierInclude_p_001_mdrmd(ts_varied)
+        @test DT.outlier_timing_neg(ts_varied) == 
+            Catch22.DN_OutlierInclude_n_001_mdrmd(ts_varied)
+        @test DT.whiten_timescale(ts_varied) == 
+            Catch22.FC_LocalSimple_mean1_tauresrat(ts_varied)
+        @test DT.forecast_error(ts_varied) == 
+            Catch22.FC_LocalSimple_mean3_stderr(ts_varied)
+        @test DT.ami_timescale(ts_varied) == 
+            Catch22.IN_AutoMutualInfoStats_40_gaussian_fmmi(ts_varied)
+        @test DT.high_fluctuation(ts_varied) == 
+            Catch22.MD_hrv_classic_pnn40(ts_varied)
+        @test DT.stretch_decreasing(ts_varied) == 
+            Catch22.SB_BinaryStats_diff_longstretch0(ts_varied)
+        @test DT.stretch_high(ts_varied) == 
+            Catch22.SB_BinaryStats_mean_longstretch1(ts_varied)
+        @test DT.entropy_pairs(ts_varied) == 
+            Catch22.SB_MotifThree_quantile_hh(ts_varied)
+        @test DT.rs_range(ts_varied) == 
+            Catch22.SC_FluctAnal_2_rsrangefit_50_1_logi_prop_r1(ts_varied)
+        @test DT.dfa(ts_varied) == 
+            Catch22.SC_FluctAnal_2_dfa_50_1_2_logi_prop_r1(ts_varied)
+        @test DT.low_freq_power(ts_varied) == 
+            Catch22.SP_Summaries_welch_rect_area_5_1(ts_varied)
+        @test DT.centroid_freq(ts_varied) == 
+            Catch22.SP_Summaries_welch_rect_centroid(ts_varied)
+        @test DT.transition_variance(ts_varied) == 
+            Catch22.SB_TransitionMatrix_3ac_sumdiagcov(ts_varied)
+        @test DT.periodicity(ts_varied) == 
+            Catch22.PD_PeriodicityWang_th0_01(ts_varied)
     end
 
-    # ------------------------------------------------------------------ #
-    #                        Feature set tuples                          #
-    # ------------------------------------------------------------------ #
+# ---------------------------------------------------------------------------- #
+#                              featureset tuples                               #
+# ---------------------------------------------------------------------------- #
     @testset "base_set" begin
         bs = DT.base_set
 
@@ -89,7 +110,7 @@ using Catch22
         @test mean in bs
         @test std in bs
 
-        # All functions should work on a simple time series
+        # all functions should work on a simple time series
         for f in bs
             @test f(ts) isa Real
         end
@@ -179,9 +200,9 @@ using Catch22
         end
     end
 
-    # ------------------------------------------------------------------ #
-    #                        Set relationships                           #
-    # ------------------------------------------------------------------ #
+# ---------------------------------------------------------------------------- #
+#                             set relationships                                #
+# ---------------------------------------------------------------------------- #
     @testset "Set containment relationships" begin
         # base_set ⊂ complete_set
         for f in DT.base_set
