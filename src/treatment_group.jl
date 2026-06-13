@@ -14,17 +14,20 @@ const TreatType = Dict(
 """
     TreatmentGroup
 
-A user-defined directive that specifies **which columns to select** from a dataset
-and **how to process** them inside `load_dataset`.
+A user-defined directive that specifies **which columns to select**
+from a dataset and **how to process** them inside
+[`load_dataset`](@ref).
 
 Each `TreatmentGroup` encodes two orthogonal concerns:
 
-1. **Column selection** — filter columns by name, dimensionality, or data type.
-2. **Processing directives** — how to handle multidimensional columns, missing
-   values, normalization, and output grouping.
+1. **Column selection** — filter columns by name, dimensionality,
+   or data type.
+2. **Processing directives** — how to handle multidimensional
+   columns, missing values, normalization, and output grouping.
 
-Multiple `TreatmentGroup`s can be passed to `load_dataset`; each produces its own
-set of [`AbstractDataset`](@ref) entries inside the resulting [`DataTreatment`](@ref).
+Multiple `TreatmentGroup`s can be passed to `load_dataset`; each
+produces its own set of [`AbstractDataset`](@ref) entries inside
+the resulting [`DataTreatment`](@ref).
 
 ---
 
@@ -32,11 +35,18 @@ set of [`AbstractDataset`](@ref) entries inside the resulting [`DataTreatment`](
 
 Columns are included when **all** active filters match:
 
-| Field        | Type                                          | Effect                                             |
-|--------------|-----------------------------------------------|----------------------------------------------------|
-| `dims`       | `Int`                                         | Keep only columns whose array length equals `dims`; `-1` disables this filter |
-| `name_expr`  | `Regex` / `Base.Callable` / `Vector{String}`  | Keep columns whose name matches the pattern/predicate/list |
-| `datatype`   | `Symbol`                                      | `:discrete`, `:continuous`, `:multidim`, or `:all` |
+| Field       | Type                                    | Default  |
+|:------------|:----------------------------------------|:---------|
+| `dims`      | `Int`                                   | `-1`     |
+| `name_expr` | `Regex` / `Base.Callable` / `Vector`    | `r".*"`  |
+| `datatype`  | `Symbol`                                | `:all`   |
+
+- `dims`: Keep only columns whose array length equals `dims`.
+  `-1` disables the filter.
+- `name_expr`: Keep columns whose name matches the regex,
+  satisfies the predicate, or is in the string vector.
+- `datatype`: One of `:discrete`, `:continuous`, `:multidim`,
+  or `:all`.
 
 ```
 All columns in the dataset
@@ -46,22 +56,35 @@ All columns in the dataset
         └─ name_expr filter   (skip if name_expr == r".*")
                 │
                 ▼
-        ids ::Vector{Int}   ← indices of the surviving columns
+        ids ::Vector{Int}
 ```
 
 ---
 
 ## Processing Directives
 
-Once columns are selected, the following fields govern how they are processed:
+| Field      | Type                                         | Default  |
+|:-----------|:---------------------------------------------|:---------|
+| `aggrfunc` | `Base.Callable`                              | see below|
+| `grouped`  | `Bool`                                       | `false`  |
+| `groupby`  | `Nothing` / `Tuple{Vararg{Symbol}}`          | `nothing`|
+| `impute`   | `Nothing` / `Tuple{Vararg{Imputor}}`         | `nothing`|
+| `norm`     | `Nothing` / `Type{<:AbstractNormalization}`  | `nothing`|
 
-| Field      | Type                                        | Effect                                                                                                    |
-|------------|---------------------------------------------|-----------------------------------------------------------------------------------------------------------|
-| `aggrfunc` | `Base.Callable`                             | Applied to multidimensional columns: `aggregate(...)` → scalar matrix; `reducesize(...)` → smaller arrays |
-| `grouped`  | `Bool`                                      | `false` (default): process each column independently; `true`: process all selected columns jointly        |
-| `groupby`  | `Nothing` / `Tuple{Vararg{Symbol}}`         | Partition output features by `:vname`, window index, or feature type                                      |
-| `impute`   | `Nothing` / `Tuple{Vararg{Imputor}}`        | Imputation strategy applied after encoding/aggregation                                                    |
-| `norm`     | `Nothing` / `Type{<:AbstractNormalization}` | Normalization applied to the output matrix                                                                |
+- `aggrfunc`: Applied to multidimensional columns.
+  - [`aggregate`](@ref)`(...)` → scalar tabular output.
+  - [`reducesize`](@ref)`(...)` → smaller array output.
+  - Default: `aggregate(win=(wholewindow(),),
+    features=(maximum, minimum, mean))`.
+- `grouped`: If `true`, all selected columns are processed
+  jointly rather than independently.
+- `groupby`: Partition output features by `:vname`, window
+  index, or feature type. Accepts a single `Symbol` or a
+  `Tuple{Vararg{Symbol}}`.
+- `impute`: Imputation chain applied after encoding or
+  aggregation (e.g. `(LOCF(), NOCB())`).
+- `norm`: Normalization type applied to the output matrix
+  (e.g. `MinMax`, `ZScore`).
 
 ---
 
@@ -69,72 +92,98 @@ Once columns are selected, the following fields govern how they are processed:
 
 ```
 TreatmentGroup
-├── ids       ::Vector{Int}                                  # selected column indices
-├── dims      ::Int                                          # dimensionality filter used
-├── vnames    ::Vector{String}                               # names of selected columns
-├── aggrfunc  ::Base.Callable                                # multidim processing strategy
-├── grouped   ::Bool                                         # joint vs columnwise processing
-├── groupby   ::Union{Nothing,Tuple{Vararg{Symbol}}}         # output feature partitioning
-├── impute    ::Union{Nothing,Tuple{Vararg{Imputor}}}        # imputation strategy
-├── norm      ::Union{Nothing,Type{<:AbstractNormalization}} # normalization
-└── datatype  ::Type                                         # typejoin of selected column types
+├── ids      ::Vector{Int}
+├── dims     ::Int
+├── vnames   ::Vector{String}
+├── aggrfunc ::Base.Callable
+├── grouped  ::Bool
+├── groupby  ::Union{Nothing,Tuple{Vararg{Symbol}}}
+├── impute   ::Union{Nothing,Tuple{Vararg{Imputor}}}
+├── norm     ::Union{Nothing,Type{<:AbstractNormalization}}
+└── datatype ::Type
 ```
 
 ---
 
-## Usage
+## Constructors
 
-`TreatmentGroup` is most conveniently created in **curried form** and passed
-directly to [`load_dataset`](@ref):
+### Direct constructor
 
 ```julia
-# Select all continuous columns and normalize them
-t1 = TreatmentGroup(datatype=:continuous, norm=MinMaxNormalization)
+TreatmentGroup(datastruct, vnames; kwargs...)
+```
 
-# Select time-series columns matching "signal_*", aggregate with mean/std over 3 windows
+Called internally by `load_dataset`. Runs the three column
+filters on `datastruct` (output of `_inspecting`) and builds
+the group.
+
+### Curried constructor
+
+```julia
+TreatmentGroup(; kwargs...)
+```
+
+Returns a `(datastruct, vnames) -> TreatmentGroup` closure.
+This is the form expected by `load_dataset`:
+
+```julia
+dt = load_dataset(df, y, TreatmentGroup(datatype=:continuous))
+```
+
+---
+
+## Output mapping
+
+```
+TreatmentGroup
+        │
+        ├─ discrete columns
+        │    └─▶ DiscreteDataset{T}
+        │
+        ├─ continuous columns
+        │    └─▶ ContinuousDataset{T}
+        │
+        └─ multidim columns
+             ├─ aggrfunc = aggregate(...)
+             │    └─▶ MultidimDataset{T, AggregateFeat}
+             └─ aggrfunc = reducesize(...)
+                  └─▶ MultidimDataset{T, ReduceFeat}
+```
+
+---
+
+## Examples
+
+```julia
+# normalize all continuous columns with MinMax
+t1 = TreatmentGroup(datatype=:continuous, norm=MinMax)
+
+# aggregate signal columns with mean/std over 3 sliding windows
 t2 = TreatmentGroup(
-    name_expr  = r"^signal_",
-    datatype   = :multidim,
-    aggrfunc   = aggregate(win=slidingwindows(3), features=(mean, std)),
-    groupby    = :vname
+    name_expr = r"^signal_",
+    datatype  = :multidim,
+    aggrfunc  = aggregate(
+        win      = slidingwindows(3),
+        features = (mean, std),
+    ),
+    groupby = :vname,
 )
 
-# Select audio columns and downsample to 256 points
+# downsample audio columns to 256 points
 t3 = TreatmentGroup(
     name_expr = r"^audio_",
     datatype  = :multidim,
-    aggrfunc  = reducesize(256)
+    aggrfunc  = reducesize(256),
 )
 
 dt = load_dataset(df, target, t1, t2, t3)
 ```
 
----
-
-## How Each Group Maps to Output Datasets
-
-```
-TreatmentGroup (user directive)
-        │
-        ├─ selected discrete columns
-        │       └─▶ DiscreteDataset{T}
-        │
-        ├─ selected continuous columns
-        │       └─▶ ContinuousDataset{T}
-        │
-        └─ selected multidim columns
-                ├─ aggrfunc = aggregate(...)
-                │       └─▶ MultidimDataset{T, AggregateFeat}  (tabular)
-                └─ aggrfunc = reducesize(...)
-                        └─▶ MultidimDataset{T, ReduceFeat}     (array)
-```
-
-The curried form `TreatmentGroup(; kwargs...)` returns a `(datastruct, vnames) -> TreatmentGroup`
-closure, which is the expected input signature for `load_dataset`.
-
-See also: [`load_dataset`](@ref), [`DataTreatment`](@ref),
-[`DiscreteDataset`](@ref), [`ContinuousDataset`](@ref), [`MultidimDataset`](@ref),
-[`aggregate`](@ref), [`reducesize`](@ref)
+# See Also
+[`load_dataset`](@ref), [`DataTreatment`](@ref),
+[`DiscreteDataset`](@ref), [`ContinuousDataset`](@ref),
+[`MultidimDataset`](@ref), [`aggregate`](@ref),
+[`reducesize`](@ref)
 """
 struct TreatmentGroup
     ids::Vector{Int}
@@ -152,7 +201,8 @@ struct TreatmentGroup
         vnames::Vector{String};
         dims::Int=-1,
         name_expr::Union{Regex,Base.Callable,Vector{String}}=r".*",
-        aggrfunc::F=aggregate(win=(wholewindow(),), features=(maximum, minimum, mean)),
+        aggrfunc::F=aggregate(
+            win=(wholewindow(),), features=(maximum, minimum, mean)),
         grouped::Bool=false,
         groupby::Union{Nothing,Symbol,Tuple{Vararg{Symbol}}}=nothing,
         impute::Union{Nothing,Tuple{Vararg{<:Impute.Imputor}}}=nothing,

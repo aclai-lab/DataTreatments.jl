@@ -159,7 +159,7 @@ end
 
     @test isa(dt_rt, DT.DataTreatment)
     @test get_target(dt_rt) == get_target(dt_orig)
-    @test nrows(dt_rt) == nrows(dt_orig)
+    @test DT.nrows(dt_rt) == DT.nrows(dt_orig)
 
     # Column count should be preserved
     orig_tab = get_tabular(dt_orig)
@@ -174,7 +174,7 @@ end
     # Round-trip with explicit DefaultTreatmentGroup
     dt_explicit = DT.load_dataset(dt_orig, DT.DefaultTreatmentGroup)
     @test isa(dt_explicit, DT.DataTreatment)
-    @test nrows(dt_explicit) == nrows(dt_orig)
+    @test DT.nrows(dt_explicit) == DT.nrows(dt_orig)
 
     # Round-trip with a custom treatment
     dt_custom = DT.load_dataset(
@@ -190,7 +190,7 @@ end
     )
     dt_rt_custom = DT.load_dataset(dt_custom)
     @test isa(dt_rt_custom, DT.DataTreatment)
-    @test nrows(dt_rt_custom) == nrows(dt_custom)
+    @test DT.nrows(dt_rt_custom) == DT.nrows(dt_custom)
 end
 
 n_rows = 100

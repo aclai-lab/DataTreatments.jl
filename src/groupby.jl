@@ -9,23 +9,26 @@
     throw(ArgumentError("Unknown field: $field"))
 
 """
-    _groupby(info::AbstractVector{<:AggregateFeat{T}}, fields::Tuple{Vararg{Symbol}}) where T
+    _groupby(info, fields) -> Vector{Vector{Int}}
 
-Perform hierarchical (multi-level) grouping by applying `_groupby` recursively
-on each sub-group for every field in `fields`, left to right.
+Perform hierarchical (multi-level) grouping by applying `_groupby`
+recursively on each sub-group for every field in `fields`,
+left to right.
 
 # Arguments
-- `info::AbstractVector{<:AggregateFeat{T}}`: Vector of `AggregateFeat` metadata
-  entries, one per feature column.
-- `fields::Tuple{Vararg{Symbol}}`: Ordered tuple of attribute symbols to group by
-  sequentially. Each element must be one of the symbols supported by
-  [`:dims`, `:vname`, `:nwin`, `:feat`.
+- `info::AbstractVector{<:AggregateFeat{T}}`: Vector of
+  [`AggregateFeat`](@ref) metadata entries, one per feature column.
+- `fields::Tuple{Vararg{Symbol}}`: Ordered tuple of attribute symbols
+  to group by sequentially. Each element must be one of:
+  `:dims`, `:vname`, `:nwin`, `:feat`.
 
 # Returns
-A `Vector{Vector{Int}}` where each inner vector contains the original column
-indices belonging to one leaf group in the hierarchical grouping.
+A `Vector{Vector{Int}}` where each inner vector contains the
+original column indices belonging to one leaf group in the
+hierarchical grouping.
 
-See also: [`_groupby(::AbstractVector{<:AggregateFeat}, ::Symbol)`](@ref)
+# See Also
+[`_groupby(::AbstractVector{<:AggregateFeat}, ::Symbol)`](@ref)
 """
 function _groupby(
     info::AbstractVector{<:AggregateFeat{T}},
@@ -47,30 +50,34 @@ function _groupby(
 end
 
 """
-    _groupby(info::AbstractVector{<:AggregateFeat{T}}, field::Symbol) where T
+    _groupby(info, field) -> Base.Generator
 
-Group feature metadata by a single attribute and return the corresponding
-original column indices for each unique value.
+Group feature metadata by a single attribute and return the
+corresponding original column indices for each unique value.
 
 # Arguments
-- `info::AbstractVector{<:AggregateFeat{T}}`: Vector of `AggregateFeat` metadata
-  entries, one per feature column.
-- `field::Symbol`: The attribute to group by. Must be one of the symbols supported
-  by [`:dims`, `:vname`, `:nwin`, `:feat`.
-  The special value `:all` returns each index as its own singleton group.
+- `info::AbstractVector{<:AggregateFeat{T}}`: Vector of
+  [`AggregateFeat`](@ref) metadata entries, one per feature column.
+- `field::Symbol`: The attribute to group by. Must be one of:
+  `:dims`, `:vname`, `:nwin`, `:feat`.
+  The special value `:all` returns each index as its own singleton
+  group (i.e. no grouping is performed).
 
 # Returns
-A generator yielding `Vector{Int}` groups, where each vector contains original
-column indices (obtained via `get_idx`) sharing the same value for `field`.
+A generator yielding `Vector{Int}` groups, where each vector
+contains the original column indices (obtained via `get_subid`)
+that share the same value for `field`.
 
-When `field == :all`, returns a generator yielding one index per element
-(i.e., no grouping is performed).
+When `field == :all`, returns a generator yielding one index per
+element.
 
 # Errors
-Throws `ArgumentError` (via `field_getter` if `field` is not a
+Throws `ArgumentError` via `field_getter` if `field` is not a
 recognised attribute name.
 
-See also: [`_groupby(::AbstractVector{<:AggregateFeat}, ::Tuple{Vararg{Symbol}})`](@ref)
+# See Also
+[`_groupby(::AbstractVector{<:AggregateFeat},
+::Tuple{Vararg{Symbol}})`](@ref)
 """
 function _groupby(
     info::AbstractVector{<:AggregateFeat{T}},

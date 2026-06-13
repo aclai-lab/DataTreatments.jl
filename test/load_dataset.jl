@@ -6,7 +6,6 @@ using DataFrames
 using Random
 using CategoricalArrays
 using Statistics
-using Impute
 
 # ---------------------------------------------------------------------------- #
 #                                  test data                                   #
@@ -24,11 +23,27 @@ function build_test_df()
         int_col  = Int[10, 20, 30, 40, 50],
         V1       = [NaN, missing, 3.0, 4.0, 5.6],
         V2       = [2.5, missing, 4.5, 5.5, NaN],
-        ts1      = [missing, collect(2.0:7.0), missing, collect(4.0:9.0), collect(5.0:10.0)],
+        ts1      = [
+            missing,
+            collect(2.0:7.0),
+            missing,
+            collect(4.0:9.0),
+            collect(5.0:10.0)
+        ],
         V4       = [4.1, NaN, NaN, 7.1, 5.5],
         V5       = [5.0, 6.0, 7.0, 8.0, 1.8],
-        ts2      = [collect(2.0:0.5:5.5), collect(1.0:0.5:4.5), collect(3.0:0.5:6.5), collect(4.0:0.5:7.5), missing],
-        ts3      = [[1.0, 1.2, 1.2, 2.6, NaN, 4.0, 4.2], missing, missing, missing, [3.0, NaN, 4.4, missing, 5.8, 7.0, 7.2]],
+        ts2      = [
+            collect(2.0:0.5:5.5),
+            collect(1.0:0.5:4.5),
+            collect(3.0:0.5:6.5),
+            collect(4.0:0.5:7.5),
+            missing
+        ],
+        ts3      = [
+            [1.0, 1.2, 1.2, 2.6, NaN, 4.0, 4.2],
+            missing, missing, missing,
+            [3.0, NaN, 4.4, missing, 5.8, 7.0, 7.2]
+        ],
         V3       = [3.2, 4.2, 5.2, missing, 2.4],
         ts4      = [
             [6.0, 5.2, missing, 4.4, 1.2, 3.6, 2.8],
@@ -100,13 +115,15 @@ end
     end
 
     @testset "datatype=:discrete" begin
-        dt = load_dataset(df, t_classif, TreatmentGroup(dims=0, datatype=:discrete))
+        dt = load_dataset(
+            df, t_classif, TreatmentGroup(dims=0, datatype=:discrete))
         data, vnames = get_discrete(dt)
         @test !isempty(vnames)
     end
 
     @testset "datatype=:continuous" begin
-        dt = load_dataset(df, t_classif, TreatmentGroup(dims=0, datatype=:continuous))
+        dt = load_dataset(
+            df, t_classif, TreatmentGroup(dims=0, datatype=:continuous))
         data, vnames = get_continuous(dt)
         @test !isempty(vnames)
         @test eltype(data) <: Union{Missing, AbstractFloat}
@@ -126,7 +143,8 @@ end
     end
 
     @testset "name_expr function" begin
-        dt = load_dataset(df, t_classif, TreatmentGroup(name_expr=n -> endswith(n, "col")))
+        dt = load_dataset(
+            df, t_classif, TreatmentGroup(name_expr=n -> endswith(n, "col")))
         _, vnames = get_tabular(dt)
         @test all(endswith(n, "col") for n in vnames)
     end
@@ -478,8 +496,16 @@ end
 @testset "Accessor methods" begin
     dt = load_dataset(df, t_classif,
         TreatmentGroup(dims=0),
-        TreatmentGroup(dims=1, aggrfunc=DT.aggregate(features=(mean,), win=(splitwindow(nwindows=2),))),
-        TreatmentGroup(dims=2, aggrfunc=reducesize(reducefunc=mean, win=(splitwindow(nwindows=2),)))
+        TreatmentGroup(
+            dims=1,
+            aggrfunc=DT.aggregate(
+                features=(mean,),win=(splitwindow(nwindows=2),))
+        ),
+        TreatmentGroup(
+            dims=2,
+            aggrfunc=reducesize(
+                reducefunc=mean, win=(splitwindow(nwindows=2),))
+        )
     )
 
     @testset "get_discrete" begin
@@ -525,11 +551,13 @@ end
     end
 
     @testset "empty returns on missing category" begin
-        dt_disc = load_dataset(df, t_classif, TreatmentGroup(dims=0, datatype=:discrete))
+        dt_disc = load_dataset(
+            df, t_classif, TreatmentGroup(dims=0, datatype=:discrete))
         data, vnames = get_continuous(dt_disc)
         @test isempty(vnames)
 
-        dt_cont = load_dataset(df, t_classif, TreatmentGroup(dims=0, datatype=:continuous))
+        dt_cont = load_dataset(
+            df, t_classif, TreatmentGroup(dims=0, datatype=:continuous))
         data, vnames = get_discrete(dt_cont)
         @test isempty(vnames)
     end

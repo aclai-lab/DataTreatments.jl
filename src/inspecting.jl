@@ -5,8 +5,7 @@ _isnanval(v) = v isa Float && isnan(v)
 _isarray(v) = v isa VecOrMat
 
 _to_str(v) = (ismissing(v) || (v isa Float && isnan(v))) ? missing : string(v)
-# _discrete_encode(X::AbstractMatrix) =
-#     [categorical(_to_str.(col)) for col in eachcol(X)]
+
 function _discrete_encode(X::AbstractMatrix)
     cats = [categorical(_to_str.(col)) for col in eachcol(X)]
     return [levelcode.(cat) for cat in cats]
@@ -19,7 +18,8 @@ _discrete_encode(x::AbstractVector) = categorical(_to_str.(x))
 """
     _inspecting(data::Matrix) -> NamedTuple
 
-Inspects a dataset provided as a column-wise matrix and extracts metadata for each column.
+Inspects a dataset provided as a column-wise matrix and extracts
+metadata for each column.
 
 # Output Fields
 
@@ -27,12 +27,16 @@ For each column:
 
 - `id::Vector{Int}`: Unique ID.
 - `datatype::Vector{Type}`: Data type.
-- `dims::Vector{Int}`: Dimensionality of array elements, scalar values will have `dims = 0`.
-- `valididxs::Vector{Vector{Int}}`: Indices of valid (non-`missing`, non-`NaN`) values for each column.
+- `dims::Vector{Int}`: Dimensionality of array elements; scalar values
+  have `dims = 0`.
+- `valididxs::Vector{Vector{Int}}`: Indices of valid (non-`missing`,
+  non-`NaN`) values for each column.
 - `missingidxs::Vector{Vector{Int}}`: Indices of `missing` values.
 - `nanidxs::Vector{Vector{Int}}`: Indices of `NaN` values.
-- `hasmissing::Vector{Vector{Int}}`: Indices of array elements that internally contain `missing` values.
-- `hasnans::Vector{Vector{Int}}`: Indices of array elements that internally contain `NaN` values.
+- `hasmissing::Vector{Vector{Int}}`: Indices of array elements that
+  internally contain `missing` values.
+- `hasnans::Vector{Vector{Int}}`: Indices of array elements that
+  internally contain `NaN` values.
 """
 function _inspecting(data::AbstractMatrix)
         ncols = size(data, 2)

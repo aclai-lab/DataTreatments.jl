@@ -7,7 +7,9 @@ using DataFrames
 using Random
 using Catch22
 
+using StatsBase: mad
 using Statistics: mean, median, std, cov
+using LinearAlgebra: norm
 
 using Impute
 @reexport using Impute: Interpolate, Impute.LOCF, Impute.NOCB

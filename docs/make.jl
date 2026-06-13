@@ -18,8 +18,12 @@ makedocs(;
     pages=[
         "Home" => "index.md",
         "Dataset Structure" => "dataset_structure.md",
+        "DataTreatment" => "datatreatment.md",
         "Treatment Groups" => "treatment_group.md",
         "Treatments" => "treatment.md",
+        "Imputation" => "impute.md",
+        "Imbalance" => "imbalance.md",
+        "Normalization" => "normalization.md",
         "FeatureSet" => "featureset.md",
         "Windowing" => "windowing.md",
     ],
