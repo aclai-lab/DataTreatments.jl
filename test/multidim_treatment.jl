@@ -18,7 +18,13 @@ function build_test_df()
         int_col  = Int[10, 20, 30, 40, 50],
         V1 = [NaN, missing, 3.0, 4.0, 5.6],
         V2 = [2.5, missing, 4.5, 5.5, NaN],
-        ts1 = [NaN, collect(2.0:7.0), missing, collect(4.0:9.0), collect(5.0:10.0)],
+        ts1 = [
+            NaN,
+            collect(2.0:7.0),
+            missing,
+            collect(4.0:9.0),
+            collect(5.0:10.0)
+        ],
         V4 = [4.1, NaN, NaN, 7.1, 5.5],
         V5 = [5.0, 6.0, 7.0, 8.0, 1.8],
         ts2 = [
@@ -120,9 +126,11 @@ a = reducesize(
     @test length(nw2) == length(img)
 
     # Spot check: known values for a windowed mean (if possible)
-    # For example, check that the first row, first feature is the mean of the first window of ts1
+    # For example, check that the first row,
+    # first feature is the mean of the first window of ts1
     # (if ts1[1] is NaN, should be missing or NaN)
-    if !ismissing(df.ts1[1]) && !(df.ts1[1] isa AbstractFloat && isnan(df.ts1[1]))
+    if !ismissing(df.ts1[1]) && 
+        !(df.ts1[1] isa AbstractFloat && isnan(df.ts1[1]))
         # Compute expected mean for first window of ts1
         win1 = DT.adaptivewindow(nwindows=5, overlap=0.4)(df.ts1[1])
         expected = mean(skipmissing(win1[1]))
