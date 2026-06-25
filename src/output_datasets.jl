@@ -767,9 +767,5 @@ function get_vnames(
     ds::MultidimDataset{<:Any,<:AggregateFeat};
     groupby_split::Bool=false
 )
-    names =
-        ["$(f.vname),$(f.feat),win:$(f.nwin)" for f in ds.info]
-    # groupby_split && has_groups(ds) ?
-    #     [names[g] for g in get_groups(ds)] :
-    #     names
+    ["$(f.vname)_$(f.feat)_win_$(f.nwin)" for f in ds.info]
 end
